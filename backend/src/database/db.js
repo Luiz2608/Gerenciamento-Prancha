@@ -5,7 +5,8 @@ import bcrypt from "bcryptjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const dbPath = path.join(__dirname, "..", "..", "database.sqlite");
+const defaultPath = path.join(__dirname, "..", "..", "database.sqlite");
+const dbPath = process.env.DATABASE_PATH || defaultPath;
 
 export const db = new Database(dbPath);
 
@@ -78,4 +79,3 @@ const truckExists = db.prepare("SELECT id FROM truck WHERE id = 1").get();
 if (!truckExists) {
   db.prepare("INSERT INTO truck (id, plate, model, year) VALUES (1, ?, ?, ?)").run(null, null, null);
 }
-

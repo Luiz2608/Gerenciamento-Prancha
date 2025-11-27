@@ -1,7 +1,10 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
+const base = process.env.BASE_PATH || "/Gerenciamento-Prancha/";
+
 export default defineConfig({
+  base,
   plugins: [react()],
   server: {
     port: 5173,
@@ -13,4 +16,3 @@ export default defineConfig({
     }
   }
 });
-
