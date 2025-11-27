@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import api from "../services/api.js";
+import { getDestinos, saveDestino, deleteDestino, getTiposServico, saveTipoServico, deleteTipoServico, getTruck, updateTruck, backupBlob } from "../services/storageService.js";
 
 export default function Admin() {
   const [dest, setDest] = useState([]);
@@ -9,23 +9,23 @@ export default function Admin() {
   const [sname, setSname] = useState("");
 
   const load = () => {
-    api.get("/admin/destinations").then((r) => setDest(r.data));
-    api.get("/admin/service-types").then((r) => setSvc(r.data));
-    api.get("/admin/truck").then((r) => setTruck({ plate: r.data?.plate || "", model: r.data?.model || "", year: r.data?.year?.toString() || "" }));
+    getDestinos().then((r) => setDest(r));
+    getTiposServico().then((r) => setSvc(r));
+    getTruck().then((r) => setTruck({ plate: r?.plate || "", model: r?.model || "", year: r?.year?.toString() || "" }));
   };
   useEffect(() => { load(); }, []);
 
-  const addDest = async () => { if (!dname) return; await api.post("/admin/destinations", { name: dname }); setDname(""); load(); };
-  const delDest = async (id) => { await api.delete(`/admin/destinations/${id}`); load(); };
-  const addSvc = async () => { if (!sname) return; await api.post("/admin/service-types", { name: sname }); setSname(""); load(); };
-  const delSvc = async (id) => { await api.delete(`/admin/service-types/${id}`); load(); };
-  const saveTruck = async () => { await api.put("/admin/truck", { ...truck, year: truck.year ? Number(truck.year) : null }); load(); };
+  const addDest = async () => { if (!dname) return; await saveDestino(dname); setDname(""); load(); };
+  const delDest = async (id) => { await deleteDestino(id); load(); };
+  const addSvc = async () => { if (!sname) return; await saveTipoServico(sname); setSname(""); load(); };
+  const delSvc = async (id) => { await deleteTipoServico(id); load(); };
+  const saveTruck = async () => { await updateTruck({ ...truck, year: truck.year ? Number(truck.year) : null }); load(); };
   const backup = async () => {
-    const r = await api.get("/admin/backup", { responseType: "blob" });
-    const url = URL.createObjectURL(r.data);
+    const blob = await backupBlob();
+    const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "database.sqlite";
+    a.download = "prancha_backup.json";
     a.click();
     URL.revokeObjectURL(url);
   };

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import api from "../services/api.js";
+import { login } from "../services/storageService.js";
 
 export default function Login() {
   const nav = useNavigate();
@@ -12,8 +12,8 @@ export default function Login() {
     e.preventDefault();
     setError("");
     try {
-      const r = await api.post("/auth/login", { username, password });
-      localStorage.setItem("token", r.data.token);
+      const r = await login(username, password);
+      localStorage.setItem("token", r.token);
       nav("/dashboard");
     } catch (err) {
       setError("Credenciais inválidas");

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
-import api from "../services/api.js";
+import { getMotoristas, getViagens, getViagem, saveViagem, updateViagem, deleteViagem } from "../services/storageService.js";
 
 export default function Trips() {
   const location = useLocation();
@@ -9,14 +9,13 @@ export default function Trips() {
   const [form, setForm] = useState({ date: "", driver_id: "", destination: "", service_type: "", description: "", start_time: "", end_time: "", km_start: "", km_end: "" });
   const [editing, setEditing] = useState(null);
 
-  const loadDrivers = () => api.get("/drivers").then((r) => setDrivers(r.data));
-  const loadTrips = () => api.get("/trips", { params: { page: 1, pageSize: 20 } }).then((r) => setItems(r.data.data));
+  const loadDrivers = () => getMotoristas().then((r) => setDrivers(r));
+  const loadTrips = () => getViagens({ page: 1, pageSize: 20 }).then((r) => setItems(r.data));
   useEffect(() => { loadDrivers(); loadTrips(); }, []);
   useEffect(() => {
     const id = new URLSearchParams(location.search).get("editId");
     if (id) {
-      api.get(`/trips/${id}`).then((r) => {
-        const it = r.data;
+      getViagem(id).then((it) => {
         setEditing(it);
         setForm({
           date: it.date || "",
@@ -41,8 +40,8 @@ export default function Trips() {
       km_start: form.km_start !== "" ? Number(form.km_start) : null,
       km_end: form.km_end !== "" ? Number(form.km_end) : null
     };
-    if (editing) await api.put(`/trips/${editing.id}`, payload);
-    else await api.post("/trips", payload);
+    if (editing) await updateViagem(editing.id, payload);
+    else await saveViagem(payload);
     setForm({ date: "", driver_id: "", destination: "", service_type: "", description: "", start_time: "", end_time: "", km_start: "", km_end: "" });
     setEditing(null);
     loadTrips();
@@ -63,7 +62,7 @@ export default function Trips() {
     });
   };
 
-  const del = async (id) => { await api.delete(`/trips/${id}`); loadTrips(); };
+  const del = async (id) => { await deleteViagem(id); loadTrips(); };
 
   return (
     <div className="space-y-8">

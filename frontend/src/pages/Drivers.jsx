@@ -1,20 +1,20 @@
 import { useEffect, useState } from "react";
-import api from "../services/api.js";
+import { getMotoristas, saveMotorista, updateMotorista, deleteMotorista } from "../services/storageService.js";
 
 export default function Drivers() {
   const [items, setItems] = useState([]);
   const [form, setForm] = useState({ name: "", cpf: "", cnh_category: "", status: "Ativo" });
   const [editing, setEditing] = useState(null);
 
-  const load = () => api.get("/drivers").then((r) => setItems(r.data));
+  const load = () => getMotoristas().then((r) => setItems(r));
   useEffect(() => { load(); }, []);
 
   const submit = async (e) => {
     e.preventDefault();
     if (editing) {
-      await api.put(`/drivers/${editing.id}`, form);
+      await updateMotorista(editing.id, form);
     } else {
-      await api.post("/drivers", form);
+      await saveMotorista(form);
     }
     setForm({ name: "", cpf: "", cnh_category: "", status: "Ativo" });
     setEditing(null);
@@ -27,7 +27,7 @@ export default function Drivers() {
   };
 
   const del = async (id) => {
-    await api.delete(`/drivers/${id}`);
+    await deleteMotorista(id);
     load();
   };
 

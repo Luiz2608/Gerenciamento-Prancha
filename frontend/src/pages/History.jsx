@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import api from "../services/api.js";
+import { getMotoristas, getViagens, exportCsv, exportPdf } from "../services/storageService.js";
 
 export default function History() {
   const nav = useNavigate();
@@ -12,14 +12,14 @@ export default function History() {
   const [filters, setFilters] = useState({ startDate: "", endDate: "", driverId: "", destination: "", status: "", search: "" });
   const [viewItem, setViewItem] = useState(null);
 
-  const loadDrivers = () => api.get("/drivers").then((r) => setDrivers(r.data));
-  const load = () => api.get("/trips", { params: { ...filters, page, pageSize } }).then((r) => { setItems(r.data.data); setTotal(r.data.total); });
+  const loadDrivers = () => getMotoristas().then((r) => setDrivers(r));
+  const load = () => getViagens({ ...filters, page, pageSize }).then((r) => { setItems(r.data); setTotal(r.total); });
   useEffect(() => { loadDrivers(); }, []);
   useEffect(() => { load(); }, [filters, page, pageSize]);
 
-  const exportCsv = async () => {
-    const r = await api.get("/export/csv", { params: filters, responseType: "blob" });
-    const url = URL.createObjectURL(r.data);
+  const doExportCsv = async () => {
+    const blob = await exportCsv(filters);
+    const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
     a.download = "viagens.csv";
@@ -27,9 +27,9 @@ export default function History() {
     URL.revokeObjectURL(url);
   };
 
-  const exportPdf = async () => {
-    const r = await api.get("/export/pdf", { params: filters, responseType: "blob" });
-    const url = URL.createObjectURL(r.data);
+  const doExportPdf = async () => {
+    const blob = await exportPdf(filters);
+    const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
     a.download = "relatorio.pdf";
@@ -55,8 +55,8 @@ export default function History() {
         </select>
         <input className="input" placeholder="Busca" value={filters.search} onChange={(e) => setFilters({ ...filters, search: e.target.value })} />
         <div className="md:col-span-6 flex gap-2">
-          <button className="btn btn-primary" onClick={exportCsv}>Exportar CSV</button>
-          <button className="btn btn-secondary" onClick={exportPdf}>Exportar PDF</button>
+          <button className="btn btn-primary" onClick={doExportCsv}>Exportar CSV</button>
+          <button className="btn btn-secondary" onClick={doExportPdf}>Exportar PDF</button>
         </div>
       </div>
       <div className="card p-6 overflow-x-auto">

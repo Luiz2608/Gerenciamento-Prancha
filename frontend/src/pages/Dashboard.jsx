@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import api from "../services/api.js";
+import { dashboard } from "../services/storageService.js";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts";
 
 const colors = ["#2563eb", "#38bdf8", "#22c55e", "#a78bfa", "#f59e0b", "#ef4444", "#14b8a6", "#0ea5e9"];
 
 export default function Dashboard() {
   const [data, setData] = useState(null);
-  useEffect(() => { api.get("/dashboard").then((r) => setData(r.data)); }, []);
+  useEffect(() => { dashboard().then((r) => setData(r)); }, []);
   if (!data) return <div className="animate-fade">Carregando...</div>;
   return (
     <div className="space-y-8 animate-fade">
