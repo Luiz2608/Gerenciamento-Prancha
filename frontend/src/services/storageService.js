@@ -19,7 +19,27 @@ const setDB = (db) => localStorage.setItem(KEY, JSON.stringify(db));
 async function fetchJson(path) { const r = await fetch(path); return r.json(); }
 
 export async function initLoad() {
-  if (getDB()) return getDB();
+  const existing = getDB();
+  if (existing) {
+    const db = existing;
+    db.motoristas = Array.isArray(db.motoristas) ? db.motoristas : [];
+    db.viagens = Array.isArray(db.viagens) ? db.viagens : [];
+    db.destinos = Array.isArray(db.destinos) ? db.destinos : [];
+    db.tipos_servico = Array.isArray(db.tipos_servico) ? db.tipos_servico : [];
+    db.usuarios = Array.isArray(db.usuarios) ? db.usuarios : [];
+    db.config = db.config || {};
+    db.caminhoes = Array.isArray(db.caminhoes) ? db.caminhoes : [];
+    db.pranchas = Array.isArray(db.pranchas) ? db.pranchas : [];
+    db.seq = db.seq || {};
+    db.seq.motoristas = Number.isFinite(db.seq.motoristas) ? db.seq.motoristas : (db.motoristas.reduce((m, x) => Math.max(m, x.id || 0), 0) + 1);
+    db.seq.viagens = Number.isFinite(db.seq.viagens) ? db.seq.viagens : (db.viagens.reduce((m, x) => Math.max(m, x.id || 0), 0) + 1);
+    db.seq.destinos = Number.isFinite(db.seq.destinos) ? db.seq.destinos : (db.destinos.reduce((m, x) => Math.max(m, x.id || 0), 0) + 1);
+    db.seq.tipos = Number.isFinite(db.seq.tipos) ? db.seq.tipos : (db.tipos_servico.reduce((m, x) => Math.max(m, x.id || 0), 0) + 1);
+    db.seq.caminhoes = Number.isFinite(db.seq.caminhoes) ? db.seq.caminhoes : (db.caminhoes.reduce((m, x) => Math.max(m, x.id || 0), 0) + 1);
+    db.seq.pranchas = Number.isFinite(db.seq.pranchas) ? db.seq.pranchas : (db.pranchas.reduce((m, x) => Math.max(m, x.id || 0), 0) + 1);
+    setDB(db);
+    return db;
+  }
   const [motoristas, viagens, destinos, tipos, usuarios, config, caminhoes, pranchas] = await Promise.all([
     fetchJson(files.motoristas),
     fetchJson(files.viagens),
