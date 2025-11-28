@@ -52,7 +52,7 @@ export default function FleetTrucks() {
           <input className="input" placeholder="Ano" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} />
           <input className="input" placeholder="Chassi" value={form.chassis} onChange={(e) => setForm({ ...form, chassis: e.target.value })} />
           <input className="input" placeholder="KM atual" value={form.km_current} onChange={(e) => setForm({ ...form, km_current: e.target.value })} />
-          <input className="input" placeholder="Frota" value={form.fleet} onChange={(e) => setForm({ ...form, fleet: e.target.value })} />
+          <input className="input" placeholder="Frota" value={form.fleet} maxLength={7} onChange={(e) => setForm({ ...form, fleet: e.target.value.replace(/\D/g, "").slice(0,7) })} />
           <select className="select" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
             <option>Ativo</option>
             <option>Manutenção</option>

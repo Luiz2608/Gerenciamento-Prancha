@@ -37,6 +37,16 @@ export default function Drivers() {
     toast?.show("Edição carregada", "info");
   };
 
+  const maskCpf = (v) => {
+    const d = String(v || "").replace(/\D/g, "").slice(0,11);
+    const p1 = d.slice(0,3);
+    const p2 = d.slice(3,6);
+    const p3 = d.slice(6,9);
+    const p4 = d.slice(9,11);
+    return [p1, p2, p3].filter(Boolean).join(".") + (p4 ? "-" + p4 : "");
+  };
+  const maskDigits = (v, n) => String(v || "").replace(/\D/g, "").slice(0, n || 20);
+
   const del = async (id) => { await deleteMotorista(id); toast?.show("Motorista excluído", "success"); load(); };
   const delConfirm = async (id) => { if (!window.confirm("Confirma excluir este motorista?")) return; await del(id); };
 
@@ -46,8 +56,8 @@ export default function Drivers() {
         <div className="font-semibold mb-4 text-secondary text-xl">Cadastro de Motoristas</div>
         <form onSubmit={submit} onKeyDown={handleFormKeyDown} className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <input className="input" placeholder="Nome" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          <input className="input" placeholder="CPF" value={form.cpf} onChange={(e) => setForm({ ...form, cpf: e.target.value })} />
-          <input className="input" placeholder="CNH" value={form.cnh_category} onChange={(e) => setForm({ ...form, cnh_category: e.target.value })} />
+          <input className="input" placeholder="CPF" value={form.cpf} onChange={(e) => setForm({ ...form, cpf: maskCpf(e.target.value) })} />
+          <input className="input" placeholder="CNH" value={form.cnh_category} onChange={(e) => setForm({ ...form, cnh_category: maskDigits(e.target.value, 12) })} />
           <select className="select" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
             <option>Ativo</option>
             <option>Inativo</option>

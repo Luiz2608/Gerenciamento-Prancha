@@ -60,6 +60,12 @@ export default function Trips() {
     return dt.getFullYear() === y && dt.getMonth() === mo && dt.getDate() === d;
   };
   const isValidTime = (hhmm) => /^([01]\d|2[0-3]):[0-5]\d$/.test(hhmm || "");
+  const maskTime = (v) => {
+    const d = String(v || "").replace(/\D/g, "").slice(0,4);
+    const h = d.slice(0,2);
+    const m = d.slice(2,4);
+    return [h, m].filter(Boolean).join(":");
+  };
   const toIsoDate = (ddmmyyyy) => {
     const [d, m, y] = ddmmyyyy.split("/").map(Number);
     return `${y}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
@@ -84,6 +90,7 @@ export default function Trips() {
       other_costs: form.other_costs !== "" ? Number(form.other_costs) : 0
     };
     if (!payload.date || !form.requester || !payload.driver_id || !payload.truck_id || !payload.prancha_id || !form.destination || !isValidTime(form.start_time) || form.km_start === "") { toast?.show("Data, solicitante, motorista, caminhão (frota), prancha, destino, hora saída e KM saída são obrigatórios", "error"); return; }
+    if (payload.km_end != null && payload.km_start != null && payload.km_end < payload.km_start) { toast?.show("KM final não pode ser menor que o KM inicial", "error"); return; }
     payload.requester = form.requester;
     if (editing) await updateViagem(editing.id, payload);
     else await saveViagem(payload);
@@ -139,7 +146,11 @@ export default function Trips() {
             <option value="">Motorista</option>
             {drivers.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
-          <select className={`select ${!form.truck_id && 'ring-red-500 border-red-500'}`} value={form.truck_id} onChange={(e) => setForm({ ...form, truck_id: e.target.value })}>
+          <select className={`select ${!form.truck_id && 'ring-red-500 border-red-500'}`} value={form.truck_id} onChange={(e) => {
+            const val = e.target.value;
+            const tr = trucks.find((t) => t.id === Number(val));
+            setForm({ ...form, truck_id: val, km_start: tr && tr.km_current != null ? String(tr.km_current) : form.km_start });
+          }}>
             <option value="">Caminhão (Frota)</option>
             {trucks.map((t) => <option key={t.id} value={t.id}>{t.fleet || t.plate || t.model || t.id}</option>)}
           </select>
@@ -153,10 +164,10 @@ export default function Trips() {
             {tipoOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
           </select>
           <input className="input md:col-span-4" placeholder="Descrição" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-          <input className={`input ${(!form.start_time || !isValidTime(form.start_time)) && 'ring-red-500 border-red-500'}`} placeholder="Hora saída (HH:MM)" value={form.start_time} onChange={(e) => setForm({ ...form, start_time: e.target.value })} />
-          <input className="input" placeholder="Hora retorno (HH:MM)" value={form.end_time} onChange={(e) => setForm({ ...form, end_time: e.target.value })} />
+          <input className={`input ${(!form.start_time || !isValidTime(form.start_time)) && 'ring-red-500 border-red-500'}`} placeholder="Hora saída (HH:MM)" value={form.start_time} onChange={(e) => setForm({ ...form, start_time: maskTime(e.target.value) })} />
+          <input className={`input ${form.end_time && !isValidTime(form.end_time) && 'ring-red-500 border-red-500'}`} placeholder="Hora retorno (HH:MM)" value={form.end_time} onChange={(e) => setForm({ ...form, end_time: maskTime(e.target.value) })} />
           <input className={`input ${form.km_start === '' && 'ring-red-500 border-red-500'}`} placeholder="KM inicial" value={form.km_start} onChange={(e) => setForm({ ...form, km_start: e.target.value })} />
-          <input className="input" placeholder="KM final" value={form.km_end} onChange={(e) => setForm({ ...form, km_end: e.target.value })} />
+          <input className={`input ${(form.km_end !== '' && form.km_start !== '' && Number(form.km_end) < Number(form.km_start)) && 'ring-red-500 border-red-500'}`} placeholder="KM final" value={form.km_end} onChange={(e) => setForm({ ...form, km_end: e.target.value })} />
           <input className="input" placeholder="Combustível (litros)" value={form.fuel_liters} onChange={(e) => setForm({ ...form, fuel_liters: e.target.value })} />
           <input className="input" placeholder="Valor combustível (R$/litro)" value={form.fuel_price} onChange={(e) => setForm({ ...form, fuel_price: e.target.value })} />
           <input className="input" placeholder="Outros custos (R$)" value={form.other_costs} onChange={(e) => setForm({ ...form, other_costs: e.target.value })} />
