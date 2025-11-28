@@ -31,9 +31,7 @@ export default function MainLayout() {
           <Link className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${isActive("/dashboard") ? "bg-accent/20 text-white" : "hover:bg-white/10"}`} to="/dashboard">🏠 <span>Dashboard</span></Link>
           <Link className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${isActive("/viagens") ? "bg-accent/20 text-white" : "hover:bg-white/10"}`} to="/viagens">🧭 <span>Viagens</span></Link>
           <Link className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${isActive("/motoristas") ? "bg-accent/20 text-white" : "hover:bg-white/10"}`} to="/motoristas">👨‍✈️ <span>Motoristas</span></Link>
-          <Link className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${isActive("/historico") ? "bg-accent/20 text-white" : "hover:bg-white/10"}`} to="/historico">🗂️ <span>Histórico</span></Link>
-          <Link className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${isActive("/historico-caminhao") ? "bg-accent/20 text-white" : "hover:bg-white/10"}`} to="/historico-caminhao">🗂️ <span>Histórico por Caminhão</span></Link>
-          <Link className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${isActive("/historico-prancha") ? "bg-accent/20 text-white" : "hover:bg-white/10"}`} to="/historico-prancha">🗂️ <span>Histórico por Prancha</span></Link>
+          <Link className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${isActive("/historico-unificado") ? "bg-accent/20 text-white" : "hover:bg-white/10"}`} to="/historico-unificado">🗂️ <span>Histórico (Unificado)</span></Link>
           <div className="mt-2">
             <div className="px-4 py-2 text-white/80">Frota</div>
             <Link className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${isActive("/frota/caminhoes") ? "bg-accent/20 text-white" : "hover:bg-white/10"}`} to="/frota/caminhoes">🚛 <span>Caminhão</span></Link>
@@ -52,10 +50,9 @@ export default function MainLayout() {
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary">👤</div>
               <div className="text-sm">Admin</div>
-              <label className="inline-flex items-center cursor-pointer">
-                <input type="checkbox" className="sr-only peer" checked={dark} onChange={() => setDark(!dark)} />
-                <div className="w-11 h-6 bg-slate-300 peer-checked:bg-primary rounded-full after:content-[''] after:w-5 after:h-5 after:bg-white after:rounded-full after:translate-x-1 peer-checked:after:translate-x-5 after:transition"></div>
-              </label>
+              <button className="btn" onClick={() => setDark(!dark)} title={dark ? "Modo claro" : "Modo escuro"}>
+                <span className="material-icons">{dark ? "light_mode" : "dark_mode"}</span>
+              </button>
             </div>
           </div>
         </header>

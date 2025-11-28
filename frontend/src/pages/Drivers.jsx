@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { getMotoristas, saveMotorista, updateMotorista, deleteMotorista } from "../services/storageService.js";
+import { useToast } from "../components/ToastProvider.jsx";
 
 export default function Drivers() {
+  const toast = useToast();
   const [items, setItems] = useState([]);
   const [form, setForm] = useState({ name: "", cpf: "", cnh_category: "", status: "Ativo" });
   const [editing, setEditing] = useState(null);
@@ -11,11 +13,9 @@ export default function Drivers() {
 
   const submit = async (e) => {
     e.preventDefault();
-    if (editing) {
-      await updateMotorista(editing.id, form);
-    } else {
-      await saveMotorista(form);
-    }
+    if (!form.name) { toast?.show("Nome é obrigatório", "error"); return; }
+    if (editing) { await updateMotorista(editing.id, form); toast?.show("Motorista atualizado", "success"); }
+    else { await saveMotorista(form); toast?.show("Motorista cadastrado", "success"); }
     setForm({ name: "", cpf: "", cnh_category: "", status: "Ativo" });
     setEditing(null);
     load();
@@ -26,10 +26,7 @@ export default function Drivers() {
     setForm({ name: it.name, cpf: it.cpf || "", cnh_category: it.cnh_category || "", status: it.status });
   };
 
-  const del = async (id) => {
-    await deleteMotorista(id);
-    load();
-  };
+  const del = async (id) => { await deleteMotorista(id); toast?.show("Motorista excluído", "success"); load(); };
 
   return (
     <div className="space-y-8">

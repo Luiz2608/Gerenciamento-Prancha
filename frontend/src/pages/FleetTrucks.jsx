@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { getCaminhoes, saveCaminhao, updateCaminhao, deleteCaminhao } from "../services/storageService.js";
+import { useToast } from "../components/ToastProvider.jsx";
 
 export default function FleetTrucks() {
+  const toast = useToast();
   const [items, setItems] = useState([]);
-  const [form, setForm] = useState({ plate: "", model: "", year: "", asset_number: "", capacity: "", km_current: "", status: "Ativo" });
+  const [form, setForm] = useState({ plate: "", model: "", year: "", chassis: "", km_current: "", status: "Ativo" });
   const [editing, setEditing] = useState(null);
   const load = () => getCaminhoes().then((r) => setItems(r));
   useEffect(() => { load(); }, []);
@@ -18,13 +20,15 @@ export default function FleetTrucks() {
       km_current: form.km_current ? Number(form.km_current) : null,
       status: form.status || "Ativo"
     };
+    if (!payload.plate || !payload.model || !payload.year) { toast?.show("Preencha placa, modelo e ano", "error"); return; }
     if (editing) await updateCaminhao(editing.id, payload);
     else await saveCaminhao(payload);
+    toast?.show(editing ? "Caminhão atualizado" : "Caminhão cadastrado", "success");
     setForm({ plate: "", model: "", year: "", asset_number: "", capacity: "", km_current: "", status: "Ativo" });
     setEditing(null);
     load();
   };
-  const edit = (it) => { setEditing(it); setForm({ plate: it.plate || "", model: it.model || "", year: it.year?.toString() || "", asset_number: it.asset_number || "", capacity: it.capacity?.toString() || "", km_current: it.km_current?.toString() || "", status: it.status }); };
+  const edit = (it) => { setEditing(it); setForm({ plate: it.plate || "", model: it.model || "", year: it.year?.toString() || "", chassis: it.chassis || "", km_current: it.km_current?.toString() || "", status: it.status }); };
   const del = async (id) => { await deleteCaminhao(id); load(); };
   return (
     <div className="space-y-8">
@@ -34,12 +38,11 @@ export default function FleetTrucks() {
           <input className="input" placeholder="Placa" value={form.plate} onChange={(e) => setForm({ ...form, plate: e.target.value })} />
           <input className="input" placeholder="Modelo" value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} />
           <input className="input" placeholder="Ano" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} />
-          <input className="input" placeholder="Patrimônio" value={form.asset_number} onChange={(e) => setForm({ ...form, asset_number: e.target.value })} />
-          <input className="input" placeholder="Capacidade" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} />
+          <input className="input" placeholder="Chassi" value={form.chassis} onChange={(e) => setForm({ ...form, chassis: e.target.value })} />
           <input className="input" placeholder="KM atual" value={form.km_current} onChange={(e) => setForm({ ...form, km_current: e.target.value })} />
           <select className="select" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
             <option>Ativo</option>
-            <option>Inativo</option>
+            <option>Manutenção</option>
           </select>
           <button className="btn btn-primary">{editing ? "Salvar" : "Adicionar"}</button>
         </form>
@@ -52,8 +55,7 @@ export default function FleetTrucks() {
               <th>Placa</th>
               <th>Modelo</th>
               <th>Ano</th>
-              <th>Patrimônio</th>
-              <th>Capacidade</th>
+              <th>Chassi</th>
               <th>KM atual</th>
               <th>Status</th>
               <th>Ações</th>
@@ -66,8 +68,7 @@ export default function FleetTrucks() {
                 <td>{it.plate || ""}</td>
                 <td>{it.model || ""}</td>
                 <td>{it.year ?? ""}</td>
-                <td>{it.asset_number || ""}</td>
-                <td>{it.capacity ?? ""}</td>
+                <td>{it.chassis || ""}</td>
                 <td>{it.km_current ?? ""}</td>
                 <td>{it.status}</td>
                 <td className="space-x-2">

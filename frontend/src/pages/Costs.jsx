@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
-import { getMotoristas, getCaminhoes, getPranchas, getViagens } from "../services/storageService.js";
+import { getMotoristas, getCaminhoes, getPranchas, getViagens, exportCsv, exportPdf } from "../services/storageService.js";
+import { useToast } from "../components/ToastProvider.jsx";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts";
 
 const colors = ["#2563eb", "#38bdf8", "#22c55e", "#a78bfa", "#f59e0b", "#ef4444", "#14b8a6", "#0ea5e9"];
 
 export default function Costs() {
+  const toast = useToast();
   const [drivers, setDrivers] = useState([]);
   const [trucks, setTrucks] = useState([]);
   const [pranchas, setPranchas] = useState([]);
@@ -150,3 +152,9 @@ export default function Costs() {
     </div>
   );
 }
+  const exportCsvAction = async () => { const blob = await exportCsv(filters); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "custos.csv"; a.click(); URL.revokeObjectURL(url); toast?.show("CSV exportado", "success"); };
+  const exportPdfAction = async () => { const blob = await exportPdf(filters); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "custos.pdf"; a.click(); URL.revokeObjectURL(url); toast?.show("PDF exportado", "success"); };
+      <div className="flex items-center gap-3">
+        <button className="btn btn-primary" onClick={exportCsvAction}><span className="material-icons">download</span> CSV</button>
+        <button className="btn btn-secondary" onClick={exportPdfAction}><span className="material-icons">picture_as_pdf</span> PDF</button>
+      </div>
