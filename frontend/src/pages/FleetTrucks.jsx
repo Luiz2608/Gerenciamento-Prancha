@@ -39,8 +39,9 @@ export default function FleetTrucks() {
     const next = focusables[idx + 1];
     if (next) next.focus();
   };
-  const edit = (it) => { setEditing(it); setForm({ plate: it.plate || "", model: it.model || "", year: it.year?.toString() || "", chassis: it.chassis || "", km_current: it.km_current?.toString() || "", fleet: it.fleet || "", status: it.status }); };
-  const del = async (id) => { await deleteCaminhao(id); load(); };
+  const edit = (it) => { setEditing(it); setForm({ plate: it.plate || "", model: it.model || "", year: it.year?.toString() || "", chassis: it.chassis || "", km_current: it.km_current?.toString() || "", fleet: it.fleet || "", status: it.status }); toast?.show("Edição carregada", "info"); };
+  const del = async (id) => { await deleteCaminhao(id); toast?.show("Caminhão excluído", "success"); load(); };
+  const delConfirm = async (id) => { if (!window.confirm("Confirma excluir este caminhão?")) return; await del(id); };
   return (
     <div className="space-y-8">
       <div className="card p-6 animate-fade">
@@ -87,7 +88,7 @@ export default function FleetTrucks() {
                 <td>{it.status}</td>
                 <td className="space-x-2">
                   <button className="btn bg-yellow-500 hover:bg-yellow-600 text-white" onClick={() => edit(it)}>Editar</button>
-                  <button className="btn bg-red-600 hover:bg-red-700 text-white" onClick={() => del(it.id)}>Excluir</button>
+                  <button className="btn bg-red-600 hover:bg-red-700 text-white" onClick={() => delConfirm(it.id)}>Excluir</button>
                 </td>
               </tr>
             ))}

@@ -34,9 +34,11 @@ export default function Drivers() {
   const edit = (it) => {
     setEditing(it);
     setForm({ name: it.name, cpf: it.cpf || "", cnh_category: it.cnh_category || "", status: it.status });
+    toast?.show("Edição carregada", "info");
   };
 
   const del = async (id) => { await deleteMotorista(id); toast?.show("Motorista excluído", "success"); load(); };
+  const delConfirm = async (id) => { if (!window.confirm("Confirma excluir este motorista?")) return; await del(id); };
 
   return (
     <div className="space-y-8">
@@ -75,7 +77,7 @@ export default function Drivers() {
                 <td>{it.status}</td>
                 <td className="space-x-2">
                   <button className="btn bg-yellow-500 hover:bg-yellow-600 text-white" onClick={() => edit(it)}>Editar</button>
-                  <button className="btn bg-red-600 hover:bg-red-700 text-white" onClick={() => del(it.id)}>Excluir</button>
+                  <button className="btn bg-red-600 hover:bg-red-700 text-white" onClick={() => delConfirm(it.id)}>Excluir</button>
                 </td>
               </tr>
             ))}

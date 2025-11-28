@@ -62,6 +62,11 @@ export default function Costs() {
     const [d, m, y] = ddmmyyyy.split("/").map(Number);
     return `${y}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
   };
+  const fromIsoDate = (iso) => {
+    const [y, m, d] = String(iso || "").split("-").map(Number);
+    if (!y || !m || !d) return "";
+    return `${String(d).padStart(2,"0")}/${String(m).padStart(2,"0")}/${y}`;
+  };
 
   const handleTripLink = (id) => {
     setForm({ ...form, viagemId: id });
@@ -151,6 +156,7 @@ export default function Costs() {
   };
 
   const del = async (id) => { await deleteCusto(id); toast?.show("Custo excluído", "success"); loadList(); };
+  const delConfirm = async (id) => { if (!window.confirm("Confirma excluir este custo?")) return; await del(id); };
 
   const lista = (
     <div className="space-y-6" onKeyDown={handleEnterInContainer}>
@@ -224,10 +230,10 @@ export default function Costs() {
                 <td>{c.aprovado ? <span className="px-2 py-1 rounded bg-green-600 text-white">Aprovado</span> : <span className="px-2 py-1 rounded bg-yellow-600 text-white">Pendente</span>}</td>
                 <td className="space-x-2">
                   <button className="btn bg-slate-600 hover:bg-slate-700 text-white" onClick={() => setViewing(c)}>Ver</button>
-                  <button className="btn bg-yellow-500 hover:bg-yellow-600 text-white" onClick={() => { setEditingId(c.id); setForm({ viagemId: c.viagemId || "", dataRegistro: String(c.dataRegistro).slice(0,10), consumoLitros: c.consumoLitros ?? 0, valorLitro: c.valorLitro ?? 0, kmRodado: c.kmRodado ?? 0, tempoHoras: c.tempoHoras ?? 0, diariaMotorista: c.diariaMotorista ?? 0, pedagios: c.pedagios ?? 0, manutencao: c.manutencao ?? 0, outrosCustos: c.outrosCustos || [], observacoes: c.observacoes || "" }); setTab("novo"); }}>Editar</button>
+                  <button className="btn bg-yellow-500 hover:bg-yellow-600 text-white" onClick={() => { setEditingId(c.id); setForm({ viagemId: c.viagemId || "", dataRegistro: fromIsoDate(String(c.dataRegistro).slice(0,10)), consumoLitros: c.consumoLitros ?? 0, valorLitro: c.valorLitro ?? 0, kmRodado: c.kmRodado ?? 0, tempoHoras: c.tempoHoras ?? 0, diariaMotorista: c.diariaMotorista ?? 0, pedagios: c.pedagios ?? 0, manutencao: c.manutencao ?? 0, outrosCustos: c.outrosCustos || [], observacoes: c.observacoes || "" }); setTab("novo"); toast?.show("Edição carregada", "info"); }}>Editar</button>
                   {user?.role === "admin" && <button className="btn bg-green-600 hover:bg-green-700 text-white" onClick={() => approve(c.id)}>Aprovar</button>}
                   {user?.role === "admin" && <button className="btn bg-red-600 hover:bg-red-700 text-white" onClick={async () => { await updateCusto(c.id, { aprovado: false, aprovadoPor: null, aprovadoEm: null }); toast?.show("Custo recusado", "success"); loadList(); }}>Recusar</button>}
-                  <button className="btn bg-red-600 hover:bg-red-700 text-white" onClick={() => del(c.id)}>Excluir</button>
+                  <button className="btn bg-red-600 hover:bg-red-700 text-white" onClick={() => delConfirm(c.id)}>Excluir</button>
                 </td>
               </tr>
             ))}

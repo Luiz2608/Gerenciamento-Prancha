@@ -122,9 +122,11 @@ export default function Trips() {
       fuel_price: it.fuel_price?.toString() || "",
       other_costs: it.other_costs?.toString() || ""
     });
+    toast?.show("Edição carregada", "info");
   };
 
   const del = async (id) => { await deleteViagem(id); toast?.show("Viagem excluída", "success"); loadTrips(); };
+  const delConfirm = async (id) => { if (!window.confirm("Confirma excluir esta viagem?")) return; await del(id); };
 
   return (
     <div className="space-y-8">
@@ -197,7 +199,7 @@ export default function Trips() {
                 <td>{(it.total_cost ?? 0).toFixed(2)}</td>
                 <td className="space-x-2">
                   <button className="btn bg-yellow-500 hover:bg-yellow-600 text-white" onClick={() => edit(it)}>Editar</button>
-                  <button className="btn bg-red-600 hover:bg-red-700 text-white" onClick={() => del(it.id)}>Excluir</button>
+                  <button className="btn bg-red-600 hover:bg-red-700 text-white" onClick={() => delConfirm(it.id)}>Excluir</button>
                 </td>
               </tr>
             ))}
