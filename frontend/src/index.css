@@ -2,19 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
-body { @apply bg-bg text-text; }
+body { @apply bg-bg text-text dark:bg-[#0f172a] dark:text-[#f1f5f9]; }
 
 .btn { @apply inline-flex items-center justify-center px-4 py-2 rounded-xl font-medium transition-all duration-200; }
-.btn-primary { @apply bg-primary text-white hover:bg-secondary shadow-md hover:shadow-lg; }
-.btn-secondary { @apply bg-secondary text-white hover:bg-primary shadow-md hover:shadow-lg; }
-.input { @apply w-full px-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary; }
-.select { @apply w-full px-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary; }
-.card { @apply bg-white rounded-2xl shadow-lg transition-transform duration-300 hover:shadow-xl; }
+.btn-primary { @apply bg-primary text-white hover:bg-secondary shadow-md hover:shadow-lg dark:bg-[#2563eb] dark:hover:bg-[#1e40af]; }
+.btn-secondary { @apply bg-secondary text-white hover:bg-primary shadow-md hover:shadow-lg dark:bg-[#1e40af] dark:hover:bg-[#2563eb]; }
+.input { @apply w-full px-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary dark:bg-[#1e293b] dark:border-[#334155] dark:text-[#f1f5f9]; }
+.select { @apply w-full px-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary dark:bg-[#1e293b] dark:border-[#334155] dark:text-[#f1f5f9]; }
+.card { @apply bg-white rounded-2xl shadow-lg transition-transform duration-300 hover:shadow-xl dark:bg-[#1e293b] dark:border dark:border-[#334155]; }
 .card-hover { @apply hover:scale-105; }
 .table { @apply w-full text-sm; }
-.table th { @apply p-3 text-left text-slate-600; }
-.table td { @apply p-3; }
-.table tr { @apply border-t; }
+.table th { @apply p-3 text-left text-slate-600 dark:text-[#f1f5f9]; }
+.table td { @apply p-3 dark:text-[#f1f5f9]; }
+.table tr { @apply border-t dark:border-[#334155]; }
 .table tbody tr { @apply transition-colors; }
 
 .gradient-bg { background: linear-gradient(135deg, #1e40af 0%, #2563eb 50%, #38bdf8 100%); }
