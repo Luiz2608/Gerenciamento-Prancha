@@ -22,7 +22,15 @@ const uuid = () => "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) =
 const getDB = () => JSON.parse(localStorage.getItem(KEY) || "null");
 const setDB = (db) => localStorage.setItem(KEY, JSON.stringify(db));
 
-async function fetchJson(path) { const r = await fetch(path); return r.json(); }
+async function fetchJson(path, fallback) {
+  try {
+    const r = await fetch(path);
+    if (!r.ok) return fallback;
+    return await r.json();
+  } catch {
+    return fallback;
+  }
+}
 
 export async function initLoad() {
   const existing = getDB();
@@ -49,15 +57,15 @@ export async function initLoad() {
     return db;
   }
   const [motoristas, viagens, destinos, tipos, usuarios, config, caminhoes, pranchas, custos] = await Promise.all([
-    fetchJson(files.motoristas),
-    fetchJson(files.viagens),
-    fetchJson(files.destinos),
-    fetchJson(files.tipos),
-    fetchJson(files.usuarios),
-    fetchJson(files.config),
-    fetchJson(files.caminhoes),
-    fetchJson(files.pranchas),
-    fetchJson(files.custos)
+    fetchJson(files.motoristas, []),
+    fetchJson(files.viagens, []),
+    fetchJson(files.destinos, []),
+    fetchJson(files.tipos, []),
+    fetchJson(files.usuarios, []),
+    fetchJson(files.config, {}),
+    fetchJson(files.caminhoes, []),
+    fetchJson(files.pranchas, []),
+    fetchJson(files.custos, [])
   ]);
   const db = {
     motoristas,
