@@ -8,10 +8,16 @@ const files = {
   usuarios: "data/usuarios.json",
   config: "data/config.json",
   caminhoes: "data/caminhoes.json",
-  pranchas: "data/pranchas.json"
+  pranchas: "data/pranchas.json",
+  custos: "data/custos.json"
 };
 
 const base64 = (s) => typeof btoa !== "undefined" ? btoa(s) : Buffer.from(s).toString("base64");
+const uuid = () => "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+  const r = Math.random() * 16 | 0;
+  const v = c === "x" ? r : (r & 0x3 | 0x8);
+  return v.toString(16);
+});
 
 const getDB = () => JSON.parse(localStorage.getItem(KEY) || "null");
 const setDB = (db) => localStorage.setItem(KEY, JSON.stringify(db));
@@ -30,6 +36,7 @@ export async function initLoad() {
     db.config = db.config || {};
     db.caminhoes = Array.isArray(db.caminhoes) ? db.caminhoes : [];
     db.pranchas = Array.isArray(db.pranchas) ? db.pranchas : [];
+    db.custos = Array.isArray(db.custos) ? db.custos : [];
     db.seq = db.seq || {};
     db.seq.motoristas = Number.isFinite(db.seq.motoristas) ? db.seq.motoristas : (db.motoristas.reduce((m, x) => Math.max(m, x.id || 0), 0) + 1);
     db.seq.viagens = Number.isFinite(db.seq.viagens) ? db.seq.viagens : (db.viagens.reduce((m, x) => Math.max(m, x.id || 0), 0) + 1);
@@ -38,9 +45,10 @@ export async function initLoad() {
     db.seq.caminhoes = Number.isFinite(db.seq.caminhoes) ? db.seq.caminhoes : (db.caminhoes.reduce((m, x) => Math.max(m, x.id || 0), 0) + 1);
     db.seq.pranchas = Number.isFinite(db.seq.pranchas) ? db.seq.pranchas : (db.pranchas.reduce((m, x) => Math.max(m, x.id || 0), 0) + 1);
     setDB(db);
+    await migrateCostsFromTrips();
     return db;
   }
-  const [motoristas, viagens, destinos, tipos, usuarios, config, caminhoes, pranchas] = await Promise.all([
+  const [motoristas, viagens, destinos, tipos, usuarios, config, caminhoes, pranchas, custos] = await Promise.all([
     fetchJson(files.motoristas),
     fetchJson(files.viagens),
     fetchJson(files.destinos),
@@ -48,7 +56,8 @@ export async function initLoad() {
     fetchJson(files.usuarios),
     fetchJson(files.config),
     fetchJson(files.caminhoes),
-    fetchJson(files.pranchas)
+    fetchJson(files.pranchas),
+    fetchJson(files.custos)
   ]);
   const db = {
     motoristas,
@@ -59,6 +68,7 @@ export async function initLoad() {
     config,
     caminhoes,
     pranchas,
+    custos: Array.isArray(custos) ? custos : [],
     seq: {
       motoristas: motoristas.reduce((m, x) => Math.max(m, x.id || 0), 0) + 1,
       viagens: viagens.reduce((m, x) => Math.max(m, x.id || 0), 0) + 1,
@@ -69,6 +79,7 @@ export async function initLoad() {
     }
   };
   setDB(db);
+  await migrateCostsFromTrips();
   return db;
 }
 
@@ -84,7 +95,8 @@ export async function login(username, password) {
   const p = base64(password);
   if (u.password_base64 !== p) throw new Error("Credenciais inválidas");
   localStorage.setItem("token", "local-token");
-  return { token: "local-token" };
+  localStorage.setItem("user", JSON.stringify({ id: u.id, username: u.username, role: u.role || "user" }));
+  return { token: "local-token", user: { id: u.id, username: u.username, role: u.role || "user" } };
 }
 
 export async function getMotoristas() { await initLoad(); return getDB().motoristas.slice().reverse(); }
@@ -212,3 +224,169 @@ export async function exportPdf(filters = {}) {
 }
 
 export async function backupBlob() { await initLoad(); return new Blob([localStorage.getItem(KEY)], { type: "application/json" }); }
+
+function computeCustoFields(raw) {
+  const consumoLitros = Number(raw.consumoLitros || 0);
+  const valorLitro = Number(raw.valorLitro || 0);
+  const diariaMotorista = Number(raw.diariaMotorista || 0);
+  const pedagios = Number(raw.pedagios || 0);
+  const manutencao = Number(raw.manutencao || 0);
+  const outrosSum = Array.isArray(raw.outrosCustos) ? raw.outrosCustos.reduce((a, it) => a + Number(it.valor || 0), 0) : 0;
+  const custoCombustivel = consumoLitros * valorLitro;
+  const subtotal = custoCombustivel + diariaMotorista + pedagios + manutencao + outrosSum;
+  const kmRodado = Number(raw.kmRodado || 0);
+  const custoPorKm = kmRodado > 0 ? subtotal / kmRodado : 0;
+  return { custoCombustivel, custoTotal: subtotal, custoPorKm };
+}
+
+async function migrateCostsFromTrips() {
+  const db = getDB();
+  if (!Array.isArray(db.custos)) db.custos = [];
+  const existingByTrip = new Set(db.custos.map((c) => String(c.viagemId)));
+  db.viagens.forEach((t) => {
+    const hasCosts = Number(t.fuel_liters || 0) || Number(t.other_costs || 0) || Number(t.maintenance_cost || 0) || Number(t.driver_daily || 0);
+    if (hasCosts && !existingByTrip.has(String(t.id))) {
+      const base = {
+        id: uuid(),
+        viagemId: String(t.id),
+        dataRegistro: new Date().toISOString(),
+        registradoPor: "system",
+        caminhaoId: t.truck_id != null ? String(t.truck_id) : null,
+        pranchaId: t.prancha_id != null ? String(t.prancha_id) : null,
+        consumoLitros: Number(t.fuel_liters || 0),
+        valorLitro: Number(t.fuel_price || 0),
+        kmRodado: Number(computeKm(t.km_start, t.km_end) || 0),
+        tempoHoras: Number(computeHours(t.date, t.start_time, t.end_time) || 0),
+        diariaMotorista: Number(t.driver_daily || 0),
+        pedagios: 0,
+        manutencao: Number(t.maintenance_cost || 0),
+        outrosCustos: [{ descricao: "Outros", valor: Number(t.other_costs || 0) }],
+        moeda: "BRL",
+        anexos: [],
+        aprovado: false,
+        aprovadoPor: null,
+        aprovadoEm: null,
+        observacoes: null,
+        audit: [{ when: new Date().toISOString(), who: "system", what: `Migrado da viagem ${t.id}` }]
+      };
+      const computed = computeCustoFields(base);
+      const row = { ...base, ...computed };
+      db.custos.push(row);
+    }
+  });
+  setDB(db);
+}
+
+export async function getCustos(opts = {}) {
+  await initLoad();
+  const db = getDB();
+  const { startDate, endDate, caminhaoId, pranchaId, driverId, aprovado, search, minCusto, maxCusto, page = 1, pageSize = 10 } = opts;
+  let rows = db.custos.slice().reverse();
+  if (startDate) rows = rows.filter((c) => c.dataRegistro >= startDate);
+  if (endDate) rows = rows.filter((c) => c.dataRegistro <= endDate);
+  if (caminhaoId) rows = rows.filter((c) => String(c.caminhaoId || "") === String(caminhaoId));
+  if (pranchaId) rows = rows.filter((c) => String(c.pranchaId || "") === String(pranchaId));
+  if (typeof aprovado === "boolean") rows = rows.filter((c) => c.aprovado === aprovado);
+  if (driverId) rows = rows.filter((c) => {
+    const t = db.viagens.find((v) => String(v.id) === String(c.viagemId));
+    return t && String(t.driver_id) === String(driverId);
+  });
+  if (minCusto != null) rows = rows.filter((c) => Number(c.custoTotal || 0) >= Number(minCusto));
+  if (maxCusto != null) rows = rows.filter((c) => Number(c.custoTotal || 0) <= Number(maxCusto));
+  if (search) {
+    const s = search.toLowerCase();
+    rows = rows.filter((c) => (c.observacoes || "").toLowerCase().includes(s) || (Array.isArray(c.outrosCustos) && c.outrosCustos.some((o) => (o.descricao || "").toLowerCase().includes(s))));
+  }
+  const total = rows.length;
+  const offset = (Number(page) - 1) * Number(pageSize);
+  const data = rows.slice(offset, offset + Number(pageSize));
+  return { data, total, page: Number(page), pageSize: Number(pageSize) };
+}
+
+export async function getCustoById(id) { await initLoad(); const db = getDB(); return db.custos.find((c) => String(c.id) === String(id)) || null; }
+
+export async function saveCusto(raw) {
+  await initLoad();
+  const db = getDB();
+  const viagem = raw.viagemId ? db.viagens.find((v) => String(v.id) === String(raw.viagemId)) : null;
+  const base = {
+    id: uuid(),
+    viagemId: raw.viagemId ? String(raw.viagemId) : null,
+    dataRegistro: raw.dataRegistro || new Date().toISOString(),
+    registradoPor: raw.registradoPor || (JSON.parse(localStorage.getItem("user") || "{}").username || ""),
+    caminhaoId: raw.caminhaoId != null ? String(raw.caminhaoId) : (viagem && viagem.truck_id != null ? String(viagem.truck_id) : null),
+    pranchaId: raw.pranchaId != null ? String(raw.pranchaId) : (viagem && viagem.prancha_id != null ? String(viagem.prancha_id) : null),
+    consumoLitros: Number(raw.consumoLitros || 0),
+    valorLitro: Number(raw.valorLitro || 0),
+    kmRodado: raw.kmRodado != null ? Number(raw.kmRodado) : (viagem ? Number(computeKm(viagem.km_start, viagem.km_end)) : 0),
+    tempoHoras: raw.tempoHoras != null ? Number(raw.tempoHoras) : (viagem ? Number(computeHours(viagem.date, viagem.start_time, viagem.end_time)) : 0),
+    diariaMotorista: Number(raw.diariaMotorista || 0),
+    pedagios: Number(raw.pedagios || 0),
+    manutencao: Number(raw.manutencao || 0),
+    outrosCustos: Array.isArray(raw.outrosCustos) ? raw.outrosCustos.map((o) => ({ descricao: o.descricao || "", valor: Number(o.valor || 0) })) : [],
+    moeda: "BRL",
+    anexos: Array.isArray(raw.anexos) ? raw.anexos.map((a) => ({ id: uuid(), nome: a.nome || a.name || "arquivo", path: a.path || null, base64: a.base64 || null, uploadedAt: new Date().toISOString() })) : [],
+    aprovado: false,
+    aprovadoPor: null,
+    aprovadoEm: null,
+    observacoes: raw.observacoes || null,
+    audit: []
+  };
+  const computed = computeCustoFields(base);
+  const row = { ...base, ...computed };
+  row.audit.push({ when: new Date().toISOString(), who: base.registradoPor || "", what: "Custo criado" });
+  db.custos.push(row);
+  setDB(db);
+  return row;
+}
+
+export async function updateCusto(id, patch) {
+  await initLoad();
+  const db = getDB();
+  const i = db.custos.findIndex((c) => String(c.id) === String(id));
+  if (i < 0) return null;
+  const before = db.custos[i];
+  const merged = { ...before, ...patch, outrosCustos: Array.isArray(patch.outrosCustos) ? patch.outrosCustos.map((o) => ({ descricao: o.descricao || "", valor: Number(o.valor || 0) })) : before.outrosCustos };
+  const computed = computeCustoFields(merged);
+  const after = { ...merged, ...computed };
+  const who = JSON.parse(localStorage.getItem("user") || "{}").username || "";
+  const changed = Object.keys(patch).join(", ");
+  after.audit = [...(before.audit || []), { when: new Date().toISOString(), who, what: `Atualizado: ${changed}` }];
+  db.custos[i] = after;
+  setDB(db);
+  return after;
+}
+
+export async function deleteCusto(id) { await initLoad(); const db = getDB(); db.custos = db.custos.filter((c) => String(c.id) !== String(id)); setDB(db); return { ok: true }; }
+
+export async function attachFileToCusto(id, fileMeta, fileContentBase64) {
+  await initLoad();
+  const db = getDB();
+  const i = db.custos.findIndex((c) => String(c.id) === String(id));
+  if (i < 0) return null;
+  const item = db.custos[i];
+  const att = { id: uuid(), nome: fileMeta?.nome || fileMeta?.name || "arquivo", path: fileMeta?.path || null, base64: fileContentBase64 || null, uploadedAt: new Date().toISOString() };
+  item.anexos = [...(item.anexos || []), att];
+  const who = JSON.parse(localStorage.getItem("user") || "{}").username || "";
+  item.audit = [...(item.audit || []), { when: new Date().toISOString(), who, what: `Anexo adicionado: ${att.nome}` }];
+  db.custos[i] = item;
+  setDB(db);
+  return att;
+}
+
+export async function approveCusto(id, usuario) {
+  await initLoad();
+  const db = getDB();
+  const i = db.custos.findIndex((c) => String(c.id) === String(id));
+  if (i < 0) return null;
+  const user = usuario || JSON.parse(localStorage.getItem("user") || "{}");
+  if ((user.role || "user") !== "admin") throw new Error("Acesso negado");
+  const item = db.custos[i];
+  item.aprovado = true;
+  item.aprovadoPor = user.username || "";
+  item.aprovadoEm = new Date().toISOString();
+  item.audit = [...(item.audit || []), { when: item.aprovadoEm, who: item.aprovadoPor, what: "Custo aprovado" }];
+  db.custos[i] = item;
+  setDB(db);
+  return item;
+}
