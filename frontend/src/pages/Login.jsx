@@ -28,6 +28,16 @@ export default function Login() {
     }
   };
 
+  const handleFormKeyDown = (e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    const formEl = e.currentTarget;
+    const focusables = Array.from(formEl.querySelectorAll("input, select, textarea, button")).filter((el) => !el.disabled && el.tabIndex !== -1 && el.type !== "hidden");
+    const idx = focusables.indexOf(document.activeElement);
+    const next = focusables[idx + 1];
+    if (next) next.focus();
+  };
+
   return (
     <div className="min-h-screen gradient-bg flex items-center justify-center">
       <div className="card p-8 w-full max-w-md shadow-2xl">
@@ -35,7 +45,7 @@ export default function Login() {
           <div className="w-16 h-16 mx-auto rounded-2xl bg-primary/10 text-primary flex items-center justify-center text-3xl">🚚</div>
           <h1 className="text-2xl font-bold text-secondary mt-4">Sistema de Controle de Viagens</h1>
         </div>
-        <form onSubmit={submit} className="space-y-4">
+        <form onSubmit={submit} onKeyDown={handleFormKeyDown} className="space-y-4">
           <input className="input" placeholder="Usuário" value={username} onChange={(e) => setUsername(e.target.value)} />
           <input type="password" className="input" placeholder="Senha" value={password} onChange={(e) => setPassword(e.target.value)} />
           {error && <div className="text-red-600 text-sm">{error}</div>}

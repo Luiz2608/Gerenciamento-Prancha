@@ -93,6 +93,16 @@ export default function Trips() {
     loadTrips();
   };
 
+  const handleFormKeyDown = (e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    const formEl = e.currentTarget;
+    const focusables = Array.from(formEl.querySelectorAll("input, select, textarea, button")).filter((el) => !el.disabled && el.tabIndex !== -1 && el.type !== "hidden");
+    const idx = focusables.indexOf(document.activeElement);
+    const next = focusables[idx + 1];
+    if (next) next.focus();
+  };
+
   const edit = (it) => {
     setEditing(it);
     setForm({
@@ -120,7 +130,7 @@ export default function Trips() {
     <div className="space-y-8">
       <div className="card p-6 animate-fade">
         <div className="font-semibold mb-4 text-secondary text-xl">Cadastro de Viagens</div>
-        <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <form onSubmit={submit} onKeyDown={handleFormKeyDown} className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <input className={`input ${(!form.date || !isValidDate(form.date)) && 'ring-red-500 border-red-500'}`} placeholder="Data (DD/MM/YYYY)" value={form.date} onChange={(e) => setForm({ ...form, date: maskDate(e.target.value) })} />
           <input className={`input ${!form.requester && 'ring-red-500 border-red-500'}`} placeholder="Solicitante" value={form.requester} onChange={(e) => setForm({ ...form, requester: e.target.value })} />
           <select className={`select ${!form.driver_id && 'ring-red-500 border-red-500'}`} value={form.driver_id} onChange={(e) => setForm({ ...form, driver_id: e.target.value })}>

@@ -29,13 +29,23 @@ export default function FleetTrucks() {
     setEditing(null);
     load();
   };
+
+  const handleFormKeyDown = (e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    const formEl = e.currentTarget;
+    const focusables = Array.from(formEl.querySelectorAll("input, select, textarea, button")).filter((el) => !el.disabled && el.tabIndex !== -1 && el.type !== "hidden");
+    const idx = focusables.indexOf(document.activeElement);
+    const next = focusables[idx + 1];
+    if (next) next.focus();
+  };
   const edit = (it) => { setEditing(it); setForm({ plate: it.plate || "", model: it.model || "", year: it.year?.toString() || "", chassis: it.chassis || "", km_current: it.km_current?.toString() || "", fleet: it.fleet || "", status: it.status }); };
   const del = async (id) => { await deleteCaminhao(id); load(); };
   return (
     <div className="space-y-8">
       <div className="card p-6 animate-fade">
         <div className="font-semibold mb-4 text-secondary text-xl">Cadastro de Caminhão</div>
-        <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-6 gap-4">
+        <form onSubmit={submit} onKeyDown={handleFormKeyDown} className="grid grid-cols-1 md:grid-cols-6 gap-4">
           <input className="input" placeholder="Placa" value={form.plate} onChange={(e) => setForm({ ...form, plate: e.target.value })} />
           <input className="input" placeholder="Modelo" value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} />
           <input className="input" placeholder="Ano" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} />

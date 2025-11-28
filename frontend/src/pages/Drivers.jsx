@@ -21,6 +21,16 @@ export default function Drivers() {
     load();
   };
 
+  const handleFormKeyDown = (e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    const formEl = e.currentTarget;
+    const focusables = Array.from(formEl.querySelectorAll("input, select, textarea, button")).filter((el) => !el.disabled && el.tabIndex !== -1 && el.type !== "hidden");
+    const idx = focusables.indexOf(document.activeElement);
+    const next = focusables[idx + 1];
+    if (next) next.focus();
+  };
+
   const edit = (it) => {
     setEditing(it);
     setForm({ name: it.name, cpf: it.cpf || "", cnh_category: it.cnh_category || "", status: it.status });
@@ -32,7 +42,7 @@ export default function Drivers() {
     <div className="space-y-8">
       <div className="card p-6 animate-fade">
         <div className="font-semibold mb-4 text-secondary text-xl">Cadastro de Motoristas</div>
-        <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <form onSubmit={submit} onKeyDown={handleFormKeyDown} className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <input className="input" placeholder="Nome" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           <input className="input" placeholder="CPF" value={form.cpf} onChange={(e) => setForm({ ...form, cpf: e.target.value })} />
           <input className="input" placeholder="CNH" value={form.cnh_category} onChange={(e) => setForm({ ...form, cnh_category: e.target.value })} />
