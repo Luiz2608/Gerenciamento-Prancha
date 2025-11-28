@@ -35,12 +35,33 @@ export default function Costs() {
   };
   const loadList = async () => {
     const f = { ...filters, aprovado: filters.aprovado === "" ? undefined : filters.aprovado === "true" };
+    if (filters.startDate && isValidDate(filters.startDate)) f.startDate = toIsoDate(filters.startDate);
+    if (filters.endDate && isValidDate(filters.endDate)) f.endDate = toIsoDate(filters.endDate);
     const r = await getCustos(f);
     setCustos(r.data);
     setTotalRows(r.total);
   };
   useEffect(() => { loadRefs(); }, []);
   useEffect(() => { if (tab === "lista" || tab === "relatorios") loadList(); }, [filters, tab]);
+
+  const maskDate = (v) => {
+    const digits = v.replace(/\D/g, "").slice(0,8);
+    const p1 = digits.slice(0,2);
+    const p2 = digits.slice(2,4);
+    const p3 = digits.slice(4,8);
+    return [p1, p2, p3].filter(Boolean).join("/");
+  };
+  const isValidDate = (ddmmyyyy) => {
+    const m = ddmmyyyy.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!m) return false;
+    const d = Number(m[1]); const mo = Number(m[2]) - 1; const y = Number(m[3]);
+    const dt = new Date(y, mo, d);
+    return dt.getFullYear() === y && dt.getMonth() === mo && dt.getDate() === d;
+  };
+  const toIsoDate = (ddmmyyyy) => {
+    const [d, m, y] = ddmmyyyy.split("/").map(Number);
+    return `${y}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+  };
 
   const handleTripLink = (id) => {
     setForm({ ...form, viagemId: id });
@@ -124,8 +145,8 @@ export default function Costs() {
   const lista = (
     <div className="space-y-6">
       <div className="card p-6 grid grid-cols-1 md:grid-cols-9 gap-4">
-        <input className="input" placeholder="Início" value={filters.startDate} onChange={(e) => setFilters({ ...filters, startDate: e.target.value })} />
-        <input className="input" placeholder="Fim" value={filters.endDate} onChange={(e) => setFilters({ ...filters, endDate: e.target.value })} />
+        <input className={`input ${filters.startDate && !isValidDate(filters.startDate) && 'ring-red-500 border-red-500'}`} placeholder="Início (DD/MM/YYYY)" value={filters.startDate} onChange={(e) => setFilters({ ...filters, startDate: maskDate(e.target.value) })} />
+        <input className={`input ${filters.endDate && !isValidDate(filters.endDate) && 'ring-red-500 border-red-500'}`} placeholder="Fim (DD/MM/YYYY)" value={filters.endDate} onChange={(e) => setFilters({ ...filters, endDate: maskDate(e.target.value) })} />
         <select className="select" value={filters.caminhaoId} onChange={(e) => setFilters({ ...filters, caminhaoId: e.target.value })}>
           <option value="">Caminhão</option>
           {trucks.map((t) => <option key={t.id} value={t.id}>{t.plate || t.model || t.id}</option>)}
@@ -150,8 +171,8 @@ export default function Costs() {
       <div className="flex items-center gap-3">
         <button className="btn btn-primary" onClick={async () => {
           const r = await getCustos({ ...filters, page: 1, pageSize: 10000 });
-          const header = ["id","dataRegistro","viagemId","caminhaoId","pranchaId","kmRodado","tempoHoras","consumoLitros","valorLitro","diariaMotorista","pedagios","manutencao","outros","custoCombustivel","custoTotal","custoPorKm","aprovado"];
-          const lines = r.data.map((c) => [c.id,String(c.dataRegistro).slice(0,10),c.viagemId||"",c.caminhaoId||"",c.pranchaId||"",c.kmRodado||0,c.tempoHoras||0,c.consumoLitros||0,c.valorLitro||0,c.diariaMotorista||0,c.pedagios||0,c.manutencao||0,(Array.isArray(c.outrosCustos)?c.outrosCustos.reduce((s,o)=>s+Number(o.valor||0),0):0),c.custoCombustivel||0,c.custoTotal||0,c.custoPorKm||0,c.aprovado?"sim":"não"]);
+          const header = ["id","dataRegistro","categoria","viagemId","caminhaoId","pranchaId","kmRodado","tempoHoras","consumoLitros","valorLitro","diariaMotorista","pedagios","manutencao","outros","custoCombustivel","custoTotal","custoPorKm","aprovado"];
+          const lines = r.data.map((c) => [c.id,String(c.dataRegistro).slice(0,10),c.categoria||"",c.viagemId||"",c.caminhaoId||"",c.pranchaId||"",c.kmRodado||0,c.tempoHoras||0,c.consumoLitros||0,c.valorLitro||0,c.diariaMotorista||0,c.pedagios||0,c.manutencao||0,(Array.isArray(c.outrosCustos)?c.outrosCustos.reduce((s,o)=>s+Number(o.valor||0),0):0),c.custoCombustivel||0,c.custoTotal||0,c.custoPorKm||0,c.aprovado?"sim":"não"]);
           const csv = [header.join(","), ...lines.map((l) => l.join(","))].join("\n");
           const blob = new Blob([csv], { type: "text/csv" });
           const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "custos.csv"; a.click(); URL.revokeObjectURL(url); toast?.show("CSV exportado", "success");
@@ -314,12 +335,23 @@ export default function Costs() {
             <option value="">Vincular viagem</option>
             {trips.map((t) => <option key={t.id} value={t.id}>{t.id} - {t.date}</option>)}
           </select>
-          <input className="input" placeholder="Data registro (YYYY-MM-DD)" value={form.dataRegistro} onChange={(e) => setForm({ ...form, dataRegistro: e.target.value })} />
-          <input className="input" placeholder="Consumo (litros)" value={form.consumoLitros} onChange={(e) => setForm({ ...form, consumoLitros: e.target.value })} />
-          <input className="input" placeholder="Valor por litro" value={form.valorLitro} onChange={(e) => setForm({ ...form, valorLitro: e.target.value })} />
-          <input className="input" placeholder="Diária motorista" value={form.diariaMotorista} onChange={(e) => setForm({ ...form, diariaMotorista: e.target.value })} />
-          <input className="input" placeholder="Pedágios" value={form.pedagios} onChange={(e) => setForm({ ...form, pedagios: e.target.value })} />
-          <input className="input" placeholder="Manutenção" value={form.manutencao} onChange={(e) => setForm({ ...form, manutencao: e.target.value })} />
+          <input className={`input ${form.dataRegistro && !isValidDate(form.dataRegistro) && 'ring-red-500 border-red-500'}`} placeholder="Data registro (DD/MM/YYYY)" value={form.dataRegistro} onChange={(e) => setForm({ ...form, dataRegistro: maskDate(e.target.value) })} />
+          <select className="select" value={form.categoria} onChange={(e) => setForm({ ...form, categoria: e.target.value })}>
+            <option>máquinas agrícolas</option>
+            <option>máquinas de construção</option>
+            <option>equipamentos industriais</option>
+            <option>veículos pesados</option>
+            <option>veículos leves</option>
+          </select>
+          <label className="flex items-center gap-2"><input type="checkbox" checked={form.noFuel} onChange={(e) => setForm({ ...form, noFuel: e.target.checked, consumoLitros: e.target.checked ? 0 : form.consumoLitros, valorLitro: e.target.checked ? 0 : form.valorLitro })} /> <span>Não houve gasto de combustível</span></label>
+          <input className="input" disabled={form.noFuel} placeholder="Consumo (litros)" value={form.consumoLitros} onChange={(e) => setForm({ ...form, consumoLitros: e.target.value })} />
+          <input className="input" disabled={form.noFuel} placeholder="Valor por litro" value={form.valorLitro} onChange={(e) => setForm({ ...form, valorLitro: e.target.value })} />
+          <label className="flex items-center gap-2"><input type="checkbox" checked={form.noDaily} onChange={(e) => setForm({ ...form, noDaily: e.target.checked, diariaMotorista: e.target.checked ? 0 : form.diariaMotorista })} /> <span>Não houve diária</span></label>
+          <input className="input" disabled={form.noDaily} placeholder="Diária motorista" value={form.diariaMotorista} onChange={(e) => setForm({ ...form, diariaMotorista: e.target.value })} />
+          <label className="flex items-center gap-2"><input type="checkbox" checked={form.noToll} onChange={(e) => setForm({ ...form, noToll: e.target.checked, pedagios: e.target.checked ? 0 : form.pedagios })} /> <span>Não houve pedágios</span></label>
+          <input className="input" disabled={form.noToll} placeholder="Pedágios" value={form.pedagios} onChange={(e) => setForm({ ...form, pedagios: e.target.value })} />
+          <label className="flex items-center gap-2"><input type="checkbox" checked={form.noMaint} onChange={(e) => setForm({ ...form, noMaint: e.target.checked, manutencao: e.target.checked ? 0 : form.manutencao })} /> <span>Não houve manutenção</span></label>
+          <input className="input" disabled={form.noMaint} placeholder="Manutenção" value={form.manutencao} onChange={(e) => setForm({ ...form, manutencao: e.target.value })} />
           <input className="input" placeholder="KM rodado" value={form.kmRodado || ""} onChange={(e) => setForm({ ...form, kmRodado: e.target.value })} />
           <input className="input" placeholder="Tempo (horas)" value={form.tempoHoras || ""} onChange={(e) => setForm({ ...form, tempoHoras: e.target.value })} />
           <div className="md:col-span-4">
@@ -345,11 +377,11 @@ export default function Costs() {
           </div>
           <div className="md:col-span-4 flex gap-2">
             <button type="button" className="btn" onClick={() => {
-              const consumoLitros = Number(form.consumoLitros || 0);
-              const valorLitro = Number(form.valorLitro || 0);
-              const diariaMotorista = Number(form.diariaMotorista || 0);
-              const pedagios = Number(form.pedagios || 0);
-              const manutencao = Number(form.manutencao || 0);
+              const consumoLitros = Number(form.noFuel ? 0 : form.consumoLitros || 0);
+              const valorLitro = Number(form.noFuel ? 0 : form.valorLitro || 0);
+              const diariaMotorista = Number(form.noDaily ? 0 : form.diariaMotorista || 0);
+              const pedagios = Number(form.noToll ? 0 : form.pedagios || 0);
+              const manutencao = Number(form.noMaint ? 0 : form.manutencao || 0);
               const outros = (form.outrosCustos || []).reduce((a, it) => a + Number(it.valor || 0), 0);
               const custoCombustivel = consumoLitros * valorLitro;
               const subtotal = custoCombustivel + diariaMotorista + pedagios + manutencao + outros;

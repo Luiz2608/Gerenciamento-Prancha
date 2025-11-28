@@ -3,7 +3,6 @@ import Login from "./pages/Login.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import Drivers from "./pages/Drivers.jsx";
 import Trips from "./pages/Trips.jsx";
-import Admin from "./pages/Admin.jsx";
 import FleetTrucks from "./pages/FleetTrucks.jsx";
 import FleetPranchas from "./pages/FleetPranchas.jsx";
 import Costs from "./pages/Costs.jsx";
@@ -25,7 +24,6 @@ export default function App() {
             <Route path="/frota/caminhoes" element={<FleetTrucks />} />
             <Route path="/frota/pranchas" element={<FleetPranchas />} />
             <Route path="/custos" element={<Costs />} />
-            <Route path="/admin" element={<Admin />} />
           </Route>
         </Route>
       </Routes>

@@ -92,7 +92,15 @@ export async function initLoad() {
 }
 
 const computeKm = (a, b) => (a == null || b == null ? 0 : Math.max(0, Number(b) - Number(a)));
-const computeHours = (date, s, e) => { if (!date || !s || !e) return 0; const start = new Date(`${date}T${s}:00`); const end = new Date(`${date}T${e}:00`); const diff = Math.max(0, end - start); return Math.round((diff / 3600000) * 100) / 100; };
+const computeHours = (date, s, e) => {
+  if (!date || !s || !e) return 0;
+  const [sh, sm] = String(s).split(":").map((x) => Number(x) || 0);
+  const [eh, em] = String(e).split(":").map((x) => Number(x) || 0);
+  const startMin = sh * 60 + sm;
+  const endMin = eh * 60 + em;
+  const diffMin = endMin >= startMin ? (endMin - startMin) : (endMin + 24 * 60 - startMin);
+  return Math.round((diffMin / 60) * 100) / 100;
+};
 const computeStatus = (end_time, km_end) => (!end_time || end_time === "" || km_end == null || km_end === "" ? "Em andamento" : "Finalizada");
 
 export async function login(username, password) {
@@ -105,6 +113,16 @@ export async function login(username, password) {
   localStorage.setItem("token", "local-token");
   localStorage.setItem("user", JSON.stringify({ id: u.id, username: u.username, role: u.role || "user" }));
   return { token: "local-token", user: { id: u.id, username: u.username, role: u.role || "user" } };
+}
+export async function registerUser(username, password, role = "user") {
+  await initLoad();
+  const db = getDB();
+  if (db.usuarios.find((x) => x.username === username)) throw new Error("Usuário já existe");
+  const id = db.usuarios.reduce((m, u) => Math.max(m, u.id || 0), 0) + 1;
+  const password_base64 = base64(password);
+  db.usuarios.push({ id, username, password_base64, role });
+  setDB(db);
+  return { id, username, role };
 }
 
 export async function getMotoristas() { await initLoad(); return getDB().motoristas.slice().reverse(); }
@@ -138,8 +156,8 @@ export async function getViagens(opts = {}) {
   return { data, total, page: Number(page), pageSize: Number(pageSize) };
 }
 export async function getViagem(id) { await initLoad(); const db = getDB(); const t = db.viagens.find((x) => x.id === Number(id)); if (!t) return null; return { ...t, km_rodado: computeKm(t.km_start, t.km_end), horas: computeHours(t.date, t.start_time, t.end_time) }; }
-export async function saveViagem(data) { await initLoad(); const db = getDB(); const id = db.seq.viagens++; const status = computeStatus(data.end_time, data.km_end); const t = { id, date: data.date, driver_id: Number(data.driver_id), truck_id: data.truck_id != null ? Number(data.truck_id) : null, prancha_id: data.prancha_id != null ? Number(data.prancha_id) : null, destination: data.destination || null, service_type: data.service_type || null, description: data.description || null, start_time: data.start_time || null, end_time: data.end_time || null, km_start: data.km_start != null ? Number(data.km_start) : null, km_end: data.km_end != null ? Number(data.km_end) : null, fuel_liters: data.fuel_liters != null ? Number(data.fuel_liters) : 0, fuel_price: data.fuel_price != null ? Number(data.fuel_price) : 0, other_costs: data.other_costs != null ? Number(data.other_costs) : 0, maintenance_cost: data.maintenance_cost != null ? Number(data.maintenance_cost) : 0, driver_daily: data.driver_daily != null ? Number(data.driver_daily) : 0, status }; db.viagens.push(t); setDB(db); return { ...t, km_rodado: computeKm(t.km_start, t.km_end), horas: computeHours(t.date, t.start_time, t.end_time), total_cost: Number(t.fuel_liters || 0) * Number(t.fuel_price || 0) + Number(t.other_costs || 0) + Number(t.maintenance_cost || 0) + Number(t.driver_daily || 0) }; }
-export async function updateViagem(id, data) { await initLoad(); const db = getDB(); const i = db.viagens.findIndex((t) => t.id === Number(id)); const status = computeStatus(data.end_time, data.km_end); if (i>=0) db.viagens[i] = { id: Number(id), date: data.date, driver_id: Number(data.driver_id), truck_id: data.truck_id != null ? Number(data.truck_id) : null, prancha_id: data.prancha_id != null ? Number(data.prancha_id) : null, destination: data.destination || null, service_type: data.service_type || null, description: data.description || null, start_time: data.start_time || null, end_time: data.end_time || null, km_start: data.km_start != null ? Number(data.km_start) : null, km_end: data.km_end != null ? Number(data.km_end) : null, fuel_liters: data.fuel_liters != null ? Number(data.fuel_liters) : 0, fuel_price: data.fuel_price != null ? Number(data.fuel_price) : 0, other_costs: data.other_costs != null ? Number(data.other_costs) : 0, maintenance_cost: data.maintenance_cost != null ? Number(data.maintenance_cost) : 0, driver_daily: data.driver_daily != null ? Number(data.driver_daily) : 0, status }; setDB(db); const t = db.viagens[i]; return { ...t, km_rodado: computeKm(t.km_start, t.km_end), horas: computeHours(t.date, t.start_time, t.end_time), total_cost: Number(t.fuel_liters || 0) * Number(t.fuel_price || 0) + Number(t.other_costs || 0) + Number(t.maintenance_cost || 0) + Number(t.driver_daily || 0) }; }
+export async function saveViagem(data) { await initLoad(); const db = getDB(); const id = db.seq.viagens++; const status = computeStatus(data.end_time, data.km_end); const t = { id, date: data.date, driver_id: Number(data.driver_id), truck_id: data.truck_id != null ? Number(data.truck_id) : null, prancha_id: data.prancha_id != null ? Number(data.prancha_id) : null, destination: data.destination || null, service_type: data.service_type || null, description: data.description || null, start_time: data.start_time || null, end_time: data.end_time || null, km_start: data.km_start != null ? Number(data.km_start) : null, km_end: data.km_end != null ? Number(data.km_end) : null, fuel_liters: data.fuel_liters != null ? Number(data.fuel_liters) : 0, fuel_price: data.fuel_price != null ? Number(data.fuel_price) : 0, other_costs: data.other_costs != null ? Number(data.other_costs) : 0, maintenance_cost: data.maintenance_cost != null ? Number(data.maintenance_cost) : 0, driver_daily: data.driver_daily != null ? Number(data.driver_daily) : 0, requester: data.requester || null, status }; db.viagens.push(t); setDB(db); return { ...t, km_rodado: computeKm(t.km_start, t.km_end), horas: computeHours(t.date, t.start_time, t.end_time), total_cost: Number(t.fuel_liters || 0) * Number(t.fuel_price || 0) + Number(t.other_costs || 0) + Number(t.maintenance_cost || 0) + Number(t.driver_daily || 0) }; }
+export async function updateViagem(id, data) { await initLoad(); const db = getDB(); const i = db.viagens.findIndex((t) => t.id === Number(id)); const status = computeStatus(data.end_time, data.km_end); if (i>=0) db.viagens[i] = { id: Number(id), date: data.date, driver_id: Number(data.driver_id), truck_id: data.truck_id != null ? Number(data.truck_id) : null, prancha_id: data.prancha_id != null ? Number(data.prancha_id) : null, destination: data.destination || null, service_type: data.service_type || null, description: data.description || null, start_time: data.start_time || null, end_time: data.end_time || null, km_start: data.km_start != null ? Number(data.km_start) : null, km_end: data.km_end != null ? Number(data.km_end) : null, fuel_liters: data.fuel_liters != null ? Number(data.fuel_liters) : 0, fuel_price: data.fuel_price != null ? Number(data.fuel_price) : 0, other_costs: data.other_costs != null ? Number(data.other_costs) : 0, maintenance_cost: data.maintenance_cost != null ? Number(data.maintenance_cost) : 0, driver_daily: data.driver_daily != null ? Number(data.driver_daily) : 0, requester: data.requester || null, status }; setDB(db); const t = db.viagens[i]; return { ...t, km_rodado: computeKm(t.km_start, t.km_end), horas: computeHours(t.date, t.start_time, t.end_time), total_cost: Number(t.fuel_liters || 0) * Number(t.fuel_price || 0) + Number(t.other_costs || 0) + Number(t.maintenance_cost || 0) + Number(t.driver_daily || 0) }; }
 export async function deleteViagem(id) { await initLoad(); const db = getDB(); db.viagens = db.viagens.filter((t) => t.id !== Number(id)); setDB(db); return { ok: true }; }
 
 export async function getDestinos() { await initLoad(); return getDB().destinos; }
@@ -201,7 +219,26 @@ export async function dashboard() {
     hoursByMonth.push({ month: m2, hours: hrs });
   }
   const tripsByDriver = db.motoristas.map((d) => ({ name: d.name, value: db.viagens.filter((t) => t.driver_id === d.id).length }));
-  return { totalTrips, totalKm, totalHours, topDriver, topDestination, kmByMonth, hoursByMonth, tripsByDriver };
+  const monthCosts = db.custos.filter((c) => (c.dataRegistro || "").slice(0,10) >= start && (c.dataRegistro || "").slice(0,10) <= end);
+  const totalCostsMonth = monthCosts.reduce((a, c) => a + Number(c.custoTotal || 0), 0);
+  const totalDrivers = db.motoristas.length;
+  const totalTrucks = db.caminhoes.length;
+  const totalPranchas = db.pranchas.length;
+  const totalCustos = db.custos.length;
+  const costsByCategory = ["máquinas agrícolas","máquinas de construção","equipamentos industriais","veículos pesados","veículos leves"].map((name) => ({ name, value: db.custos.filter((c) => (c.categoria || "veículos pesados") === name).reduce((a, c) => a + Number(c.custoTotal || 0), 0) }));
+  const costsByMonth = [];
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(y, i, 1);
+    const y2 = d.getFullYear();
+    const m2 = String(i + 1).padStart(2, "0");
+    const s = `${y2}-${m2}-01`;
+    const eDate = new Date(y2, i + 1, 0);
+    const e = `${y2}-${String(eDate.getDate()).padStart(2, "0")}`;
+    const rows = db.custos.filter((c) => (c.dataRegistro || "").slice(0,10) >= s && (c.dataRegistro || "").slice(0,10) <= e);
+    const total = rows.reduce((a, c) => a + Number(c.custoTotal || 0), 0);
+    costsByMonth.push({ month: m2, total });
+  }
+  return { totalTrips, totalKm, totalHours, topDriver, topDestination, kmByMonth, hoursByMonth, tripsByDriver, totalCostsMonth, totalDrivers, totalTrucks, totalPranchas, totalCustos, costsByCategory, costsByMonth };
 }
 
 export async function exportCsv(filters = {}) {
@@ -332,6 +369,7 @@ export async function saveCusto(raw) {
     pedagios: Number(raw.pedagios || 0),
     manutencao: Number(raw.manutencao || 0),
     outrosCustos: Array.isArray(raw.outrosCustos) ? raw.outrosCustos.map((o) => ({ descricao: o.descricao || "", valor: Number(o.valor || 0) })) : [],
+    categoria: raw.categoria || "veículos pesados",
     moeda: "BRL",
     anexos: Array.isArray(raw.anexos) ? raw.anexos.map((a) => ({ id: uuid(), nome: a.nome || a.name || "arquivo", path: a.path || null, base64: a.base64 || null, uploadedAt: new Date().toISOString() })) : [],
     aprovado: false,
@@ -354,7 +392,7 @@ export async function updateCusto(id, patch) {
   const i = db.custos.findIndex((c) => String(c.id) === String(id));
   if (i < 0) return null;
   const before = db.custos[i];
-  const merged = { ...before, ...patch, outrosCustos: Array.isArray(patch.outrosCustos) ? patch.outrosCustos.map((o) => ({ descricao: o.descricao || "", valor: Number(o.valor || 0) })) : before.outrosCustos };
+  const merged = { ...before, ...patch, categoria: patch.categoria || before.categoria || "veículos pesados", outrosCustos: Array.isArray(patch.outrosCustos) ? patch.outrosCustos.map((o) => ({ descricao: o.descricao || "", valor: Number(o.valor || 0) })) : before.outrosCustos };
   const computed = computeCustoFields(merged);
   const after = { ...merged, ...computed };
   const who = JSON.parse(localStorage.getItem("user") || "{}").username || "";

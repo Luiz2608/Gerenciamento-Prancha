@@ -56,6 +56,42 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+        <div className="card card-hover p-6 border-t-4 border-pink-500">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-pink-500/20 text-pink-600 flex items-center justify-center text-2xl">💸</div>
+            <div>
+              <div className="text-sm">Custos no mês</div>
+              <div className="text-3xl font-bold">R$ {data.totalCostsMonth.toFixed(2)}</div>
+            </div>
+          </div>
+        </div>
+        <div className="card card-hover p-6 border-t-4 border-slate-500">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-slate-500/20 text-slate-700 flex items-center justify-center text-2xl">🧑‍🔧</div>
+            <div>
+              <div className="text-sm">Motoristas</div>
+              <div className="text-3xl font-bold">{data.totalDrivers}</div>
+            </div>
+          </div>
+        </div>
+        <div className="card card-hover p-6 border-t-4 border-slate-700">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-slate-700/20 text-slate-800 flex items-center justify-center text-2xl">🚛</div>
+            <div>
+              <div className="text-sm">Caminhões</div>
+              <div className="text-3xl font-bold">{data.totalTrucks}</div>
+            </div>
+          </div>
+        </div>
+        <div className="card card-hover p-6 border-t-4 border-slate-800">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-slate-800/20 text-slate-900 flex items-center justify-center text-2xl">🛠️</div>
+            <div>
+              <div className="text-sm">Pranchas</div>
+              <div className="text-3xl font-bold">{data.totalPranchas}</div>
+            </div>
+          </div>
+        </div>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="card p-6">
@@ -96,6 +132,34 @@ export default function Dashboard() {
                 <Tooltip />
                 <Line type="monotone" dataKey="hours" stroke="#38bdf8" strokeWidth={3} dot={false} />
               </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+        <div className="card p-6">
+          <div className="font-semibold mb-4">Custos por mês</div>
+          <div className="h-72">
+            <ResponsiveContainer>
+              <BarChart data={data.costsByMonth}>
+                <XAxis dataKey="month" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="total" fill="#ef4444" radius={[8,8,0,0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+        <div className="card p-6 lg:col-span-3">
+          <div className="font-semibold mb-4">Custos por categoria</div>
+          <div className="h-72">
+            <ResponsiveContainer>
+              <PieChart>
+                <Pie data={data.costsByCategory} dataKey="value" nameKey="name" outerRadius={140}>
+                  {data.costsByCategory.map((_, i) => (
+                    <Cell key={i} fill={colors[i % colors.length]} stroke="#ffffff" />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
             </ResponsiveContainer>
           </div>
         </div>

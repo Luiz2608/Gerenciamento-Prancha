@@ -1,22 +1,30 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { login } from "../services/storageService.js";
+import { login, registerUser } from "../services/storageService.js";
 
 export default function Login() {
   const nav = useNavigate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [create, setCreate] = useState(false);
 
   const submit = async (e) => {
     e.preventDefault();
     setError("");
     try {
-      const r = await login(username, password);
-      localStorage.setItem("token", r.token);
-      nav("/dashboard");
+      if (create) {
+        await registerUser(username, password);
+        const r = await login(username, password);
+        localStorage.setItem("token", r.token);
+        nav("/dashboard");
+      } else {
+        const r = await login(username, password);
+        localStorage.setItem("token", r.token);
+        nav("/dashboard");
+      }
     } catch (err) {
-      setError("Credenciais inválidas");
+      setError(create ? "Erro ao criar conta" : "Credenciais inválidas");
     }
   };
 
@@ -31,7 +39,10 @@ export default function Login() {
           <input className="input" placeholder="Usuário" value={username} onChange={(e) => setUsername(e.target.value)} />
           <input type="password" className="input" placeholder="Senha" value={password} onChange={(e) => setPassword(e.target.value)} />
           {error && <div className="text-red-600 text-sm">{error}</div>}
-          <button className="btn btn-primary w-full">Entrar</button>
+          <div className="flex gap-2">
+            <button className="btn btn-primary flex-1">{create ? "Criar e entrar" : "Entrar"}</button>
+            <button type="button" className="btn btn-secondary" onClick={() => setCreate(!create)}>{create ? "Já tenho conta" : "Criar conta"}</button>
+          </div>
         </form>
       </div>
     </div>

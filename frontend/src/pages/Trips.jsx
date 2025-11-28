@@ -10,7 +10,7 @@ export default function Trips() {
   const [trucks, setTrucks] = useState([]);
   const [pranchas, setPranchas] = useState([]);
   const [items, setItems] = useState([]);
-  const [form, setForm] = useState({ date: "", driver_id: "", truck_id: "", prancha_id: "", destination: "", service_type: "", description: "", start_time: "", end_time: "", km_start: "", km_end: "", fuel_liters: "", fuel_price: "", other_costs: "", maintenance_cost: "", driver_daily: "" });
+  const [form, setForm] = useState({ date: "", requester: "", driver_id: "", truck_id: "", prancha_id: "", destination: "", service_type: "", description: "", start_time: "", end_time: "", km_start: "", km_end: "", fuel_liters: "", fuel_price: "", other_costs: "", maintenance_cost: "", driver_daily: "" });
   const [editing, setEditing] = useState(null);
 
   const loadDrivers = () => getMotoristas().then((r) => setDrivers(r));
@@ -24,7 +24,8 @@ export default function Trips() {
       getViagem(id).then((it) => {
         setEditing(it);
         setForm({
-          date: it.date || "",
+          date: it.date ? fromIsoDate(it.date) : "",
+          requester: it.requester || "",
           driver_id: it.driver_id?.toString() || "",
           truck_id: it.truck_id?.toString() || "",
           prancha_id: it.prancha_id?.toString() || "",
@@ -43,10 +44,34 @@ export default function Trips() {
     }
   }, [location.search]);
 
+  const maskDate = (v) => {
+    const digits = v.replace(/\D/g, "").slice(0,8);
+    const p1 = digits.slice(0,2);
+    const p2 = digits.slice(2,4);
+    const p3 = digits.slice(4,8);
+    return [p1, p2, p3].filter(Boolean).join("/");
+  };
+  const isValidDate = (ddmmyyyy) => {
+    const m = ddmmyyyy.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!m) return false;
+    const d = Number(m[1]); const mo = Number(m[2]) - 1; const y = Number(m[3]);
+    const dt = new Date(y, mo, d);
+    return dt.getFullYear() === y && dt.getMonth() === mo && dt.getDate() === d;
+  };
+  const toIsoDate = (ddmmyyyy) => {
+    const [d, m, y] = ddmmyyyy.split("/").map(Number);
+    return `${y}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+  };
+  const fromIsoDate = (iso) => {
+    const [y, m, d] = iso.split("-").map(Number);
+    return `${String(d).padStart(2,"0")}/${String(m).padStart(2,"0")}/${y}`;
+  };
+
   const submit = async (e) => {
     e.preventDefault();
     const payload = {
       ...form,
+      date: isValidDate(form.date) ? toIsoDate(form.date) : "",
       driver_id: form.driver_id ? Number(form.driver_id) : null,
       truck_id: form.truck_id ? Number(form.truck_id) : null,
       prancha_id: form.prancha_id ? Number(form.prancha_id) : null,
@@ -56,11 +81,12 @@ export default function Trips() {
       fuel_price: form.fuel_price !== "" ? Number(form.fuel_price) : 0,
       other_costs: form.other_costs !== "" ? Number(form.other_costs) : 0
     };
-    if (!payload.date || !payload.driver_id || !payload.truck_id || !payload.prancha_id) { toast?.show("Data, motorista, caminhão e prancha são obrigatórios", "error"); return; }
+    if (!payload.date || !payload.driver_id || !payload.truck_id || !payload.prancha_id || !form.requester) { toast?.show("Data, solicitante, motorista, caminhão e prancha são obrigatórios", "error"); return; }
+    payload.requester = form.requester;
     if (editing) await updateViagem(editing.id, payload);
     else await saveViagem(payload);
     toast?.show(editing ? "Viagem atualizada" : "Viagem cadastrada", "success");
-    setForm({ date: "", driver_id: "", truck_id: "", prancha_id: "", destination: "", service_type: "", description: "", start_time: "", end_time: "", km_start: "", km_end: "", fuel_liters: "", fuel_price: "", other_costs: "", maintenance_cost: "", driver_daily: "" });
+    setForm({ date: "", requester: "", driver_id: "", truck_id: "", prancha_id: "", destination: "", service_type: "", description: "", start_time: "", end_time: "", km_start: "", km_end: "", fuel_liters: "", fuel_price: "", other_costs: "", maintenance_cost: "", driver_daily: "" });
     setEditing(null);
     loadTrips();
   };
@@ -68,7 +94,8 @@ export default function Trips() {
   const edit = (it) => {
     setEditing(it);
     setForm({
-      date: it.date || "",
+      date: it.date ? fromIsoDate(it.date) : "",
+      requester: it.requester || "",
       driver_id: it.driver_id?.toString() || "",
       truck_id: it.truck_id?.toString() || "",
       prancha_id: it.prancha_id?.toString() || "",
@@ -92,7 +119,8 @@ export default function Trips() {
       <div className="card p-6 animate-fade">
         <div className="font-semibold mb-4 text-secondary text-xl">Cadastro de Viagens</div>
         <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <input className={`input ${!form.date && 'ring-red-500 border-red-500'}`} placeholder="Data (YYYY-MM-DD)" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+          <input className={`input ${(!form.date || !isValidDate(form.date)) && 'ring-red-500 border-red-500'}`} placeholder="Data (DD/MM/YYYY)" value={form.date} onChange={(e) => setForm({ ...form, date: maskDate(e.target.value) })} />
+          <input className={`input ${!form.requester && 'ring-red-500 border-red-500'}`} placeholder="Solicitante" value={form.requester} onChange={(e) => setForm({ ...form, requester: e.target.value })} />
           <select className={`select ${!form.driver_id && 'ring-red-500 border-red-500'}`} value={form.driver_id} onChange={(e) => setForm({ ...form, driver_id: e.target.value })}>
             <option value="">Motorista</option>
             {drivers.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
