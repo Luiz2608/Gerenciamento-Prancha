@@ -68,7 +68,7 @@ export default function HistoryPrancha() {
           </thead>
           <tbody>
             {items.map((it, idx) => (
-              <tr key={it.id} className={`${idx % 2 === 0 ? 'bg-slate-50' : 'bg-white'} hover:bg-slate-100`}>
+              <tr key={it.id} className={`${idx % 2 === 0 ? 'bg-slate-50 dark:bg-slate-800' : 'bg-white dark:bg-slate-700'} hover:bg-slate-100 dark:hover:bg-slate-600`}>
                 <td>{it.id}</td>
                 <td>{it.date}</td>
                 <td>{drivers.find((d) => d.id === it.driver_id)?.name || it.driver_id}</td>
