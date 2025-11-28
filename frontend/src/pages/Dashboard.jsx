@@ -1,15 +1,29 @@
 import { useEffect, useState } from "react";
-import { dashboard } from "../services/storageService.js";
+import { dashboard, commitAllData } from "../services/storageService.js";
+import { useToast } from "../components/ToastProvider.jsx";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts";
 
 const colors = ["#2563eb", "#38bdf8", "#22c55e", "#a78bfa", "#f59e0b", "#ef4444", "#14b8a6", "#0ea5e9"];
 
 export default function Dashboard() {
   const [data, setData] = useState(null);
+  const toast = useToast();
+  const updateData = async () => {
+    const token = localStorage.getItem("gh_token") || window.prompt("Informe seu GitHub token (escopo repo)");
+    if (!token) { toast?.show("Token não informado", "error"); return; }
+    localStorage.setItem("gh_token", token);
+    const repo = localStorage.getItem("gh_repo") || "Luiz2608/Gerenciamento-Prancha";
+    const branch = localStorage.getItem("gh_branch") || "main";
+    const res = await commitAllData(token, repo, branch);
+    toast?.show(res.ok ? "Dados atualizados no GitHub" : "Falha ao atualizar dados", res.ok ? "success" : "error");
+  };
   useEffect(() => { dashboard().then((r) => setData(r)); }, []);
   if (!data) return <div className="animate-fade">Carregando...</div>;
   return (
     <div className="space-y-8 animate-fade">
+      <div className="flex justify-end">
+        <button className="btn" onClick={updateData}>Atualizar dados</button>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
         <div className="card card-hover p-6 border-t-4 border-accent">
           <div className="flex items-center gap-4">

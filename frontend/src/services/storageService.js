@@ -13,6 +13,7 @@ const files = {
 };
 
 const base64 = (s) => typeof btoa !== "undefined" ? btoa(s) : Buffer.from(s).toString("base64");
+const base64utf8 = (s) => typeof btoa !== "undefined" ? btoa(unescape(encodeURIComponent(s))) : Buffer.from(s, "utf8").toString("base64");
 const uuid = () => "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
   const r = Math.random() * 16 | 0;
   const v = c === "x" ? r : (r & 0x3 | 0x8);
@@ -269,6 +270,52 @@ export async function exportPdf(filters = {}) {
 }
 
 export async function backupBlob() { await initLoad(); return new Blob([localStorage.getItem(KEY)], { type: "application/json" }); }
+
+async function githubGetFileSha(token, owner, repo, path, branch) {
+  try {
+    const r = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`, { headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json" } });
+    if (r.status === 404) return null;
+    if (!r.ok) return null;
+    const j = await r.json();
+    return j.sha || null;
+  } catch { return null; }
+}
+
+async function githubPutFile(token, owner, repo, path, branch, contentStr, sha, message) {
+  try {
+    const body = { message, content: base64utf8(contentStr), branch, sha: sha || undefined };
+    const r = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, { method: "PUT", headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json", "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    if (!r.ok) return null;
+    return await r.json();
+  } catch { return null; }
+}
+
+export async function commitAllData(token, repo, branch = "main") {
+  await initLoad();
+  const db = getDB();
+  const [owner, reponame] = String(repo).split("/");
+  const prefix = "frontend/public/";
+  const entries = [
+    { path: prefix + files.motoristas, content: db.motoristas },
+    { path: prefix + files.viagens, content: db.viagens },
+    { path: prefix + files.destinos, content: db.destinos },
+    { path: prefix + files.tipos, content: db.tipos_servico },
+    { path: prefix + files.usuarios, content: db.usuarios },
+    { path: prefix + files.config, content: db.config },
+    { path: prefix + files.caminhoes, content: db.caminhoes },
+    { path: prefix + files.pranchas, content: db.pranchas },
+    { path: prefix + files.custos, content: db.custos }
+  ];
+  const results = [];
+  for (const e of entries) {
+    const json = JSON.stringify(e.content ?? (Array.isArray(e.content) ? [] : {}), null, 2);
+    const sha = await githubGetFileSha(token, owner, reponame, e.path, branch);
+    const res = await githubPutFile(token, owner, reponame, e.path, branch, json, sha, `update ${e.path}`);
+    results.push({ path: e.path, ok: !!(res && res.content && res.content.sha) });
+  }
+  const ok = results.every((x) => x.ok);
+  return { ok, results };
+}
 
 function computeCustoFields(raw) {
   const consumoLitros = Number(raw.consumoLitros || 0);
