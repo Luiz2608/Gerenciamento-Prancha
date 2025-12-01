@@ -11,6 +11,8 @@ services:
     autoDeploy: true
     healthCheckPath: /api/health
     envVars:
+      - key: NODE_VERSION
+        value: 20
       - key: DB_PATH
         value: /data/prancha.db
     disk:
