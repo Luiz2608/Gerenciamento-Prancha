@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: viagens-da-prancha-api
+    env: node
+    plan: free
+    region: oregon
+    branch: main
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    autoDeploy: true
+    healthCheckPath: /api/health
+    envVars:
+      - key: DB_PATH
+        value: /data/prancha.db
+    disk:
+      name: data
+      mountPath: /data
+      sizeGB: 1
