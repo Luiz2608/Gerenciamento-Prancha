@@ -7,7 +7,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const db = new Database("prancha.db");
+const dbFile = process.env.DB_PATH || "prancha.db";
+const db = new Database(dbFile);
+
+app.get("/", (req, res) => {
+  res.json({ ok: true, name: "Viagens da Prancha API", health: "/api/health" });
+});
 
 db.exec(`
 CREATE TABLE IF NOT EXISTS usuarios (
@@ -186,4 +191,3 @@ const port = process.env.PORT || 4000;
 app.listen(port, () => {
   console.log(`API running on http://localhost:${port}`);
 });
-
