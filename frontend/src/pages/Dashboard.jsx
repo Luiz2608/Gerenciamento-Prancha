@@ -20,7 +20,7 @@ export default function Dashboard() {
   useEffect(() => { dashboard().then((r) => setData(r)); }, []);
   if (!data) return <div className="animate-fade">Carregando...</div>;
   return (
-    <div className="space-y-8 animate-fade">
+    <div className="space-y-8 animate-fade overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain', touchAction: 'pan-x' }}>
       <div className="flex justify-end">
         <button className="btn" onClick={updateData}>Atualizar dados</button>
       </div>

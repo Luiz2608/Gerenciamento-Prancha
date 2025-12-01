@@ -43,7 +43,7 @@ export default function FleetTrucks() {
   const del = async (id) => { await deleteCaminhao(id); toast?.show("Caminhão excluído", "success"); load(); };
   const delConfirm = async (id) => { if (!window.confirm("Confirma excluir este caminhão?")) return; await del(id); };
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain', touchAction: 'pan-x' }}>
       <div className="card p-6 animate-fade">
         <div className="font-semibold mb-4 text-secondary text-xl">Cadastro de Caminhão</div>
         <form onSubmit={submit} onKeyDown={handleFormKeyDown} className="grid grid-cols-1 md:grid-cols-6 gap-4">

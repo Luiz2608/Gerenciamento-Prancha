@@ -51,7 +51,7 @@ export default function Drivers() {
   const delConfirm = async (id) => { if (!window.confirm("Confirma excluir este motorista?")) return; await del(id); };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain', touchAction: 'pan-x' }}>
       <div className="card p-6 animate-fade">
         <div className="font-semibold mb-4 text-secondary text-xl">Cadastro de Motoristas</div>
         <form onSubmit={submit} onKeyDown={handleFormKeyDown} className="grid grid-cols-1 md:grid-cols-5 gap-4">

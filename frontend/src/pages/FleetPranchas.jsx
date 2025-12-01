@@ -23,7 +23,7 @@ export default function FleetPranchas() {
   const edit = (it) => { setEditing(it); setForm({ asset_number: it.asset_number || "", type: it.type || "", capacity: it.capacity?.toString() || "", year: it.year?.toString() || "", status: it.status }); };
   const del = async (id) => { await deletePrancha(id); load(); };
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain', touchAction: 'pan-x' }}>
       <div className="card p-6 animate-fade">
         <div className="font-semibold mb-4 text-secondary text-xl">Cadastro de Prancha</div>
         <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-6 gap-4">
@@ -38,7 +38,7 @@ export default function FleetPranchas() {
           <button className="btn btn-primary">{editing ? "Salvar" : "Adicionar"}</button>
         </form>
       </div>
-      <div className="card p-6 animate-fade overflow-x-auto">
+      <div className="card p-6 animate-fade overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain', touchAction: 'pan-x' }}>
         <table className="table min-w-[900px]">
           <thead>
             <tr>

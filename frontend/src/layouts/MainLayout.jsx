@@ -57,7 +57,7 @@ export default function MainLayout() {
             </div>
           </div>
         </header>
-        <main className="p-6">
+        <main className="p-6 overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain', touchAction: 'pan-x' }}>
           <Outlet />
         </main>
       </div>

@@ -38,7 +38,7 @@ export default function History() {
   };
 
   return (
-    <div className="space-y-8 animate-fade">
+    <div className="space-y-8 animate-fade overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain', touchAction: 'pan-x' }}>
       <div className="card p-6 grid grid-cols-1 md:grid-cols-6 gap-4">
         <input className="input" placeholder="Início" value={filters.startDate} onChange={(e) => setFilters({ ...filters, startDate: e.target.value })} />
         <input className="input" placeholder="Fim" value={filters.endDate} onChange={(e) => setFilters({ ...filters, endDate: e.target.value })} />
@@ -59,7 +59,7 @@ export default function History() {
           <button className="btn btn-secondary" onClick={doExportPdf}>Exportar PDF</button>
         </div>
       </div>
-      <div className="card p-6 overflow-x-auto">
+      <div className="card p-6 overflow-x-auto hidden md:block">
         <table className="table min-w-[900px]">
           <thead>
             <tr>
@@ -102,6 +102,29 @@ export default function History() {
             <option value={20}>20</option>
             <option value={50}>50</option>
           </select>
+        </div>
+      </div>
+      <div className="space-y-3 md:hidden">
+        {items.map((it) => (
+          <div key={it.id} className="card p-4">
+            <div className="flex justify-between items-center">
+              <div className="font-semibold">#{it.id} • {it.date}</div>
+              <div className="text-sm">{it.status}</div>
+            </div>
+            <div className="text-sm text-slate-600 dark:text-slate-300">Motorista: {drivers.find((d) => d.id === it.driver_id)?.name || it.driver_id}</div>
+            <div className="text-sm text-slate-600 dark:text-slate-300">Destino: {it.destination || "-"}</div>
+            <div className="text-sm">Tipo: {it.service_type || "-"}</div>
+            <div className="mt-1 flex gap-4 text-sm"><span>KM: {it.km_rodado}</span><span>Horas: {it.horas}</span></div>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button className="btn" onClick={() => setViewItem(it)}>Ver</button>
+              <button className="btn border border-slate-300" onClick={() => nav(`/viagens?editId=${it.id}`)}>Editar</button>
+            </div>
+          </div>
+        ))}
+        <div className="mt-2 flex items-center gap-2">
+          <button className="btn border border-slate-300" disabled={page === 1} onClick={() => setPage(page - 1)}>Anterior</button>
+          <span>{page}</span>
+          <button className="btn border border-slate-300" disabled={(page * pageSize) >= total} onClick={() => setPage(page + 1)}>Próximo</button>
         </div>
       </div>
       {viewItem && (

@@ -159,7 +159,7 @@ export default function Costs() {
   const delConfirm = async (id) => { if (!window.confirm("Confirma excluir este custo?")) return; await del(id); };
 
   const lista = (
-    <div className="space-y-6" onKeyDown={handleEnterInContainer}>
+    <div className="space-y-6 overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain', touchAction: 'pan-x' }} onKeyDown={handleEnterInContainer}>
       <div className="card p-6 grid grid-cols-1 md:grid-cols-9 gap-4">
         <input className={`input ${filters.startDate && !isValidDate(filters.startDate) && 'ring-red-500 border-red-500'}`} placeholder="Início (DD/MM/YYYY)" value={filters.startDate} onChange={(e) => setFilters({ ...filters, startDate: maskDate(e.target.value) })} />
         <input className={`input ${filters.endDate && !isValidDate(filters.endDate) && 'ring-red-500 border-red-500'}`} placeholder="Fim (DD/MM/YYYY)" value={filters.endDate} onChange={(e) => setFilters({ ...filters, endDate: maskDate(e.target.value) })} />
