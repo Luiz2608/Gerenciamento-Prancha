@@ -48,13 +48,13 @@ export default function HistoryPrancha() {
           <option>Finalizada</option>
         </select>
       </div>
-      <div className="card p-6 overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain', touchAction: 'pan-x' }}>
+      <div className="card p-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
           <div className="card p-4"><div className="text-sm">KM total</div><div className="text-2xl font-bold">{totalKm}</div></div>
           <div className="card p-4"><div className="text-sm">Horas totais</div><div className="text-2xl font-bold">{totalHours}</div></div>
           <div className="card p-4"><div className="text-sm">Viagens</div><div className="text-2xl font-bold">{count}</div></div>
         </div>
-        <table className="table min-w-[1100px]">
+        <table className="table min-w-[1100px] hidden md:table">
           <thead>
             <tr>
               <th>ID</th>
@@ -80,6 +80,19 @@ export default function HistoryPrancha() {
             ))}
           </tbody>
         </table>
+        <div className="space-y-3 md:hidden">
+          {items.map((it) => (
+            <div key={it.id} className="card p-4">
+              <div className="flex justify-between items-center">
+                <div className="font-semibold">#{it.id} • {it.date}</div>
+                <div className="text-sm">{it.status}</div>
+              </div>
+              <div className="text-sm text-slate-600 dark:text-slate-300">Motorista: {drivers.find((d) => d.id === it.driver_id)?.name || it.driver_id}</div>
+              <div className="text-sm text-slate-600 dark:text-slate-300">Destino: {it.destination || "-"}</div>
+              <div className="mt-1 flex gap-4 text-sm"><span>KM: {it.km_rodado}</span><span>Horas: {it.horas}</span></div>
+            </div>
+          ))}
+        </div>
       </div>
       <div className="card p-6">
         <div className="h-72">

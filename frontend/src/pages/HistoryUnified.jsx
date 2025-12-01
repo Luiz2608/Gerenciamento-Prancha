@@ -55,8 +55,8 @@ export default function HistoryUnified() {
           <button className="btn btn-secondary" onClick={exportPdfAction}><span className="material-icons">picture_as_pdf</span> PDF</button>
         </div>
       </div>
-      <div className="card p-6 overflow-x-auto">
-        <table className="table min-w-[1200px]">
+      <div className="card p-6 overflow-x-auto hidden md:block">
+        <table className="table md:min-w-[1200px] min-w-full">
           <thead>
             <tr>
               <th>ID</th>
@@ -112,6 +112,27 @@ export default function HistoryUnified() {
           </select>
         </div>
         <div className="mt-4 text-sm">Registros: {totalCount} • Total gasto no período: R$ {total.toFixed(2)}</div>
+      </div>
+      <div className="space-y-3 md:hidden">
+        {items.map((it) => (
+          <div key={it.id} className="card p-4">
+            <div className="flex justify-between items-center">
+              <div className="font-semibold">#{it.id} • {it.date}</div>
+              <div className="text-sm">{it.status}</div>
+            </div>
+            <div className="text-sm text-slate-600 dark:text-slate-300">Motorista: {drivers.find((d) => d.id === it.driver_id)?.name || it.driver_id}</div>
+            <div className="text-sm text-slate-600 dark:text-slate-300">Caminhão: {trucks.find((t) => t.id === it.truck_id)?.plate || it.truck_id || ""}</div>
+            <div className="text-sm text-slate-600 dark:text-slate-300">Prancha: {pranchas.find((p) => p.id === it.prancha_id)?.asset_number || it.prancha_id || ""}</div>
+            <div className="text-sm">Destino: {it.destination || "-"}</div>
+            <div className="mt-1 flex gap-4 text-sm"><span>KM: {it.km_rodado}</span><span>Horas: {it.horas}</span><span>Custo: R$ {(it.total_cost ?? 0).toFixed(2)}</span></div>
+          </div>
+        ))}
+        <div className="mt-2 flex items-center gap-2">
+          <button className="btn" onClick={() => setPage(Math.max(1, page-1))}><span className="material-icons">chevron_left</span></button>
+          <div className="text-sm">Página {page}</div>
+          <button className="btn" onClick={() => setPage(page+1)} disabled={items.length < pageSize}><span className="material-icons">chevron_right</span></button>
+        </div>
+        <div className="mt-2 text-sm">Registros: {totalCount} • Total: R$ {total.toFixed(2)}</div>
       </div>
     </div>
   );

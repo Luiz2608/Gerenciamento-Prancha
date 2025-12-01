@@ -38,8 +38,8 @@ export default function FleetPranchas() {
           <button className="btn btn-primary">{editing ? "Salvar" : "Adicionar"}</button>
         </form>
       </div>
-      <div className="card p-6 animate-fade overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain', touchAction: 'pan-x' }}>
-        <table className="table min-w-[900px]">
+      <div className="card p-6 animate-fade overflow-x-auto hidden md:block">
+        <table className="table md:min-w-[900px] min-w-full">
           <thead>
             <tr>
               <th>ID</th>
@@ -68,6 +68,23 @@ export default function FleetPranchas() {
             ))}
           </tbody>
         </table>
+      </div>
+      <div className="space-y-3 md:hidden">
+        {items.map((it) => (
+          <div key={it.id} className="card p-4">
+            <div className="flex justify-between items-center">
+              <div className="font-semibold">{it.asset_number || "Prancha"}</div>
+              <div className="text-sm">{it.status}</div>
+            </div>
+            <div className="text-sm text-slate-600 dark:text-slate-300">Tipo: {it.type || ""}</div>
+            <div className="text-sm text-slate-600 dark:text-slate-300">Ano: {it.year ?? ""}</div>
+            <div className="text-sm text-slate-600 dark:text-slate-300">Capacidade: {it.capacity ?? ""}</div>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button className="btn bg-yellow-500 hover:bg-yellow-600 text-white" onClick={() => edit(it)}>Editar</button>
+              <button className="btn bg-red-600 hover:bg-red-700 text-white" onClick={() => del(it.id)}>Excluir</button>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
