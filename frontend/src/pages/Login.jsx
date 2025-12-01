@@ -43,7 +43,7 @@ export default function Login() {
       <div className="card p-8 w-full max-w-md shadow-2xl">
         <div className="text-center mb-6">
           <div className="w-16 h-16 mx-auto rounded-2xl bg-primary/10 text-primary flex items-center justify-center text-3xl">🚚</div>
-          <h1 className="text-2xl font-bold text-secondary mt-4">Sistema de Controle de Viagens</h1>
+          <h1 className="text-2xl font-bold text-secondary mt-4">Viagens da Prancha</h1>
         </div>
         <form onSubmit={submit} onKeyDown={handleFormKeyDown} className="space-y-4">
           <input className="input" placeholder="Usuário" value={username} onChange={(e) => setUsername(e.target.value)} />
