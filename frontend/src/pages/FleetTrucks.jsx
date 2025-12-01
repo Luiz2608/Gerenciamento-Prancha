@@ -60,7 +60,7 @@ export default function FleetTrucks() {
           <button className="btn btn-primary">{editing ? "Salvar" : "Adicionar"}</button>
         </form>
       </div>
-      <div className="card p-6 animate-fade overflow-x-auto">
+      <div className="card p-6 animate-fade overflow-x-auto hidden md:block">
         <table className="table min-w-[1000px]">
           <thead>
             <tr>
@@ -94,6 +94,23 @@ export default function FleetTrucks() {
             ))}
           </tbody>
         </table>
+      </div>
+      <div className="space-y-3 md:hidden">
+        {items.map((it) => (
+          <div key={it.id} className="card p-4">
+            <div className="flex justify-between items-center">
+              <div className="font-semibold">{it.model || "Caminhão"}</div>
+              <div className="text-sm">{it.status}</div>
+            </div>
+            <div className="text-sm text-slate-600 dark:text-slate-300">Placa: {it.plate || ""}</div>
+            <div className="text-sm text-slate-600 dark:text-slate-300">Frota: {it.fleet || ""}</div>
+            <div className="text-sm text-slate-600 dark:text-slate-300">KM: {it.km_current ?? ""}</div>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button className="btn bg-yellow-500 hover:bg-yellow-600 text-white" onClick={() => edit(it)}>Editar</button>
+              <button className="btn bg-red-600 hover:bg-red-700 text-white" onClick={() => delConfirm(it.id)}>Excluir</button>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

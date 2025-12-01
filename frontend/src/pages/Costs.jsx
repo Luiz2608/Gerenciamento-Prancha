@@ -206,7 +206,7 @@ export default function Costs() {
           const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "custos.pdf"; a.click(); URL.revokeObjectURL(url); toast?.show("PDF exportado", "success");
         }}><span className="material-icons">picture_as_pdf</span> PDF</button>
       </div>
-      <div className="card p-6 animate-fade overflow-x-auto">
+      <div className="card p-6 animate-fade overflow-x-auto hidden md:block">
         <table className="table min-w-[1100px]">
           <thead>
             <tr>
@@ -239,6 +239,26 @@ export default function Costs() {
             ))}
           </tbody>
         </table>
+      </div>
+      <div className="space-y-3 md:hidden">
+        {custos.map((c) => (
+          <div key={c.id} className="card p-4">
+            <div className="flex justify-between items-center">
+              <div className="font-semibold">{String(c.dataRegistro).slice(0,10)}</div>
+              <div className="text-sm">Viagem #{c.viagemId}</div>
+            </div>
+            <div className="text-sm text-slate-600 dark:text-slate-300">Caminhão: {trucks.find((t) => String(t.id) === String(c.caminhaoId))?.plate || c.caminhaoId || ""}</div>
+            <div className="text-sm text-slate-600 dark:text-slate-300">Prancha: {pranchas.find((p) => String(p.id) === String(c.pranchaId))?.identifier || c.pranchaId || ""}</div>
+            <div className="mt-2 font-bold">Total: R$ {Number(c.custoTotal || 0).toFixed(2)}</div>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button className="btn" onClick={() => setViewing(c)}>Ver</button>
+              <button className="btn bg-yellow-500 hover:bg-yellow-600 text-white" onClick={() => { setEditingId(c.id); setForm({ viagemId: c.viagemId || "", dataRegistro: fromIsoDate(String(c.dataRegistro).slice(0,10)), consumoLitros: c.consumoLitros ?? 0, valorLitro: c.valorLitro ?? 0, kmRodado: c.kmRodado ?? 0, tempoHoras: c.tempoHoras ?? 0, diariaMotorista: c.diariaMotorista ?? 0, pedagios: c.pedagios ?? 0, manutencao: c.manutencao ?? 0, outrosCustos: c.outrosCustos || [], observacoes: c.observacoes || "" }); setTab("novo"); toast?.show("Edição carregada", "info"); }}>Editar</button>
+              {user?.role === "admin" && <button className="btn bg-green-600 hover:bg-green-700 text-white" onClick={() => approve(c.id)}>Aprovar</button>}
+              {user?.role === "admin" && <button className="btn bg-red-600 hover:bg-red-700 text-white" onClick={async () => { await updateCusto(c.id, { aprovado: false, aprovadoPor: null, aprovadoEm: null }); toast?.show("Custo recusado", "success"); loadList(); }}>Recusar</button>}
+              <button className="btn bg-red-600 hover:bg-red-700 text-white" onClick={() => delConfirm(c.id)}>Excluir</button>
+            </div>
+          </div>
+        ))}
       </div>
       <div className="flex items-center justify-between">
         <div>Registros: {totalRows}</div>

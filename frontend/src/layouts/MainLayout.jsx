@@ -22,6 +22,7 @@ export default function MainLayout() {
   const isActive = (p) => (loc.pathname === p || loc.pathname.startsWith(p));
   return (
     <div className="min-h-screen flex bg-bg text-text dark:bg-[#0f172a] dark:text-[#f1f5f9]">
+      {open && <div className="fixed inset-0 bg-black/40 md:hidden z-10" onClick={() => setOpen(false)} />}
       <aside className={`${open ? "translate-x-0" : "-translate-x-full"} md:translate-x-0 fixed md:static z-20 w-72 bg-[#1e3a8a] text-white h-full transition-transform duration-300 shadow-xl dark:bg-[#1e293b]`}>
         <div className="p-5 flex items-center gap-3 text-white">
           <div className="w-10 h-10 bg-accent rounded-xl flex items-center justify-center">🚚</div>

@@ -176,7 +176,7 @@ export default function Trips() {
           <button className="btn btn-primary">{editing ? "Salvar" : "Adicionar"}</button>
         </form>
       </div>
-      <div className="card p-6 animate-fade overflow-x-auto">
+      <div className="card p-6 animate-fade overflow-x-auto hidden md:block">
         <table className="table min-w-[1100px]">
           <thead>
             <tr>
@@ -216,6 +216,26 @@ export default function Trips() {
             ))}
           </tbody>
         </table>
+      </div>
+      <div className="space-y-3 md:hidden">
+        {items.map((it) => (
+          <div key={it.id} className="card p-4">
+            <div className="flex justify-between items-center">
+              <div className="font-semibold">#{it.id} • {it.date}</div>
+              <div className="text-sm">{it.status}</div>
+            </div>
+            <div className="text-sm text-slate-600 dark:text-slate-300">Motorista: {drivers.find((d) => d.id === it.driver_id)?.name || it.driver_id}</div>
+            <div className="text-sm text-slate-600 dark:text-slate-300">Caminhão: {trucks.find((t) => t.id === it.truck_id)?.fleet || trucks.find((t) => t.id === it.truck_id)?.plate || it.truck_id || ""}</div>
+            <div className="text-sm text-slate-600 dark:text-slate-300">Prancha: {pranchas.find((p) => p.id === it.prancha_id)?.identifier || it.prancha_id || ""}</div>
+            <div className="mt-1 text-sm">Destino: {it.destination || "-"}</div>
+            <div className="mt-1 text-sm">Tipo: {it.service_type || "-"}</div>
+            <div className="mt-1 flex gap-4 text-sm"><span>KM: {it.km_rodado}</span><span>Horas: {it.horas}</span></div>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button className="btn bg-yellow-500 hover:bg-yellow-600 text-white" onClick={() => edit(it)}>Editar</button>
+              <button className="btn bg-red-600 hover:bg-red-700 text-white" onClick={() => delConfirm(it.id)}>Excluir</button>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
