@@ -1,7 +1,7 @@
 services:
   - type: web
     name: viagens-da-prancha-api
-    env: node
+    runtime: node
     plan: free
     region: oregon
     branch: main
