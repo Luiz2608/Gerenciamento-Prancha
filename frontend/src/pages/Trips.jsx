@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { getMotoristas, getViagens, getViagem, saveViagem, updateViagem, deleteViagem, getCaminhoes, getPranchas } from "../services/storageService.js";
 import { useToast } from "../components/ToastProvider.jsx";
+import { supabase } from "../services/supabaseClient.js";
 
 export default function Trips() {
   const toast = useToast();
@@ -18,7 +19,38 @@ export default function Trips() {
   const loadTrucks = () => getCaminhoes().then((r) => setTrucks(r.filter((x) => x.status === "Ativo")));
   const loadPranchas = () => getPranchas().then((r) => setPranchas(r.filter((x) => x.status === "Ativo")));
   const loadTrips = () => getViagens({ page: 1, pageSize: 20 }).then((r) => setItems(r.data));
-  useEffect(() => { loadDrivers(); loadTrucks(); loadPranchas(); loadTrips(); }, []);
+  useEffect(() => {
+    loadDrivers();
+    loadTrucks();
+    loadPranchas();
+    loadTrips();
+    if (supabase) {
+      const ch1 = supabase
+        .channel("public:viagens")
+        .on("postgres_changes", { event: "*", schema: "public", table: "viagens" }, () => { loadTrips(); })
+        .subscribe();
+      const ch2 = supabase
+        .channel("public:motoristas")
+        .on("postgres_changes", { event: "*", schema: "public", table: "motoristas" }, () => { loadDrivers(); })
+        .subscribe();
+      const ch3 = supabase
+        .channel("public:caminhoes")
+        .on("postgres_changes", { event: "*", schema: "public", table: "caminhoes" }, () => { loadTrucks(); })
+        .subscribe();
+      const ch4 = supabase
+        .channel("public:pranchas")
+        .on("postgres_changes", { event: "*", schema: "public", table: "pranchas" }, () => { loadPranchas(); })
+        .subscribe();
+      const interval = setInterval(() => { loadTrips(); }, 10000);
+      return () => {
+        supabase.removeChannel(ch1);
+        supabase.removeChannel(ch2);
+        supabase.removeChannel(ch3);
+        supabase.removeChannel(ch4);
+        clearInterval(interval);
+      };
+    }
+  }, []);
   useEffect(() => {
     const id = new URLSearchParams(location.search).get("editId");
     if (id) {
@@ -52,8 +84,21 @@ export default function Trips() {
     const p3 = digits.slice(4,8);
     return [p1, p2, p3].filter(Boolean).join("/");
   };
-  const isValidDate = (ddmmyyyy) => {
-    const m = ddmmyyyy.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  const normalizeDate = (s) => {
+    const m2 = (s || "").match(/^(\d{2})\/(\d{2})\/(\d{2})$/);
+    if (m2) {
+      const d = m2[1]; const mo = m2[2]; const yy = Number(m2[3]);
+      const y = 2000 + yy;
+      return `${d}/${mo}/${y}`;
+    }
+    const m4 = (s || "").match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (m4) return s;
+    return null;
+  };
+  const isValidDate = (s) => {
+    const full = normalizeDate(s);
+    if (!full) return false;
+    const m = full.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
     if (!m) return false;
     const d = Number(m[1]); const mo = Number(m[2]) - 1; const y = Number(m[3]);
     const dt = new Date(y, mo, d);
@@ -66,8 +111,10 @@ export default function Trips() {
     const m = d.slice(2,4);
     return [h, m].filter(Boolean).join(":");
   };
-  const toIsoDate = (ddmmyyyy) => {
-    const [d, m, y] = ddmmyyyy.split("/").map(Number);
+  const toIsoDate = (s) => {
+    const full = normalizeDate(s);
+    if (!full) return "";
+    const [d, m, y] = full.split("/").map(Number);
     return `${y}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
   };
   const fromIsoDate = (iso) => {
@@ -82,14 +129,25 @@ export default function Trips() {
       date: isValidDate(form.date) ? toIsoDate(form.date) : "",
       driver_id: form.driver_id ? Number(form.driver_id) : null,
       truck_id: form.truck_id ? Number(form.truck_id) : null,
-      prancha_id: form.prancha_id ? Number(form.prancha_id) : null,
+      prancha_id: form.prancha_id ? (pranchas.find((p) => String(p.asset_number || "") === String(form.prancha_id))?.id ?? null) : null,
       km_start: form.km_start !== "" ? Number(form.km_start) : null,
       km_end: form.km_end !== "" ? Number(form.km_end) : null,
       fuel_liters: form.fuel_liters !== "" ? Number(form.fuel_liters) : 0,
       fuel_price: form.fuel_price !== "" ? Number(form.fuel_price) : 0,
       other_costs: form.other_costs !== "" ? Number(form.other_costs) : 0
     };
-    if (!payload.date || !form.requester || !payload.driver_id || !payload.truck_id || !payload.prancha_id || !form.destination || !isValidTime(form.start_time) || form.km_start === "") { toast?.show("Data, solicitante, motorista, caminhão (frota), prancha, destino, hora saída e KM saída são obrigatórios", "error"); return; }
+    const todayIso = new Date().toISOString().slice(0,10);
+    const missing = [];
+    if (!payload.date) missing.push("Data");
+    if (!form.requester) missing.push("Solicitante");
+    if (!payload.driver_id) missing.push("Motorista");
+    if (!payload.truck_id) missing.push("Caminhão (Frota)");
+    if (!payload.prancha_id) missing.push("Prancha (Frota)");
+    if (!form.destination) missing.push("Destino");
+    if (!isValidTime(form.start_time)) missing.push("Hora saída");
+    if (form.km_start === "") missing.push("KM saída");
+    if (missing.length) { toast?.show(`Erro → Aba Viagens → Campo ${missing[0]} obrigatório`, "error"); return; }
+    if (payload.date && payload.date < todayIso) { toast?.show("Erro → Aba Viagens → Campo Data deve ser hoje ou futura", "error"); return; }
     if (payload.km_end != null && payload.km_start != null && payload.km_end < payload.km_start) { toast?.show("KM final não pode ser menor que o KM inicial", "error"); return; }
     payload.requester = form.requester;
     if (editing) await updateViagem(editing.id, payload);
@@ -117,7 +175,7 @@ export default function Trips() {
       requester: it.requester || "",
       driver_id: it.driver_id?.toString() || "",
       truck_id: it.truck_id?.toString() || "",
-      prancha_id: it.prancha_id?.toString() || "",
+      prancha_id: (pranchas.find((p) => p.id === it.prancha_id)?.asset_number?.toString()) || "",
       destination: it.destination || "",
       service_type: it.service_type || "",
       description: it.description || "",
@@ -136,11 +194,11 @@ export default function Trips() {
   const delConfirm = async (id) => { if (!window.confirm("Confirma excluir esta viagem?")) return; await del(id); };
 
   return (
-    <div className="space-y-8 overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain', touchAction: 'pan-x' }}>
+    <div className="space-y-8 overflow-x-auto overflow-y-auto min-h-screen page" style={{ WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain', overscrollBehaviorY: 'contain', touchAction: 'pan-y' }}>
       <div className="card p-6 animate-fade">
         <div className="font-semibold mb-4 text-secondary text-xl">Cadastro de Viagens</div>
         <form onSubmit={submit} onKeyDown={handleFormKeyDown} className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <input className={`input ${(!form.date || !isValidDate(form.date)) && 'ring-red-500 border-red-500'}`} placeholder="Data (DD/MM/YYYY)" value={form.date} onChange={(e) => setForm({ ...form, date: maskDate(e.target.value) })} />
+          <input className={`input ${(!form.date || !isValidDate(form.date)) && 'ring-red-500 border-red-500'}`} placeholder="Data (DD/MM/YY ou DD/MM/YYYY)" value={form.date} onChange={(e) => setForm({ ...form, date: maskDate(e.target.value) })} />
           <input className={`input ${!form.requester && 'ring-red-500 border-red-500'}`} placeholder="Solicitante" value={form.requester} onChange={(e) => setForm({ ...form, requester: e.target.value })} />
           <select className={`select ${!form.driver_id && 'ring-red-500 border-red-500'}`} value={form.driver_id} onChange={(e) => setForm({ ...form, driver_id: e.target.value })}>
             <option value="">Motorista</option>
@@ -156,7 +214,7 @@ export default function Trips() {
           </select>
           <select className={`select ${!form.prancha_id && 'ring-red-500 border-red-500'}`} value={form.prancha_id} onChange={(e) => setForm({ ...form, prancha_id: e.target.value })}>
             <option value="">Prancha</option>
-            {pranchas.map((p) => <option key={p.id} value={p.id}>{p.identifier || p.model || p.id}</option>)}
+            {pranchas.map((p) => <option key={p.id} value={p.asset_number || ''}>{p.asset_number || p.identifier || p.model || p.id}</option>)}
           </select>
           <input className={`input ${!form.destination && 'ring-red-500 border-red-500'}`} placeholder="Destino" value={form.destination} onChange={(e) => setForm({ ...form, destination: e.target.value })} />
           <select className="select" value={form.service_type} onChange={(e) => setForm({ ...form, service_type: e.target.value })}>
@@ -201,7 +259,7 @@ export default function Trips() {
                 <td>{it.date}</td>
                 <td>{drivers.find((d) => d.id === it.driver_id)?.name || it.driver_id}</td>
                 <td>{trucks.find((t) => t.id === it.truck_id)?.fleet || trucks.find((t) => t.id === it.truck_id)?.plate || it.truck_id || ""}</td>
-                <td>{pranchas.find((p) => p.id === it.prancha_id)?.identifier || it.prancha_id || ""}</td>
+                <td>{pranchas.find((p) => p.id === it.prancha_id)?.asset_number || pranchas.find((p) => p.id === it.prancha_id)?.identifier || it.prancha_id || ""}</td>
                 <td>{it.destination || ""}</td>
                 <td>{it.service_type || ""}</td>
                 <td>{it.status}</td>

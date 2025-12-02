@@ -110,6 +110,27 @@ const computeStatus = (end_time, km_end) => (!end_time || end_time === "" || km_
 
 export async function login(username, password) {
   await initLoad();
+  if (API_URL) {
+    const r = await api("/api/login", { method: "POST", body: JSON.stringify({ username, password }) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j?.error || "Credenciais inválidas");
+    const token = j?.token || "local-token";
+    const user = j?.user || { id: null, username, role: "user" };
+    localStorage.setItem("token", token);
+    localStorage.setItem("user", JSON.stringify(user));
+    return { token, user };
+  }
+  const { supabase: sb } = await import("./supabaseClient.js");
+  if (sb) {
+    const { data, error } = await sb.auth.signInWithPassword({ email: String(username), password: String(password) });
+    if (error) throw error;
+    const session = data?.session || null;
+    const user = session?.user || null;
+    const token = session?.access_token || "supabase-token";
+    localStorage.setItem("token", token);
+    localStorage.setItem("user", JSON.stringify({ id: user?.id, username: user?.email, role: "user" }));
+    return { token, user: { id: user?.id, username: user?.email, role: "user" } };
+  }
   const db = getDB();
   const u = db.usuarios.find((x) => x.username === username);
   if (!u) throw new Error("Credenciais inválidas");
@@ -121,6 +142,18 @@ export async function login(username, password) {
 }
 export async function registerUser(username, password, role = "user") {
   await initLoad();
+  if (API_URL) {
+    const r = await api("/api/usuarios/register", { method: "POST", body: JSON.stringify({ username, password, role }) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j?.error || "Erro ao registrar");
+    return j;
+  }
+  const { supabase: sb } = await import("./supabaseClient.js");
+  if (sb) {
+    const { error } = await sb.auth.signUp({ email: String(username), password: String(password) });
+    if (error) throw error;
+    return { username, role };
+  }
   const db = getDB();
   if (db.usuarios.find((x) => x.username === username)) throw new Error("Usuário já existe");
   const id = db.usuarios.reduce((m, u) => Math.max(m, u.id || 0), 0) + 1;
@@ -232,9 +265,9 @@ export async function saveCaminhao(data) { await initLoad(); if (API_URL) { cons
 export async function updateCaminhao(id, data) { await initLoad(); if (API_URL) { const r = await api(`/api/caminhoes/${id}`, { method: "PUT", body: JSON.stringify({ plate: data.plate || null, model: data.model || null, year: data.year != null ? Number(data.year) : null, chassis: data.chassis || null, km_current: data.km_current != null ? Number(data.km_current) : null, fleet: data.fleet || null, status: data.status || "Ativo" }) }); return await r.json(); } if (sb) { const payload = { plate: data.plate || null, model: data.model || null, year: data.year != null ? Number(data.year) : null, chassis: data.chassis || null, km_current: data.km_current != null ? Number(data.km_current) : null, fleet: data.fleet || null, status: data.status || "Ativo" }; const { data: row } = await sb.from("caminhoes").update(payload).eq("id", id).select().single(); return row; } const db = getDB(); const i = db.caminhoes.findIndex((d) => d.id === Number(id)); if (i>=0) db.caminhoes[i] = { id: Number(id), plate: data.plate || null, model: data.model || null, year: data.year != null ? Number(data.year) : null, chassis: data.chassis || null, km_current: data.km_current != null ? Number(data.km_current) : null, fleet: data.fleet || null, status: data.status || "Ativo" }; setDB(db); return db.caminhoes[i]; }
 export async function deleteCaminhao(id) { await initLoad(); if (API_URL) { await api(`/api/caminhoes/${id}`, { method: "DELETE" }); return { ok: true }; } if (sb) { await sb.from("caminhoes").delete().eq("id", id); return { ok: true }; } const db = getDB(); db.caminhoes = db.caminhoes.filter((d) => d.id !== Number(id)); setDB(db); return { ok: true }; }
 
-export async function getPranchas() { await initLoad(); if (API_URL) { const r = await api("/api/pranchas"); const j = await r.json(); return Array.isArray(j) ? j : []; } return getDB().pranchas.slice().reverse(); }
-export async function savePrancha(data) { await initLoad(); if (API_URL) { const r = await api("/api/pranchas", { method: "POST", body: JSON.stringify({ asset_number: data.asset_number || null, type: data.type || null, capacity: data.capacity != null ? Number(data.capacity) : null, year: data.year != null ? Number(data.year) : null, status: data.status || "Ativo" }) }); return await r.json(); } const db = getDB(); const id = db.seq.pranchas++; const row = { id, asset_number: data.asset_number || null, type: data.type || null, capacity: data.capacity != null ? Number(data.capacity) : null, year: data.year != null ? Number(data.year) : null, status: data.status || "Ativo" }; db.pranchas.push(row); setDB(db); return row; }
-export async function updatePrancha(id, data) { await initLoad(); if (API_URL) { const r = await api(`/api/pranchas/${id}`, { method: "PUT", body: JSON.stringify({ asset_number: data.asset_number || null, type: data.type || null, capacity: data.capacity != null ? Number(data.capacity) : null, year: data.year != null ? Number(data.year) : null, status: data.status || "Ativo" }) }); return await r.json(); } const db = getDB(); const i = db.pranchas.findIndex((d) => d.id === Number(id)); if (i>=0) db.pranchas[i] = { id: Number(id), asset_number: data.asset_number || null, type: data.type || null, capacity: data.capacity != null ? Number(data.capacity) : null, year: data.year != null ? Number(data.year) : null, status: data.status || "Ativo" }; setDB(db); return db.pranchas[i]; }
+export async function getPranchas() { await initLoad(); if (API_URL) { const r = await api("/api/pranchas"); const j = await r.json(); return Array.isArray(j) ? j : []; } if (sb) { const { data } = await sb.from("pranchas").select("*").order("id", { ascending: false }); return Array.isArray(data) ? data : []; } return getDB().pranchas.slice().reverse(); }
+export async function savePrancha(data) { await initLoad(); if (API_URL) { const r = await api("/api/pranchas", { method: "POST", body: JSON.stringify({ asset_number: data.asset_number || null, type: data.type || null, capacity: data.capacity != null ? Number(data.capacity) : null, year: data.year != null ? Number(data.year) : null, status: data.status || "Ativo" }) }); return await r.json(); } if (sb) { const payload = { asset_number: data.asset_number || null, type: data.type || null, capacity: data.capacity != null ? Number(data.capacity) : null, year: data.year != null ? Number(data.year) : null, status: data.status || "Ativo" }; const { data: row } = await sb.from("pranchas").insert([payload]).select().single(); return row; } const db = getDB(); const id = db.seq.pranchas++; const row = { id, asset_number: data.asset_number || null, type: data.type || null, capacity: data.capacity != null ? Number(data.capacity) : null, year: data.year != null ? Number(data.year) : null, status: data.status || "Ativo" }; db.pranchas.push(row); setDB(db); return row; }
+export async function updatePrancha(id, data) { await initLoad(); if (API_URL) { const r = await api(`/api/pranchas/${id}`, { method: "PUT", body: JSON.stringify({ asset_number: data.asset_number || null, type: data.type || null, capacity: data.capacity != null ? Number(data.capacity) : null, year: data.year != null ? Number(data.year) : null, status: data.status || "Ativo" }) }); return await r.json(); } if (sb) { const payload = { asset_number: data.asset_number || null, type: data.type || null, capacity: data.capacity != null ? Number(data.capacity) : null, year: data.year != null ? Number(data.year) : null, status: data.status || "Ativo" }; const { data: row } = await sb.from("pranchas").update(payload).eq("id", Number(id)).select().single(); return row; } const db = getDB(); const i = db.pranchas.findIndex((d) => d.id === Number(id)); if (i>=0) db.pranchas[i] = { id: Number(id), asset_number: data.asset_number || null, type: data.type || null, capacity: data.capacity != null ? Number(data.capacity) : null, year: data.year != null ? Number(data.year) : null, status: data.status || "Ativo" }; setDB(db); return db.pranchas[i]; }
 export async function deletePrancha(id) { await initLoad(); if (API_URL) { await api(`/api/pranchas/${id}`, { method: "DELETE" }); return { ok: true }; } if (sb) { await sb.from("pranchas").delete().eq("id", id); return { ok: true }; } const db = getDB(); db.pranchas = db.pranchas.filter((d) => d.id !== Number(id)); setDB(db); return { ok: true }; }
 
 export async function getViagemByCaminhao(id, opts = {}) { return getViagens({ ...opts, truckId: id }); }
@@ -242,14 +275,38 @@ export async function getViagemByPrancha(id, opts = {}) { return getViagens({ ..
 
 export async function dashboard() {
   await initLoad();
-  const db = getDB();
+  const { supabase: sb } = await import("./supabaseClient.js");
   const now = new Date();
   const y = now.getFullYear();
   const m = String(now.getMonth() + 1).padStart(2, "0");
   const start = `${y}-${m}-01`;
   const endDate = new Date(y, now.getMonth() + 1, 0);
   const end = `${y}-${String(endDate.getDate()).padStart(2, "0")}`;
-  const monthTrips = db.viagens.filter((t) => t.date >= start && t.date <= end);
+  let viagens = [];
+  let motoristas = [];
+  let caminhoes = [];
+  let pranchas = [];
+  let custos = [];
+  if (sb) {
+    const { data: v } = await sb.from("viagens").select("*");
+    const { data: d } = await sb.from("motoristas").select("*");
+    const { data: t } = await sb.from("caminhoes").select("*");
+    const { data: p } = await sb.from("pranchas").select("*");
+    viagens = Array.isArray(v) ? v : [];
+    motoristas = Array.isArray(d) ? d : [];
+    caminhoes = Array.isArray(t) ? t : [];
+    pranchas = Array.isArray(p) ? p : [];
+    const dbLocal = getDB();
+    custos = Array.isArray(dbLocal.custos) ? dbLocal.custos : [];
+  } else {
+    const db = getDB();
+    viagens = db.viagens;
+    motoristas = db.motoristas;
+    caminhoes = db.caminhoes;
+    pranchas = db.pranchas;
+    custos = db.custos;
+  }
+  const monthTrips = viagens.filter((t) => t.date >= start && t.date <= end);
   const totalTrips = monthTrips.length;
   const totalKm = monthTrips.reduce((a, t) => a + computeKm(t.km_start, t.km_end), 0);
   const totalHours = monthTrips.reduce((a, t) => a + computeHours(t.date, t.start_time, t.end_time), 0);
@@ -257,7 +314,7 @@ export async function dashboard() {
   const destinationCounts = {};
   monthTrips.forEach((t) => { driverCounts[t.driver_id] = (driverCounts[t.driver_id] || 0) + 1; if (t.destination) destinationCounts[t.destination] = (destinationCounts[t.destination] || 0) + 1; });
   const topDriverId = Object.keys(driverCounts).sort((a, b) => driverCounts[b] - driverCounts[a])[0] || null;
-  const topDriver = topDriverId ? db.motoristas.find((d) => d.id === Number(topDriverId))?.name || null : null;
+  const topDriver = topDriverId ? motoristas.find((d) => d.id === Number(topDriverId))?.name || null : null;
   const topDestination = Object.keys(destinationCounts).sort((a, b) => destinationCounts[b] - destinationCounts[a])[0] || null;
   const kmByMonth = [];
   const hoursByMonth = [];
@@ -268,20 +325,20 @@ export async function dashboard() {
     const s = `${y2}-${m2}-01`;
     const eDate = new Date(y2, i + 1, 0);
     const e = `${y2}-${String(eDate.getDate()).padStart(2, "0")}`;
-    const rows = db.viagens.filter((t) => t.date >= s && t.date <= e);
+    const rows = viagens.filter((t) => t.date >= s && t.date <= e);
     const km = rows.reduce((a, t) => a + computeKm(t.km_start, t.km_end), 0);
     const hrs = rows.reduce((a, t) => a + computeHours(t.date, t.start_time, t.end_time), 0);
     kmByMonth.push({ month: m2, km });
     hoursByMonth.push({ month: m2, hours: hrs });
   }
-  const tripsByDriver = db.motoristas.map((d) => ({ name: d.name, value: db.viagens.filter((t) => t.driver_id === d.id).length }));
-  const monthCosts = db.custos.filter((c) => (c.dataRegistro || "").slice(0,10) >= start && (c.dataRegistro || "").slice(0,10) <= end);
+  const tripsByDriver = motoristas.map((d) => ({ name: d.name, value: viagens.filter((t) => t.driver_id === d.id).length }));
+  const monthCosts = custos.filter((c) => (c.dataRegistro || "").slice(0,10) >= start && (c.dataRegistro || "").slice(0,10) <= end);
   const totalCostsMonth = monthCosts.reduce((a, c) => a + Number(c.custoTotal || 0), 0);
-  const totalDrivers = db.motoristas.length;
-  const totalTrucks = db.caminhoes.length;
-  const totalPranchas = db.pranchas.length;
-  const totalCustos = db.custos.length;
-  const costsByCategory = ["máquinas agrícolas","máquinas de construção","equipamentos industriais","veículos pesados","veículos leves"].map((name) => ({ name, value: db.custos.filter((c) => (c.categoria || "veículos pesados") === name).reduce((a, c) => a + Number(c.custoTotal || 0), 0) }));
+  const totalDrivers = motoristas.length;
+  const totalTrucks = caminhoes.length;
+  const totalPranchas = pranchas.length;
+  const totalCustos = custos.length;
+  const costsByCategory = ["máquinas agrícolas","máquinas de construção","equipamentos industriais","veículos pesados","veículos leves"].map((name) => ({ name, value: custos.filter((c) => (c.categoria || "veículos pesados") === name).reduce((a, c) => a + Number(c.custoTotal || 0), 0) }));
   const costsByMonth = [];
   for (let i = 0; i < 12; i++) {
     const d = new Date(y, i, 1);
@@ -290,7 +347,7 @@ export async function dashboard() {
     const s = `${y2}-${m2}-01`;
     const eDate = new Date(y2, i + 1, 0);
     const e = `${y2}-${String(eDate.getDate()).padStart(2, "0")}`;
-    const rows = db.custos.filter((c) => (c.dataRegistro || "").slice(0,10) >= s && (c.dataRegistro || "").slice(0,10) <= e);
+    const rows = custos.filter((c) => (c.dataRegistro || "").slice(0,10) >= s && (c.dataRegistro || "").slice(0,10) <= e);
     const total = rows.reduce((a, c) => a + Number(c.custoTotal || 0), 0);
     costsByMonth.push({ month: m2, total });
   }
@@ -325,52 +382,6 @@ export async function exportPdf(filters = {}) {
 }
 
 export async function backupBlob() { await initLoad(); return new Blob([localStorage.getItem(KEY)], { type: "application/json" }); }
-
-async function githubGetFileSha(token, owner, repo, path, branch) {
-  try {
-    const r = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`, { headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json" } });
-    if (r.status === 404) return null;
-    if (!r.ok) return null;
-    const j = await r.json();
-    return j.sha || null;
-  } catch { return null; }
-}
-
-async function githubPutFile(token, owner, repo, path, branch, contentStr, sha, message) {
-  try {
-    const body = { message, content: base64utf8(contentStr), branch, sha: sha || undefined };
-    const r = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, { method: "PUT", headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json", "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    if (!r.ok) return null;
-    return await r.json();
-  } catch { return null; }
-}
-
-export async function commitAllData(token, repo, branch = "main") {
-  await initLoad();
-  const db = getDB();
-  const [owner, reponame] = String(repo).split("/");
-  const prefix = "frontend/public/";
-  const entries = [
-    { path: prefix + files.motoristas, content: db.motoristas },
-    { path: prefix + files.viagens, content: db.viagens },
-    { path: prefix + files.destinos, content: db.destinos },
-    { path: prefix + files.tipos, content: db.tipos_servico },
-    { path: prefix + files.usuarios, content: db.usuarios },
-    { path: prefix + files.config, content: db.config },
-    { path: prefix + files.caminhoes, content: db.caminhoes },
-    { path: prefix + files.pranchas, content: db.pranchas },
-    { path: prefix + files.custos, content: db.custos }
-  ];
-  const results = [];
-  for (const e of entries) {
-    const json = JSON.stringify(e.content ?? (Array.isArray(e.content) ? [] : {}), null, 2);
-    const sha = await githubGetFileSha(token, owner, reponame, e.path, branch);
-    const res = await githubPutFile(token, owner, reponame, e.path, branch, json, sha, `update ${e.path}`);
-    results.push({ path: e.path, ok: !!(res && res.content && res.content.sha) });
-  }
-  const ok = results.every((x) => x.ok);
-  return { ok, results };
-}
 
 function computeCustoFields(raw) {
   const consumoLitros = Number(raw.consumoLitros || 0);
@@ -426,8 +437,33 @@ async function migrateCostsFromTrips() {
 
 export async function getCustos(opts = {}) {
   await initLoad();
-  const db = getDB();
   const { startDate, endDate, caminhaoId, pranchaId, driverId, aprovado, search, minCusto, maxCusto, page = 1, pageSize = 10 } = opts;
+  if (sb) {
+    let query = sb.from("custos").select("*");
+    if (startDate) query = query.gte("dataRegistro", startDate);
+    if (endDate) query = query.lte("dataRegistro", endDate);
+    if (caminhaoId) query = query.eq("caminhaoId", String(caminhaoId));
+    if (pranchaId) query = query.eq("pranchaId", String(pranchaId));
+    if (typeof aprovado === "boolean") query = query.eq("aprovado", aprovado);
+    const { data: rows0 } = await query;
+    let rows = Array.isArray(rows0) ? rows0.slice().reverse() : [];
+    if (driverId) {
+      const { data: viagens } = await sb.from("viagens").select("id, driver_id");
+      const ids = new Set((Array.isArray(viagens) ? viagens : []).filter((v) => String(v.driver_id) === String(driverId)).map((v) => String(v.id)));
+      rows = rows.filter((c) => ids.has(String(c.viagemId || "")));
+    }
+    if (minCusto != null) rows = rows.filter((c) => Number(c.custoTotal || 0) >= Number(minCusto));
+    if (maxCusto != null) rows = rows.filter((c) => Number(c.custoTotal || 0) <= Number(maxCusto));
+    if (search) {
+      const s = String(search).toLowerCase();
+      rows = rows.filter((c) => (String(c.observacoes || "").toLowerCase().includes(s)) || (Array.isArray(c.outrosCustos) && c.outrosCustos.some((o) => String(o.descricao || "").toLowerCase().includes(s))));
+    }
+    const total = rows.length;
+    const offset = (Number(page) - 1) * Number(pageSize);
+    const data = rows.slice(offset, offset + Number(pageSize));
+    return { data, total, page: Number(page), pageSize: Number(pageSize) };
+  }
+  const db = getDB();
   let rows = db.custos.slice().reverse();
   if (startDate) rows = rows.filter((c) => c.dataRegistro >= startDate);
   if (endDate) rows = rows.filter((c) => c.dataRegistro <= endDate);
@@ -450,12 +486,12 @@ export async function getCustos(opts = {}) {
   return { data, total, page: Number(page), pageSize: Number(pageSize) };
 }
 
-export async function getCustoById(id) { await initLoad(); const db = getDB(); return db.custos.find((c) => String(c.id) === String(id)) || null; }
+export async function getCustoById(id) { await initLoad(); if (sb) { const { data } = await sb.from("custos").select("*").eq("id", String(id)).single(); return data || null; } const db = getDB(); return db.custos.find((c) => String(c.id) === String(id)) || null; }
 
 export async function saveCusto(raw) {
   await initLoad();
   const db = getDB();
-  const viagem = raw.viagemId ? db.viagens.find((v) => String(v.id) === String(raw.viagemId)) : null;
+  const viagem = raw.viagemId ? (sb ? null : db.viagens.find((v) => String(v.id) === String(raw.viagemId))) : null;
   const base = {
     id: uuid(),
     viagemId: raw.viagemId ? String(raw.viagemId) : null,
@@ -483,6 +519,10 @@ export async function saveCusto(raw) {
   const computed = computeCustoFields(base);
   const row = { ...base, ...computed };
   row.audit.push({ when: new Date().toISOString(), who: base.registradoPor || "", what: "Custo criado" });
+  if (sb) {
+    const { data } = await sb.from("custos").insert([row]).select().single();
+    return data || row;
+  }
   db.custos.push(row);
   setDB(db);
   return row;
@@ -490,6 +530,18 @@ export async function saveCusto(raw) {
 
 export async function updateCusto(id, patch) {
   await initLoad();
+  if (sb) {
+    const { data: before } = await sb.from("custos").select("*").eq("id", String(id)).single();
+    if (!before) return null;
+    const merged = { ...before, ...patch, categoria: patch.categoria || before.categoria || "veículos pesados", outrosCustos: Array.isArray(patch.outrosCustos) ? patch.outrosCustos.map((o) => ({ descricao: o.descricao || "", valor: Number(o.valor || 0) })) : before.outrosCustos };
+    const computed = computeCustoFields(merged);
+    const after = { ...merged, ...computed };
+    const who = JSON.parse(localStorage.getItem("user") || "{}").username || "";
+    const changed = Object.keys(patch).join(", ");
+    after.audit = [...(before.audit || []), { when: new Date().toISOString(), who, what: `Atualizado: ${changed}` }];
+    const { data } = await sb.from("custos").update(after).eq("id", String(id)).select().single();
+    return data || after;
+  }
   const db = getDB();
   const i = db.custos.findIndex((c) => String(c.id) === String(id));
   if (i < 0) return null;
@@ -505,10 +557,19 @@ export async function updateCusto(id, patch) {
   return after;
 }
 
-export async function deleteCusto(id) { await initLoad(); const db = getDB(); db.custos = db.custos.filter((c) => String(c.id) !== String(id)); setDB(db); return { ok: true }; }
+export async function deleteCusto(id) { await initLoad(); if (sb) { await sb.from("custos").delete().eq("id", String(id)); return { ok: true }; } const db = getDB(); db.custos = db.custos.filter((c) => String(c.id) !== String(id)); setDB(db); return { ok: true }; }
 
 export async function attachFileToCusto(id, fileMeta, fileContentBase64) {
   await initLoad();
+  if (sb) {
+    const { data: before } = await sb.from("custos").select("*").eq("id", String(id)).single();
+    if (!before) return null;
+    const att = { id: uuid(), nome: fileMeta?.nome || fileMeta?.name || "arquivo", path: fileMeta?.path || null, base64: fileContentBase64 || null, uploadedAt: new Date().toISOString() };
+    const who = JSON.parse(localStorage.getItem("user") || "{}").username || "";
+    const item = { ...before, anexos: [...(before.anexos || []), att], audit: [...(before.audit || []), { when: new Date().toISOString(), who, what: `Anexo adicionado: ${att.nome}` }] };
+    await sb.from("custos").update(item).eq("id", String(id));
+    return att;
+  }
   const db = getDB();
   const i = db.custos.findIndex((c) => String(c.id) === String(id));
   if (i < 0) return null;
@@ -524,11 +585,18 @@ export async function attachFileToCusto(id, fileMeta, fileContentBase64) {
 
 export async function approveCusto(id, usuario) {
   await initLoad();
+  const user = usuario || JSON.parse(localStorage.getItem("user") || "{}");
+  if ((user.role || "user") !== "admin") throw new Error("Acesso negado");
+  if (sb) {
+    const { data: before } = await sb.from("custos").select("*").eq("id", String(id)).single();
+    if (!before) return null;
+    const item = { ...before, aprovado: true, aprovadoPor: user.username || "", aprovadoEm: new Date().toISOString(), audit: [...(before.audit || []), { when: new Date().toISOString(), who: user.username || "", what: "Custo aprovado" }] };
+    const { data } = await sb.from("custos").update(item).eq("id", String(id)).select().single();
+    return data || item;
+  }
   const db = getDB();
   const i = db.custos.findIndex((c) => String(c.id) === String(id));
   if (i < 0) return null;
-  const user = usuario || JSON.parse(localStorage.getItem("user") || "{}");
-  if ((user.role || "user") !== "admin") throw new Error("Acesso negado");
   const item = db.custos[i];
   item.aprovado = true;
   item.aprovadoPor = user.username || "";

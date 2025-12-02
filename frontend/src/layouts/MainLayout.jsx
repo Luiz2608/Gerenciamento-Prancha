@@ -18,8 +18,9 @@ export default function MainLayout() {
       localStorage.setItem("theme", "light");
     }
   }, [dark]);
-  const goLogout = () => { logout(); nav("/"); };
+  const goLogout = () => { setOpen(false); logout(); nav("/"); };
   const isActive = (p) => (loc.pathname === p || loc.pathname.startsWith(p));
+  const closeMenuOnNavigate = () => setOpen(false);
   return (
     <div className="min-h-screen flex bg-bg text-text dark:bg-[#0f172a] dark:text-[#f1f5f9]">
       {open && <div className="fixed inset-0 bg-black/40 md:hidden z-10" onClick={() => setOpen(false)} />}
@@ -29,16 +30,16 @@ export default function MainLayout() {
           <div className="text-lg font-bold">Viagens da Prancha</div>
         </div>
         <nav className="px-3 space-y-1">
-          <Link className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${isActive("/dashboard") ? "bg-accent/20 text-white" : "hover:bg-white/10"}`} to="/dashboard">🏠 <span>Dashboard</span></Link>
-          <Link className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${isActive("/viagens") ? "bg-accent/20 text-white" : "hover:bg-white/10"}`} to="/viagens">🧭 <span>Viagens</span></Link>
-          <Link className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${isActive("/motoristas") ? "bg-accent/20 text-white" : "hover:bg-white/10"}`} to="/motoristas">👨‍✈️ <span>Motoristas</span></Link>
-          <Link className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${isActive("/historico-unificado") ? "bg-accent/20 text-white" : "hover:bg-white/10"}`} to="/historico-unificado">🗂️ <span>Histórico (Unificado)</span></Link>
+          <Link onClick={closeMenuOnNavigate} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${isActive("/dashboard") ? "bg-accent/20 text-white" : "hover:bg-white/10"}`} to="/dashboard">🏠 <span>Dashboard</span></Link>
+          <Link onClick={closeMenuOnNavigate} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${isActive("/viagens") ? "bg-accent/20 text-white" : "hover:bg-white/10"}`} to="/viagens">🧭 <span>Viagens</span></Link>
+          <Link onClick={closeMenuOnNavigate} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${isActive("/motoristas") ? "bg-accent/20 text-white" : "hover:bg-white/10"}`} to="/motoristas">👨‍✈️ <span>Motoristas</span></Link>
+          <Link onClick={closeMenuOnNavigate} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${isActive("/historico-unificado") ? "bg-accent/20 text-white" : "hover:bg-white/10"}`} to="/historico-unificado">🗂️ <span>Histórico (Unificado)</span></Link>
           <div className="mt-2">
             <div className="px-4 py-2 text-white/80">Frota</div>
-            <Link className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${isActive("/frota/caminhoes") ? "bg-accent/20 text-white" : "hover:bg-white/10"}`} to="/frota/caminhoes">🚛 <span>Caminhão</span></Link>
-            <Link className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${isActive("/frota/pranchas") ? "bg-accent/20 text-white" : "hover:bg-white/10"}`} to="/frota/pranchas">🛠️ <span>Prancha</span></Link>
+            <Link onClick={closeMenuOnNavigate} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${isActive("/frota/caminhoes") ? "bg-accent/20 text-white" : "hover:bg-white/10"}`} to="/frota/caminhoes">🚛 <span>Caminhão</span></Link>
+            <Link onClick={closeMenuOnNavigate} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${isActive("/frota/pranchas") ? "bg-accent/20 text-white" : "hover:bg-white/10"}`} to="/frota/pranchas">🛠️ <span>Prancha</span></Link>
           </div>
-          <Link className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${isActive("/custos") ? "bg-accent/20 text-white" : "hover:bg-white/10"}`} to="/custos">💸 <span>Custos</span></Link>
+          <Link onClick={closeMenuOnNavigate} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${isActive("/custos") ? "bg-accent/20 text-white" : "hover:bg-white/10"}`} to="/custos">💸 <span>Custos</span></Link>
           
           <button className="flex items-center gap-3 px-4 py-3 rounded-xl transition hover:bg-white/10" onClick={goLogout}>🚪 <span>Sair</span></button>
         </nav>
@@ -57,7 +58,7 @@ export default function MainLayout() {
             </div>
           </div>
         </header>
-        <main className="p-6 overflow-x-hidden">
+        <main className="p-6 overflow-x-hidden page">
           <Outlet />
         </main>
       </div>

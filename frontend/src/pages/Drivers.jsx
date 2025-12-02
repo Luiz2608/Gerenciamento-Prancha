@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getMotoristas, saveMotorista, updateMotorista, deleteMotorista } from "../services/storageService.js";
 import { useToast } from "../components/ToastProvider.jsx";
+import { supabase } from "../services/supabaseClient.js";
 
 export default function Drivers() {
   const toast = useToast();
@@ -9,11 +10,22 @@ export default function Drivers() {
   const [editing, setEditing] = useState(null);
 
   const load = () => getMotoristas().then((r) => setItems(r));
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    const interval = setInterval(load, 10000);
+    let ch;
+    if (supabase) {
+      ch = supabase
+        .channel("public:motoristas")
+        .on("postgres_changes", { event: "*", schema: "public", table: "motoristas" }, () => { load(); })
+        .subscribe();
+    }
+    return () => { if (ch) supabase.removeChannel(ch); clearInterval(interval); };
+  }, []);
 
   const submit = async (e) => {
     e.preventDefault();
-    if (!form.name) { toast?.show("Nome é obrigatório", "error"); return; }
+    if (!form.name) { toast?.show("Erro → Aba Motoristas → Campo Nome obrigatório", "error"); return; }
     if (editing) { await updateMotorista(editing.id, form); toast?.show("Motorista atualizado", "success"); }
     else { await saveMotorista(form); toast?.show("Motorista cadastrado", "success"); }
     setForm({ name: "", cpf: "", cnh_category: "", status: "Ativo" });
@@ -51,7 +63,7 @@ export default function Drivers() {
   const delConfirm = async (id) => { if (!window.confirm("Confirma excluir este motorista?")) return; await del(id); };
 
   return (
-    <div className="space-y-8 overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain', touchAction: 'pan-x' }}>
+    <div className="space-y-8 overflow-x-auto overflow-y-auto min-h-screen page" style={{ WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain', overscrollBehaviorY: 'contain', touchAction: 'pan-y' }}>
       <div className="card p-6 animate-fade">
         <div className="font-semibold mb-4 text-secondary text-xl">Cadastro de Motoristas</div>
         <form onSubmit={submit} onKeyDown={handleFormKeyDown} className="grid grid-cols-1 md:grid-cols-5 gap-4">

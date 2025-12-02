@@ -1,16 +1,38 @@
 import { useEffect, useState } from "react";
 import { getCaminhoes, saveCaminhao, updateCaminhao, deleteCaminhao } from "../services/storageService.js";
 import { useToast } from "../components/ToastProvider.jsx";
+import { supabase } from "../services/supabaseClient.js";
 
 export default function FleetTrucks() {
   const toast = useToast();
   const [items, setItems] = useState([]);
   const [form, setForm] = useState({ plate: "", model: "", year: "", chassis: "", km_current: "", fleet: "", status: "Ativo" });
   const [editing, setEditing] = useState(null);
+  const maskPlate = (v) => {
+    const s = String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0,7);
+    return s;
+  };
+  const isValidPlateBr = (s) => /^[A-Z]{3}[0-9][A-Z][0-9]{2}$/.test(String(s)) || /^[A-Z]{3}[0-9]{4}$/.test(String(s));
+  const maskChassis = (v) => String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0,17);
   const load = () => getCaminhoes().then((r) => setItems(r));
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    const interval = setInterval(load, 10000);
+    let ch;
+    if (supabase) {
+      ch = supabase
+        .channel("public:caminhoes")
+        .on("postgres_changes", { event: "*", schema: "public", table: "caminhoes" }, () => { load(); })
+        .subscribe();
+    }
+    return () => { if (ch) supabase.removeChannel(ch); clearInterval(interval); };
+  }, []);
   const submit = async (e) => {
     e.preventDefault();
+    const yearNum = form.year ? Number(form.year) : null;
+    const nowYear = new Date().getFullYear();
+    if (!isValidPlateBr(form.plate)) { toast?.show("Erro → Aba Caminhão → Campo Placa inválida", "error"); return; }
+    if (yearNum && (yearNum < 1950 || yearNum > (nowYear + 2))) { toast?.show("Erro → Aba Caminhão → Campo Ano fora do limite (1950 até ano atual + 2)", "error"); return; }
     const payload = {
       plate: form.plate || null,
       model: form.model || null,
@@ -21,7 +43,7 @@ export default function FleetTrucks() {
       fleet: form.fleet || null,
       status: form.status || "Ativo"
     };
-    if (!payload.plate || !payload.model || !payload.year) { toast?.show("Preencha placa, modelo e ano", "error"); return; }
+    if (!payload.plate || !payload.model || !payload.year) { const field = !payload.plate ? "Placa" : (!payload.model ? "Modelo" : "Ano"); toast?.show(`Erro → Aba Caminhão → Campo ${field} obrigatório`, "error"); return; }
     if (editing) await updateCaminhao(editing.id, payload);
     else await saveCaminhao(payload);
     toast?.show(editing ? "Caminhão atualizado" : "Caminhão cadastrado", "success");
@@ -43,14 +65,14 @@ export default function FleetTrucks() {
   const del = async (id) => { await deleteCaminhao(id); toast?.show("Caminhão excluído", "success"); load(); };
   const delConfirm = async (id) => { if (!window.confirm("Confirma excluir este caminhão?")) return; await del(id); };
   return (
-    <div className="space-y-8 overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain', touchAction: 'pan-x' }}>
+    <div className="space-y-8 overflow-x-auto overflow-y-auto min-h-screen page" style={{ WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain', overscrollBehaviorY: 'contain', touchAction: 'pan-y' }}>
       <div className="card p-6 animate-fade">
         <div className="font-semibold mb-4 text-secondary text-xl">Cadastro de Caminhão</div>
         <form onSubmit={submit} onKeyDown={handleFormKeyDown} className="grid grid-cols-1 md:grid-cols-6 gap-4">
-          <input className="input" placeholder="Placa" value={form.plate} onChange={(e) => setForm({ ...form, plate: e.target.value })} />
+          <input className={`input ${form.plate && !isValidPlateBr(form.plate) && 'ring-red-500 border-red-500'}`} placeholder="Placa" value={form.plate} onChange={(e) => setForm({ ...form, plate: maskPlate(e.target.value) })} />
           <input className="input" placeholder="Modelo" value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} />
-          <input className="input" placeholder="Ano" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} />
-          <input className="input" placeholder="Chassi" value={form.chassis} onChange={(e) => setForm({ ...form, chassis: e.target.value })} />
+          <input className="input" placeholder="Ano" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value.replace(/[^0-9]/g, '').slice(0,4) })} />
+          <input className={`input ${form.chassis && form.chassis.length > 17 && 'ring-red-500 border-red-500'}`} placeholder="Chassi" value={form.chassis} onChange={(e) => setForm({ ...form, chassis: maskChassis(e.target.value) })} />
           <input className="input" placeholder="KM atual" value={form.km_current} onChange={(e) => setForm({ ...form, km_current: e.target.value })} />
           <input className="input" placeholder="Frota" value={form.fleet} maxLength={7} onChange={(e) => setForm({ ...form, fleet: e.target.value.replace(/\D/g, "").slice(0,7) })} />
           <select className="select" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>

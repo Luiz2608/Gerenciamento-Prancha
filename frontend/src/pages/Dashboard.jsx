@@ -1,29 +1,27 @@
 import { useEffect, useState } from "react";
-import { dashboard, commitAllData } from "../services/storageService.js";
-import { useToast } from "../components/ToastProvider.jsx";
+import { dashboard } from "../services/storageService.js";
+import { supabase } from "../services/supabaseClient.js";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts";
 
 const colors = ["#2563eb", "#38bdf8", "#22c55e", "#a78bfa", "#f59e0b", "#ef4444", "#14b8a6", "#0ea5e9"];
 
 export default function Dashboard() {
   const [data, setData] = useState(null);
-  const toast = useToast();
-  const updateData = async () => {
-    const token = localStorage.getItem("gh_token") || window.prompt("Informe seu GitHub token (escopo repo)");
-    if (!token) { toast?.show("Token não informado", "error"); return; }
-    localStorage.setItem("gh_token", token);
-    const repo = localStorage.getItem("gh_repo") || "Luiz2608/Gerenciamento-Prancha";
-    const branch = localStorage.getItem("gh_branch") || "main";
-    const res = await commitAllData(token, repo, branch);
-    toast?.show(res.ok ? "Dados atualizados no GitHub" : "Falha ao atualizar dados", res.ok ? "success" : "error");
-  };
   useEffect(() => { dashboard().then((r) => setData(r)); }, []);
+  useEffect(() => {
+    if (!supabase) return;
+    const ch1 = supabase.channel("public:viagens").on("postgres_changes", { event: "*", schema: "public", table: "viagens" }, () => { dashboard().then((r) => setData(r)); }).subscribe();
+    const ch2 = supabase.channel("public:motoristas").on("postgres_changes", { event: "*", schema: "public", table: "motoristas" }, () => { dashboard().then((r) => setData(r)); }).subscribe();
+    const ch3 = supabase.channel("public:caminhoes").on("postgres_changes", { event: "*", schema: "public", table: "caminhoes" }, () => { dashboard().then((r) => setData(r)); }).subscribe();
+    const ch4 = supabase.channel("public:pranchas").on("postgres_changes", { event: "*", schema: "public", table: "pranchas" }, () => { dashboard().then((r) => setData(r)); }).subscribe();
+    return () => { supabase.removeChannel(ch1); supabase.removeChannel(ch2); supabase.removeChannel(ch3); supabase.removeChannel(ch4); };
+    const interval = setInterval(() => { dashboard().then((r) => setData(r)); }, 10000);
+    return () => { supabase.removeChannel(ch1); supabase.removeChannel(ch2); supabase.removeChannel(ch3); supabase.removeChannel(ch4); clearInterval(interval); };
+  }, []);
   if (!data) return <div className="animate-fade">Carregando...</div>;
   return (
-    <div className="space-y-8 animate-fade overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain', touchAction: 'pan-x' }}>
-      <div className="flex justify-end">
-        <button className="btn" onClick={updateData}>Atualizar dados</button>
-      </div>
+    <div className="space-y-8 animate-fade overflow-x-auto overflow-y-auto min-h-screen page" style={{ WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain', overscrollBehaviorY: 'contain', touchAction: 'pan-y' }}>
+      
       <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
         <div className="card card-hover p-6 border-t-4 border-accent">
           <div className="flex items-center gap-4">

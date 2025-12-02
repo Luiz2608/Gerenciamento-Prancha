@@ -1,18 +1,31 @@
 import { useEffect, useState } from "react";
 import { getPranchas, savePrancha, updatePrancha, deletePrancha } from "../services/storageService.js";
 import { useToast } from "../components/ToastProvider.jsx";
+import { supabase } from "../services/supabaseClient.js";
 
 export default function FleetPranchas() {
   const toast = useToast();
   const [items, setItems] = useState([]);
   const [form, setForm] = useState({ asset_number: "", type: "", capacity: "", year: "", status: "Ativo" });
   const [editing, setEditing] = useState(null);
+  const typeCap = { "Prancha 2 eixos": 20000, "Prancha 3 eixos": 30000, "Prancha 4 eixos": 45000 };
   const load = () => getPranchas().then((r) => setItems(r));
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    const interval = setInterval(load, 10000);
+    let ch;
+    if (supabase) {
+      ch = supabase
+        .channel("public:pranchas")
+        .on("postgres_changes", { event: "*", schema: "public", table: "pranchas" }, () => { load(); })
+        .subscribe();
+    }
+    return () => { if (ch) supabase.removeChannel(ch); clearInterval(interval); };
+  }, []);
   const submit = async (e) => {
     e.preventDefault();
     const payload = { asset_number: form.asset_number || null, type: form.type || null, capacity: form.capacity ? Number(form.capacity) : null, year: form.year ? Number(form.year) : null, status: form.status || "Ativo" };
-    if (!payload.asset_number || !payload.type || !payload.year) { toast?.show("Preencha patrimônio, tipo e ano", "error"); return; }
+    if (!payload.asset_number || !payload.type || !payload.year) { const field = !payload.asset_number ? "Frota" : (!payload.type ? "Tipo" : "Ano"); toast?.show(`Erro → Aba Pranchas → Campo ${field} obrigatório`, "error"); return; }
     if (editing) await updatePrancha(editing.id, payload);
     else await savePrancha(payload);
     setForm({ asset_number: "", type: "", capacity: "", year: "", status: "Ativo" });
@@ -23,13 +36,18 @@ export default function FleetPranchas() {
   const edit = (it) => { setEditing(it); setForm({ asset_number: it.asset_number || "", type: it.type || "", capacity: it.capacity?.toString() || "", year: it.year?.toString() || "", status: it.status }); };
   const del = async (id) => { await deletePrancha(id); load(); };
   return (
-    <div className="space-y-8 overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain', touchAction: 'pan-x' }}>
+    <div className="space-y-8 overflow-x-auto overflow-y-auto min-h-screen page" style={{ WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain', overscrollBehaviorY: 'contain', touchAction: 'pan-y' }}>
       <div className="card p-6 animate-fade">
         <div className="font-semibold mb-4 text-secondary text-xl">Cadastro de Prancha</div>
         <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-6 gap-4">
-          <input className="input" placeholder="Patrimônio" value={form.asset_number} onChange={(e) => setForm({ ...form, asset_number: e.target.value })} />
-          <input className="input" placeholder="Tipo da prancha" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} />
-          <input className="input" placeholder="Capacidade" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} />
+          <input className="input" placeholder="Frota" value={form.asset_number} onChange={(e) => setForm({ ...form, asset_number: e.target.value })} />
+          <select className="select" value={form.type} onChange={(e) => { const tp = e.target.value; setForm({ ...form, type: tp, capacity: typeCap[tp] || "" }); }}>
+            <option value="">Tipo da prancha</option>
+            <option>Prancha 2 eixos</option>
+            <option>Prancha 3 eixos</option>
+            <option>Prancha 4 eixos</option>
+          </select>
+          <input className="input" placeholder="Capacidade" value={form.capacity} readOnly />
           <input className="input" placeholder="Ano" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} />
           <select className="select" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
             <option>Ativo</option>
@@ -43,7 +61,7 @@ export default function FleetPranchas() {
           <thead>
             <tr>
               <th>ID</th>
-              <th>Patrimônio</th>
+              <th>Frota</th>
               <th>Tipo</th>
               <th>Ano</th>
               <th>Capacidade</th>

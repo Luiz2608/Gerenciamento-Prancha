@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { login, registerUser } from "../services/storageService.js";
+import { supabase as sb } from "../services/supabaseClient.js";
 
 export default function Login() {
   const nav = useNavigate();
@@ -13,18 +14,18 @@ export default function Login() {
     e.preventDefault();
     setError("");
     try {
+      const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(username));
+      if (!isEmail) { setError("Informe um e-mail válido"); return; }
       if (create) {
         await registerUser(username, password);
-        const r = await login(username, password);
-        localStorage.setItem("token", r.token);
+        await login(username, password);
         nav("/dashboard");
       } else {
-        const r = await login(username, password);
-        localStorage.setItem("token", r.token);
+        await login(username, password);
         nav("/dashboard");
       }
     } catch (err) {
-      setError(create ? "Erro ao criar conta" : "Credenciais inválidas");
+      setError(err?.message || (create ? "Erro ao criar conta" : "Credenciais inválidas"));
     }
   };
 
@@ -46,7 +47,7 @@ export default function Login() {
           <h1 className="text-2xl font-bold text-secondary mt-4">Viagens da Prancha</h1>
         </div>
         <form onSubmit={submit} onKeyDown={handleFormKeyDown} className="space-y-4">
-          <input className="input" placeholder="Usuário" value={username} onChange={(e) => setUsername(e.target.value)} />
+          <input className="input" placeholder="E-mail" value={username} onChange={(e) => setUsername(e.target.value)} />
           <input type="password" className="input" placeholder="Senha" value={password} onChange={(e) => setPassword(e.target.value)} />
           {error && <div className="text-red-600 text-sm">{error}</div>}
           <div className="flex gap-2">
