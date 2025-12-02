@@ -66,6 +66,15 @@ CREATE TABLE IF NOT EXISTS viagens (
   requester TEXT,
   status TEXT
 );
+CREATE TABLE IF NOT EXISTS login_logs (
+  id SERIAL PRIMARY KEY,
+  user_id TEXT,
+  email TEXT,
+  at TIMESTAMP DEFAULT NOW(),
+  device TEXT,
+  ip TEXT,
+  client_id TEXT
+);
 `);
 
 const computeKm = (a, b) => (a == null || b == null ? 0 : Math.max(0, Number(b) - Number(a)));
@@ -100,6 +109,13 @@ app.post("/api/login", async (req, res) => {
   if (!user) return res.status(401).json({ error: "Credenciais inválidas" });
   const ok = bcrypt.compareSync(String(password), user.password_hash);
   if (!ok) return res.status(401).json({ error: "Credenciais inválidas" });
+  try {
+    const ua = String(req.headers["user-agent"] || "").toLowerCase();
+    const device = /mobi|android|iphone|ipad|ipod/.test(ua) ? "mobile" : "desktop";
+    const ip = req.headers["x-forwarded-for"]?.toString().split(",")[0] || req.socket?.remoteAddress || null;
+    const clientId = req.headers["x-client-id"] || null;
+    await pool.query("INSERT INTO login_logs (user_id, email, device, ip, client_id) VALUES ($1,$2,$3,$4,$5)", [String(user.id), String(user.username), device, ip, clientId ? String(clientId) : null]);
+  } catch {}
   res.json({ token: "local-token", user: { id: user.id, username: user.username, role: user.role || "user" } });
 });
 

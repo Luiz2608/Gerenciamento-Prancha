@@ -19,9 +19,19 @@ const uuid = () => "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) =
   const v = c === "x" ? r : (r & 0x3 | 0x8);
   return v.toString(16);
 });
+const CLIENT_ID_KEY = "client_id";
+const getClientId = () => {
+  try {
+    let id = localStorage.getItem(CLIENT_ID_KEY);
+    if (!id) { id = uuid(); localStorage.setItem(CLIENT_ID_KEY, id); }
+    return id;
+  } catch {
+    return uuid();
+  }
+};
 
 const API_URL = typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_API_URL ? String(import.meta.env.VITE_API_URL) : null;
-const api = (path, opts = {}) => fetch(`${API_URL}${path}`, { ...opts, headers: { "Content-Type": "application/json", ...(opts.headers || {}) } });
+const api = (path, opts = {}) => fetch(`${API_URL}${path}`, { ...opts, headers: { "Content-Type": "application/json", "x-client-id": getClientId(), ...(opts.headers || {}) } });
 import { supabase as sb } from "./supabaseClient.js";
 
 const getDB = () => JSON.parse(localStorage.getItem(KEY) || "null");
@@ -132,6 +142,10 @@ async function syncPending() {
           } else if (it.op === "delete") {
             const id = it.remoteId || it.localId;
             await processDelete("custos", "id", id);
+          }
+        } else if (it.table === "login_logs") {
+          if (it.op === "insert") {
+            await processInsert("login_logs", it.payload);
           }
         }
       } catch (e) {
@@ -256,6 +270,12 @@ export async function login(username, password) {
     const token = session?.access_token || "supabase-token";
     localStorage.setItem("token", token);
     localStorage.setItem("user", JSON.stringify({ id: user?.id, username: user?.email, role: "user" }));
+    try {
+      const ua = typeof navigator !== "undefined" ? String(navigator.userAgent || "").toLowerCase() : "";
+      const device = /mobi|android|iphone|ipad|ipod/.test(ua) ? "mobile" : "desktop";
+      const clientId = getClientId();
+      await sb.from("login_logs").insert([{ user_id: String(user?.id || ""), email: String(user?.email || username), device, client_id: clientId }]);
+    } catch {}
     return { token, user: { id: user?.id, username: user?.email, role: "user" } };
   }
   const db = getDB();
@@ -265,6 +285,12 @@ export async function login(username, password) {
   if (u.password_base64 !== p) throw new Error("Credenciais inválidas");
   localStorage.setItem("token", "local-token");
   localStorage.setItem("user", JSON.stringify({ id: u.id, username: u.username, role: u.role || "user" }));
+  try {
+    const ua = typeof navigator !== "undefined" ? String(navigator.userAgent || "").toLowerCase() : "";
+    const device = /mobi|android|iphone|ipad|ipod/.test(ua) ? "mobile" : "desktop";
+    const clientId = getClientId();
+    enqueue({ table: "login_logs", op: "insert", payload: { user_id: String(u.id), email: String(u.username), device, client_id: clientId } });
+  } catch {}
   return { token: "local-token", user: { id: u.id, username: u.username, role: u.role || "user" } };
 }
 export async function registerUser(username, password, role = "user") {
