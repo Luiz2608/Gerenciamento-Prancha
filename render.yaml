@@ -13,12 +13,10 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 20
-      - key: DB_PATH
-        value: /data/prancha.db
-    disk:
-      name: data
-      mountPath: /data
-      sizeGB: 1
+      - key: DATABASE_URL
+        fromDatabase:
+          name: viagens-da-prancha-db
+          property: connectionString
   - type: web
     name: viagens-da-prancha-web
     runtime: static
@@ -33,3 +31,6 @@ services:
           type: web
           name: viagens-da-prancha-api
           envVarKey: RENDER_EXTERNAL_URL
+databases:
+  - name: viagens-da-prancha-db
+    plan: free

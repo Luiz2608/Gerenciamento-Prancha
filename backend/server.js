@@ -1,35 +1,34 @@
 import express from "express";
 import cors from "cors";
-import Database from "better-sqlite3";
+import { Pool } from "pg";
 import bcrypt from "bcryptjs";
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-const dbFile = process.env.DB_PATH || "prancha.db";
-const db = new Database(dbFile);
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 app.get("/", (req, res) => {
   res.json({ ok: true, name: "Viagens da Prancha API", health: "/api/health" });
 });
 
-db.exec(`
+await pool.query(`
 CREATE TABLE IF NOT EXISTS usuarios (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id SERIAL PRIMARY KEY,
   username TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
   role TEXT DEFAULT 'user'
 );
 CREATE TABLE IF NOT EXISTS motoristas (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id SERIAL PRIMARY KEY,
   name TEXT NOT NULL,
   cpf TEXT,
   cnh_category TEXT,
   status TEXT DEFAULT 'Ativo'
 );
 CREATE TABLE IF NOT EXISTS caminhoes (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id SERIAL PRIMARY KEY,
   plate TEXT,
   model TEXT,
   year INTEGER,
@@ -39,7 +38,7 @@ CREATE TABLE IF NOT EXISTS caminhoes (
   status TEXT DEFAULT 'Ativo'
 );
 CREATE TABLE IF NOT EXISTS pranchas (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id SERIAL PRIMARY KEY,
   asset_number TEXT,
   type TEXT,
   capacity INTEGER,
@@ -47,7 +46,7 @@ CREATE TABLE IF NOT EXISTS pranchas (
   status TEXT DEFAULT 'Ativo'
 );
 CREATE TABLE IF NOT EXISTS viagens (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id SERIAL PRIMARY KEY,
   date TEXT NOT NULL,
   driver_id INTEGER NOT NULL,
   truck_id INTEGER,
@@ -65,8 +64,7 @@ CREATE TABLE IF NOT EXISTS viagens (
   maintenance_cost REAL,
   driver_daily REAL,
   requester TEXT,
-  status TEXT,
-  FOREIGN KEY(driver_id) REFERENCES motoristas(id)
+  status TEXT
 );
 `);
 
@@ -82,104 +80,99 @@ const computeHours = (date, s, e) => {
 };
 const computeStatus = (end_time, km_end) => (!end_time || end_time === "" || km_end == null || km_end === "" ? "Em andamento" : "Finalizada");
 
-app.post("/api/usuarios/register", (req, res) => {
+app.post("/api/usuarios/register", async (req, res) => {
   const { username, password, role = "user" } = req.body || {};
   if (!username || !password) return res.status(400).json({ error: "Usuário e senha são obrigatórios" });
   try {
     const hash = bcrypt.hashSync(String(password), 10);
-    const stmt = db.prepare("INSERT INTO usuarios (username, password_hash, role) VALUES (?, ?, ?)");
-    const info = stmt.run(username, hash, role);
-    res.json({ id: info.lastInsertRowid, username, role });
+    const r = await pool.query("INSERT INTO usuarios (username, password_hash, role) VALUES ($1, $2, $3) RETURNING id, username, role", [username, hash, role]);
+    res.json(r.rows[0]);
   } catch (e) {
     res.status(400).json({ error: "Usuário já existe" });
   }
 });
 
-app.post("/api/login", (req, res) => {
+app.post("/api/login", async (req, res) => {
   const { username, password } = req.body || {};
   if (!username || !password) return res.status(400).json({ error: "Credenciais inválidas" });
-  const user = db.prepare("SELECT * FROM usuarios WHERE username = ?").get(username);
+  const r = await pool.query("SELECT * FROM usuarios WHERE username = $1", [username]);
+  const user = r.rows[0];
   if (!user) return res.status(401).json({ error: "Credenciais inválidas" });
   const ok = bcrypt.compareSync(String(password), user.password_hash);
   if (!ok) return res.status(401).json({ error: "Credenciais inválidas" });
   res.json({ token: "local-token", user: { id: user.id, username: user.username, role: user.role || "user" } });
 });
 
-app.get("/api/motoristas", (req, res) => {
-  const rows = db.prepare("SELECT * FROM motoristas ORDER BY id DESC").all();
-  res.json(rows);
+app.get("/api/motoristas", async (req, res) => {
+  const r = await pool.query("SELECT * FROM motoristas ORDER BY id DESC");
+  res.json(r.rows);
 });
-app.post("/api/motoristas", (req, res) => {
+app.post("/api/motoristas", async (req, res) => {
   const { name, cpf = null, cnh_category = null, status = "Ativo" } = req.body || {};
   if (!name) return res.status(400).json({ error: "Nome é obrigatório" });
-  const info = db.prepare("INSERT INTO motoristas (name, cpf, cnh_category, status) VALUES (?, ?, ?, ?)").run(name, cpf, cnh_category, status);
-  const row = db.prepare("SELECT * FROM motoristas WHERE id = ?").get(info.lastInsertRowid);
-  res.json(row);
+  const r = await pool.query("INSERT INTO motoristas (name, cpf, cnh_category, status) VALUES ($1, $2, $3, $4) RETURNING *", [name, cpf, cnh_category, status]);
+  res.json(r.rows[0]);
 });
-app.put("/api/motoristas/:id", (req, res) => {
+app.put("/api/motoristas/:id", async (req, res) => {
   const id = Number(req.params.id);
   const { name, cpf = null, cnh_category = null, status = "Ativo" } = req.body || {};
-  db.prepare("UPDATE motoristas SET name=?, cpf=?, cnh_category=?, status=? WHERE id = ?").run(name, cpf, cnh_category, status, id);
-  const row = db.prepare("SELECT * FROM motoristas WHERE id = ?").get(id);
-  res.json(row);
+  const r = await pool.query("UPDATE motoristas SET name=$1, cpf=$2, cnh_category=$3, status=$4 WHERE id=$5 RETURNING *", [name, cpf, cnh_category, status, id]);
+  res.json(r.rows[0]);
 });
-app.delete("/api/motoristas/:id", (req, res) => {
+app.delete("/api/motoristas/:id", async (req, res) => {
   const id = Number(req.params.id);
-  db.prepare("DELETE FROM motoristas WHERE id = ?").run(id);
+  await pool.query("DELETE FROM motoristas WHERE id=$1", [id]);
   res.json({ ok: true });
 });
 
 // Caminhões
-app.get("/api/caminhoes", (req, res) => {
-  const rows = db.prepare("SELECT * FROM caminhoes ORDER BY id DESC").all();
-  res.json(rows);
+app.get("/api/caminhoes", async (req, res) => {
+  const r = await pool.query("SELECT * FROM caminhoes ORDER BY id DESC");
+  res.json(r.rows);
 });
-app.post("/api/caminhoes", (req, res) => {
+app.post("/api/caminhoes", async (req, res) => {
   const { plate = null, model = null, year = null, chassis = null, km_current = null, fleet = null, status = "Ativo" } = req.body || {};
-  const info = db.prepare("INSERT INTO caminhoes (plate, model, year, chassis, km_current, fleet, status) VALUES (?, ?, ?, ?, ?, ?, ?)").run(plate, model, year != null ? Number(year) : null, chassis, km_current != null ? Number(km_current) : null, fleet, status);
-  const row = db.prepare("SELECT * FROM caminhoes WHERE id = ?").get(info.lastInsertRowid);
-  res.json(row);
+  const r = await pool.query("INSERT INTO caminhoes (plate, model, year, chassis, km_current, fleet, status) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *", [plate, model, year != null ? Number(year) : null, chassis, km_current != null ? Number(km_current) : null, fleet, status]);
+  res.json(r.rows[0]);
 });
-app.put("/api/caminhoes/:id", (req, res) => {
+app.put("/api/caminhoes/:id", async (req, res) => {
   const id = Number(req.params.id);
   const { plate = null, model = null, year = null, chassis = null, km_current = null, fleet = null, status = "Ativo" } = req.body || {};
-  db.prepare("UPDATE caminhoes SET plate=?, model=?, year=?, chassis=?, km_current=?, fleet=?, status=? WHERE id = ?").run(plate, model, year != null ? Number(year) : null, chassis, km_current != null ? Number(km_current) : null, fleet, status, id);
-  const row = db.prepare("SELECT * FROM caminhoes WHERE id = ?").get(id);
-  res.json(row);
+  const r = await pool.query("UPDATE caminhoes SET plate=$1, model=$2, year=$3, chassis=$4, km_current=$5, fleet=$6, status=$7 WHERE id=$8 RETURNING *", [plate, model, year != null ? Number(year) : null, chassis, km_current != null ? Number(km_current) : null, fleet, status, id]);
+  res.json(r.rows[0]);
 });
-app.delete("/api/caminhoes/:id", (req, res) => {
+app.delete("/api/caminhoes/:id", async (req, res) => {
   const id = Number(req.params.id);
-  db.prepare("DELETE FROM caminhoes WHERE id = ?").run(id);
+  await pool.query("DELETE FROM caminhoes WHERE id=$1", [id]);
   res.json({ ok: true });
 });
 
 // Pranchas
-app.get("/api/pranchas", (req, res) => {
-  const rows = db.prepare("SELECT * FROM pranchas ORDER BY id DESC").all();
-  res.json(rows);
+app.get("/api/pranchas", async (req, res) => {
+  const r = await pool.query("SELECT * FROM pranchas ORDER BY id DESC");
+  res.json(r.rows);
 });
-app.post("/api/pranchas", (req, res) => {
+app.post("/api/pranchas", async (req, res) => {
   const { asset_number = null, type = null, capacity = null, year = null, status = "Ativo" } = req.body || {};
-  const info = db.prepare("INSERT INTO pranchas (asset_number, type, capacity, year, status) VALUES (?, ?, ?, ?, ?)").run(asset_number, type, capacity != null ? Number(capacity) : null, year != null ? Number(year) : null, status);
-  const row = db.prepare("SELECT * FROM pranchas WHERE id = ?").get(info.lastInsertRowid);
-  res.json(row);
+  const r = await pool.query("INSERT INTO pranchas (asset_number, type, capacity, year, status) VALUES ($1, $2, $3, $4, $5) RETURNING *", [asset_number, type, capacity != null ? Number(capacity) : null, year != null ? Number(year) : null, status]);
+  res.json(r.rows[0]);
 });
-app.put("/api/pranchas/:id", (req, res) => {
+app.put("/api/pranchas/:id", async (req, res) => {
   const id = Number(req.params.id);
   const { asset_number = null, type = null, capacity = null, year = null, status = "Ativo" } = req.body || {};
-  db.prepare("UPDATE pranchas SET asset_number=?, type=?, capacity=?, year=?, status=? WHERE id = ?").run(asset_number, type, capacity != null ? Number(capacity) : null, year != null ? Number(year) : null, status, id);
-  const row = db.prepare("SELECT * FROM pranchas WHERE id = ?").get(id);
-  res.json(row);
+  const r = await pool.query("UPDATE pranchas SET asset_number=$1, type=$2, capacity=$3, year=$4, status=$5 WHERE id=$6 RETURNING *", [asset_number, type, capacity != null ? Number(capacity) : null, year != null ? Number(year) : null, status, id]);
+  res.json(r.rows[0]);
 });
-app.delete("/api/pranchas/:id", (req, res) => {
+app.delete("/api/pranchas/:id", async (req, res) => {
   const id = Number(req.params.id);
-  db.prepare("DELETE FROM pranchas WHERE id = ?").run(id);
+  await pool.query("DELETE FROM pranchas WHERE id=$1", [id]);
   res.json({ ok: true });
 });
 
-app.get("/api/viagens", (req, res) => {
+app.get("/api/viagens", async (req, res) => {
   const { startDate, endDate, driverId, destination, status, truckId, pranchaId, plate } = req.query;
-  let rows = db.prepare("SELECT * FROM viagens").all();
+  const r = await pool.query("SELECT * FROM viagens");
+  let rows = r.rows;
   if (startDate) rows = rows.filter((t) => t.date >= startDate);
   if (endDate) rows = rows.filter((t) => t.date <= endDate);
   if (driverId) rows = rows.filter((t) => t.driver_id === Number(driverId));
@@ -188,7 +181,8 @@ app.get("/api/viagens", (req, res) => {
   if (truckId) rows = rows.filter((t) => t.truck_id === Number(truckId));
   if (pranchaId) rows = rows.filter((t) => t.prancha_id === Number(pranchaId));
   if (plate) {
-    const trucks = db.prepare("SELECT id, plate FROM caminhoes").all();
+    const trq = await pool.query("SELECT id, plate FROM caminhoes");
+    const trucks = trq.rows;
     rows = rows.filter((t) => {
       const tr = trucks.find((x) => x.id === t.truck_id);
       return tr && String(tr.plate || "").toLowerCase().includes(String(plate).toLowerCase());
@@ -202,34 +196,39 @@ app.get("/api/viagens", (req, res) => {
   }));
   res.json(rows);
 });
-app.get("/api/viagens/:id", (req, res) => {
+app.get("/api/viagens/:id", async (req, res) => {
   const id = Number(req.params.id);
-  const t = db.prepare("SELECT * FROM viagens WHERE id = ?").get(id);
+  const r = await pool.query("SELECT * FROM viagens WHERE id=$1", [id]);
+  const t = r.rows[0];
   if (!t) return res.status(404).json({ error: "Not found" });
   res.json({ ...t, km_rodado: computeKm(t.km_start, t.km_end), horas: computeHours(t.date, t.start_time, t.end_time) });
 });
-app.post("/api/viagens", (req, res) => {
+app.post("/api/viagens", async (req, res) => {
   const d = req.body || {};
   const status = computeStatus(d.end_time, d.km_end);
-  const stmt = db.prepare(`INSERT INTO viagens (date, driver_id, truck_id, prancha_id, destination, service_type, description, start_time, end_time, km_start, km_end, fuel_liters, fuel_price, other_costs, maintenance_cost, driver_daily, requester, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-  const info = stmt.run(d.date, Number(d.driver_id), d.truck_id != null ? Number(d.truck_id) : null, d.prancha_id != null ? Number(d.prancha_id) : null, d.destination || null, d.service_type || null, d.description || null, d.start_time || null, d.end_time || null, d.km_start != null ? Number(d.km_start) : null, d.km_end != null ? Number(d.km_end) : null, d.fuel_liters != null ? Number(d.fuel_liters) : 0, d.fuel_price != null ? Number(d.fuel_price) : 0, d.other_costs != null ? Number(d.other_costs) : 0, d.maintenance_cost != null ? Number(d.maintenance_cost) : 0, d.driver_daily != null ? Number(d.driver_daily) : 0, d.requester || null, status);
-  const t = db.prepare("SELECT * FROM viagens WHERE id = ?").get(info.lastInsertRowid);
-  if (t.truck_id != null && t.km_end != null) db.prepare("UPDATE caminhoes SET km_current = ? WHERE id = ?").run(Number(t.km_end), Number(t.truck_id));
+  const r = await pool.query(
+    "INSERT INTO viagens (date, driver_id, truck_id, prancha_id, destination, service_type, description, start_time, end_time, km_start, km_end, fuel_liters, fuel_price, other_costs, maintenance_cost, driver_daily, requester, status) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING *",
+    [d.date, Number(d.driver_id), d.truck_id != null ? Number(d.truck_id) : null, d.prancha_id != null ? Number(d.prancha_id) : null, d.destination || null, d.service_type || null, d.description || null, d.start_time || null, d.end_time || null, d.km_start != null ? Number(d.km_start) : null, d.km_end != null ? Number(d.km_end) : null, d.fuel_liters != null ? Number(d.fuel_liters) : 0, d.fuel_price != null ? Number(d.fuel_price) : 0, d.other_costs != null ? Number(d.other_costs) : 0, d.maintenance_cost != null ? Number(d.maintenance_cost) : 0, d.driver_daily != null ? Number(d.driver_daily) : 0, d.requester || null, status]
+  );
+  const t = r.rows[0];
+  if (t.truck_id != null && t.km_end != null) await pool.query("UPDATE caminhoes SET km_current=$1 WHERE id=$2", [Number(t.km_end), Number(t.truck_id)]);
   res.json({ ...t, km_rodado: computeKm(t.km_start, t.km_end), horas: computeHours(t.date, t.start_time, t.end_time) });
 });
-app.put("/api/viagens/:id", (req, res) => {
+app.put("/api/viagens/:id", async (req, res) => {
   const id = Number(req.params.id);
   const d = req.body || {};
   const status = computeStatus(d.end_time, d.km_end);
-  const stmt = db.prepare(`UPDATE viagens SET date=?, driver_id=?, truck_id=?, prancha_id=?, destination=?, service_type=?, description=?, start_time=?, end_time=?, km_start=?, km_end=?, fuel_liters=?, fuel_price=?, other_costs=?, maintenance_cost=?, driver_daily=?, requester=?, status=? WHERE id = ?`);
-  stmt.run(d.date, Number(d.driver_id), d.truck_id != null ? Number(d.truck_id) : null, d.prancha_id != null ? Number(d.prancha_id) : null, d.destination || null, d.service_type || null, d.description || null, d.start_time || null, d.end_time || null, d.km_start != null ? Number(d.km_start) : null, d.km_end != null ? Number(d.km_end) : null, d.fuel_liters != null ? Number(d.fuel_liters) : 0, d.fuel_price != null ? Number(d.fuel_price) : 0, d.other_costs != null ? Number(d.other_costs) : 0, d.maintenance_cost != null ? Number(d.maintenance_cost) : 0, d.driver_daily != null ? Number(d.driver_daily) : 0, d.requester || null, status, id);
-  const t = db.prepare("SELECT * FROM viagens WHERE id = ?").get(id);
-  if (t.truck_id != null && t.km_end != null) db.prepare("UPDATE caminhoes SET km_current = ? WHERE id = ?").run(Number(t.km_end), Number(t.truck_id));
+  const r = await pool.query(
+    "UPDATE viagens SET date=$1, driver_id=$2, truck_id=$3, prancha_id=$4, destination=$5, service_type=$6, description=$7, start_time=$8, end_time=$9, km_start=$10, km_end=$11, fuel_liters=$12, fuel_price=$13, other_costs=$14, maintenance_cost=$15, driver_daily=$16, requester=$17, status=$18 WHERE id=$19 RETURNING *",
+    [d.date, Number(d.driver_id), d.truck_id != null ? Number(d.truck_id) : null, d.prancha_id != null ? Number(d.prancha_id) : null, d.destination || null, d.service_type || null, d.description || null, d.start_time || null, d.end_time || null, d.km_start != null ? Number(d.km_start) : null, d.km_end != null ? Number(d.km_end) : null, d.fuel_liters != null ? Number(d.fuel_liters) : 0, d.fuel_price != null ? Number(d.fuel_price) : 0, d.other_costs != null ? Number(d.other_costs) : 0, d.maintenance_cost != null ? Number(d.maintenance_cost) : 0, d.driver_daily != null ? Number(d.driver_daily) : 0, d.requester || null, status, id]
+  );
+  const t = r.rows[0];
+  if (t.truck_id != null && t.km_end != null) await pool.query("UPDATE caminhoes SET km_current=$1 WHERE id=$2", [Number(t.km_end), Number(t.truck_id)]);
   res.json({ ...t, km_rodado: computeKm(t.km_start, t.km_end), horas: computeHours(t.date, t.start_time, t.end_time) });
 });
-app.delete("/api/viagens/:id", (req, res) => {
+app.delete("/api/viagens/:id", async (req, res) => {
   const id = Number(req.params.id);
-  db.prepare("DELETE FROM viagens WHERE id = ?").run(id);
+  await pool.query("DELETE FROM viagens WHERE id=$1", [id]);
   res.json({ ok: true });
 });
 
