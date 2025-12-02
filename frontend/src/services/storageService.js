@@ -303,9 +303,10 @@ export async function registerUser(username, password, role = "user") {
   }
   const { supabase: sb } = await import("./supabaseClient.js");
   if (sb && isOnline()) {
-    const { error } = await sb.auth.signUp({ email: String(username), password: String(password) });
+    const { data, error } = await sb.auth.signUp({ email: String(username), password: String(password) });
     if (error) throw error;
-    return { username, role };
+    const requiresEmailConfirmation = !!(data?.user && !data?.session);
+    return { username, role, requiresEmailConfirmation };
   }
   const db = getDB();
   if (db.usuarios.find((x) => x.username === username)) throw new Error("Usuário já existe");
