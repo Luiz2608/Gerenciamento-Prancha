@@ -129,6 +129,54 @@ app.delete("/api/motoristas/:id", (req, res) => {
   res.json({ ok: true });
 });
 
+// Caminhões
+app.get("/api/caminhoes", (req, res) => {
+  const rows = db.prepare("SELECT * FROM caminhoes ORDER BY id DESC").all();
+  res.json(rows);
+});
+app.post("/api/caminhoes", (req, res) => {
+  const { plate = null, model = null, year = null, chassis = null, km_current = null, fleet = null, status = "Ativo" } = req.body || {};
+  const info = db.prepare("INSERT INTO caminhoes (plate, model, year, chassis, km_current, fleet, status) VALUES (?, ?, ?, ?, ?, ?, ?)").run(plate, model, year != null ? Number(year) : null, chassis, km_current != null ? Number(km_current) : null, fleet, status);
+  const row = db.prepare("SELECT * FROM caminhoes WHERE id = ?").get(info.lastInsertRowid);
+  res.json(row);
+});
+app.put("/api/caminhoes/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const { plate = null, model = null, year = null, chassis = null, km_current = null, fleet = null, status = "Ativo" } = req.body || {};
+  db.prepare("UPDATE caminhoes SET plate=?, model=?, year=?, chassis=?, km_current=?, fleet=?, status=? WHERE id = ?").run(plate, model, year != null ? Number(year) : null, chassis, km_current != null ? Number(km_current) : null, fleet, status, id);
+  const row = db.prepare("SELECT * FROM caminhoes WHERE id = ?").get(id);
+  res.json(row);
+});
+app.delete("/api/caminhoes/:id", (req, res) => {
+  const id = Number(req.params.id);
+  db.prepare("DELETE FROM caminhoes WHERE id = ?").run(id);
+  res.json({ ok: true });
+});
+
+// Pranchas
+app.get("/api/pranchas", (req, res) => {
+  const rows = db.prepare("SELECT * FROM pranchas ORDER BY id DESC").all();
+  res.json(rows);
+});
+app.post("/api/pranchas", (req, res) => {
+  const { asset_number = null, type = null, capacity = null, year = null, status = "Ativo" } = req.body || {};
+  const info = db.prepare("INSERT INTO pranchas (asset_number, type, capacity, year, status) VALUES (?, ?, ?, ?, ?)").run(asset_number, type, capacity != null ? Number(capacity) : null, year != null ? Number(year) : null, status);
+  const row = db.prepare("SELECT * FROM pranchas WHERE id = ?").get(info.lastInsertRowid);
+  res.json(row);
+});
+app.put("/api/pranchas/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const { asset_number = null, type = null, capacity = null, year = null, status = "Ativo" } = req.body || {};
+  db.prepare("UPDATE pranchas SET asset_number=?, type=?, capacity=?, year=?, status=? WHERE id = ?").run(asset_number, type, capacity != null ? Number(capacity) : null, year != null ? Number(year) : null, status, id);
+  const row = db.prepare("SELECT * FROM pranchas WHERE id = ?").get(id);
+  res.json(row);
+});
+app.delete("/api/pranchas/:id", (req, res) => {
+  const id = Number(req.params.id);
+  db.prepare("DELETE FROM pranchas WHERE id = ?").run(id);
+  res.json({ ok: true });
+});
+
 app.get("/api/viagens", (req, res) => {
   const { startDate, endDate, driverId, destination, status, truckId, pranchaId, plate } = req.query;
   let rows = db.prepare("SELECT * FROM viagens").all();

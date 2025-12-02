@@ -19,3 +19,18 @@ services:
       name: data
       mountPath: /data
       sizeGB: 1
+  - type: web
+    name: viagens-da-prancha-web
+    runtime: static
+    plan: free
+    region: oregon
+    branch: main
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: viagens-da-prancha-api
+          envVarKey: RENDER_EXTERNAL_URL
