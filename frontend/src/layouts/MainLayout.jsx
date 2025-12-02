@@ -8,6 +8,27 @@ export default function MainLayout() {
   const nav = useNavigate();
   const [open, setOpen] = useState(false);
   const [dark, setDark] = useState(() => localStorage.getItem("theme") === "dark");
+  const [online, setOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
+  const [reconnected, setReconnected] = useState(false);
+  const [syncError, setSyncError] = useState(null);
+  useEffect(() => {
+    const onOffline = () => { setOnline(false); };
+    const onOnline = async () => {
+      setOnline(true);
+      try {
+        const { initLoad } = await import("../services/storageService.js");
+        await initLoad();
+        setReconnected(true);
+        setTimeout(() => setReconnected(false), 4000);
+      } catch (e) {
+        setSyncError(e?.message || "Erro ao sincronizar dados");
+        setTimeout(() => setSyncError(null), 6000);
+      }
+    };
+    window.addEventListener("offline", onOffline);
+    window.addEventListener("online", onOnline);
+    return () => { window.removeEventListener("offline", onOffline); window.removeEventListener("online", onOnline); };
+  }, []);
   useEffect(() => {
     const root = document.documentElement;
     if (dark) {
@@ -23,6 +44,30 @@ export default function MainLayout() {
   const closeMenuOnNavigate = () => setOpen(false);
   return (
     <div className="min-h-screen flex bg-bg text-text dark:bg-[#0f172a] dark:text-[#f1f5f9]">
+      {!online && (
+        <div className="fixed top-0 left-0 right-0 z-50">
+          <div className="m-3 rounded-xl bg-yellow-500 text-white px-4 py-3 shadow-lg">
+            <div className="font-semibold">Você está offline.</div>
+            <div className="text-sm">Suas ações serão sincronizadas quando a conexão voltar.</div>
+          </div>
+        </div>
+      )}
+      {reconnected && (
+        <div className="fixed top-0 left-0 right-0 z-50">
+          <div className="m-3 rounded-xl bg-green-600 text-white px-4 py-3 shadow-lg">
+            <div className="font-semibold">Conexão restabelecida.</div>
+            <div className="text-sm">Dados sincronizados com o banco.</div>
+          </div>
+        </div>
+      )}
+      {syncError && (
+        <div className="fixed top-0 left-0 right-0 z-50">
+          <div className="m-3 rounded-xl bg-red-600 text-white px-4 py-3 shadow-lg">
+            <div className="font-semibold">Erro de sincronização.</div>
+            <div className="text-sm">{syncError}</div>
+          </div>
+        </div>
+      )}
       {open && <div className="fixed inset-0 bg-black/40 md:hidden z-10" onClick={() => setOpen(false)} />}
       <aside className={`${open ? "translate-x-0" : "-translate-x-full"} md:translate-x-0 fixed md:static z-20 w-72 bg-[#1e3a8a] text-white h-full transition-transform duration-300 shadow-xl dark:bg-[#1e293b]`}>
         <div className="p-5 flex items-center gap-3 text-white">
