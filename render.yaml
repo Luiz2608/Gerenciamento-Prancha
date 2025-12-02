@@ -2,7 +2,7 @@ services:
   - type: web
     name: viagens-da-prancha-api
     runtime: node
-    plan: free
+    plan: starter
     region: oregon
     branch: main
     rootDir: backend
@@ -23,7 +23,6 @@ services:
     name: viagens-da-prancha-web
     runtime: static
     plan: free
-    region: oregon
     branch: main
     rootDir: frontend
     buildCommand: npm install && npm run build
