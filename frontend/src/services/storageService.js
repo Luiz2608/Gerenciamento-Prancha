@@ -26,6 +26,129 @@ import { supabase as sb } from "./supabaseClient.js";
 
 const getDB = () => JSON.parse(localStorage.getItem(KEY) || "null");
 const setDB = (db) => localStorage.setItem(KEY, JSON.stringify(db));
+const OPS_KEY = "prancha_ops_queue";
+const getQueue = () => { try { return JSON.parse(localStorage.getItem(OPS_KEY) || "[]"); } catch { return []; } };
+const setQueue = (q) => localStorage.setItem(OPS_KEY, JSON.stringify(q));
+const isOnline = () => (typeof navigator !== "undefined" ? !!navigator.onLine : true);
+let listenersRegistered = false;
+let syncing = false;
+function enqueue(op) { const q = getQueue(); q.push({ ...op, id: uuid(), when: new Date().toISOString() }); setQueue(q); }
+async function syncPending() {
+  if (syncing) return; syncing = true;
+  try {
+    const { supabase: sb } = await import("./supabaseClient.js");
+    if (!sb || !isOnline()) { syncing = false; return; }
+    let q = getQueue();
+    if (!Array.isArray(q) || q.length === 0) { syncing = false; return; }
+    const db = getDB();
+    const mapMotoristas = {};
+    const mapCaminhoes = {};
+    const mapPranchas = {};
+    const mapViagens = {};
+    const processInsert = async (table, payload) => {
+      const { data: row } = await sb.from(table).insert([payload]).select().single();
+      return row;
+    };
+    const processUpdate = async (table, idField, idVal, payload) => {
+      const { data: row } = await sb.from(table).update(payload).eq(idField, idVal).select().single();
+      return row;
+    };
+    const processDelete = async (table, idField, idVal) => { await sb.from(table).delete().eq(idField, idVal); return { ok: true }; };
+    const nextQueue = [];
+    for (const it of q) {
+      try {
+        if (it.table === "motoristas") {
+          if (it.op === "insert") {
+            const row = await processInsert("motoristas", it.payload);
+            const oldId = it.localId;
+            mapMotoristas[oldId] = row.id;
+            const idx = db.motoristas.findIndex((d) => d.id === oldId);
+            if (idx>=0) db.motoristas[idx] = { ...db.motoristas[idx], id: row.id };
+            db.viagens = db.viagens.map((v) => (v.driver_id === oldId ? { ...v, driver_id: row.id } : v));
+          } else if (it.op === "update") {
+            const id = mapMotoristas[it.localId] || it.remoteId || it.localId;
+            await processUpdate("motoristas", "id", id, it.payload);
+          } else if (it.op === "delete") {
+            const id = mapMotoristas[it.localId] || it.remoteId || it.localId;
+            await processDelete("motoristas", "id", id);
+          }
+        } else if (it.table === "caminhoes") {
+          if (it.op === "insert") {
+            const row = await processInsert("caminhoes", it.payload);
+            const oldId = it.localId;
+            mapCaminhoes[oldId] = row.id;
+            const idx = db.caminhoes.findIndex((d) => d.id === oldId);
+            if (idx>=0) db.caminhoes[idx] = { ...db.caminhoes[idx], id: row.id };
+            db.viagens = db.viagens.map((v) => (v.truck_id === oldId ? { ...v, truck_id: row.id } : v));
+          } else if (it.op === "update") {
+            const id = mapCaminhoes[it.localId] || it.remoteId || it.localId;
+            await processUpdate("caminhoes", "id", id, it.payload);
+          } else if (it.op === "delete") {
+            const id = mapCaminhoes[it.localId] || it.remoteId || it.localId;
+            await processDelete("caminhoes", "id", id);
+          }
+        } else if (it.table === "pranchas") {
+          if (it.op === "insert") {
+            const row = await processInsert("pranchas", it.payload);
+            const oldId = it.localId;
+            mapPranchas[oldId] = row.id;
+            const idx = db.pranchas.findIndex((d) => d.id === oldId);
+            if (idx>=0) db.pranchas[idx] = { ...db.pranchas[idx], id: row.id };
+            db.viagens = db.viagens.map((v) => (v.prancha_id === oldId ? { ...v, prancha_id: row.id } : v));
+          } else if (it.op === "update") {
+            const id = mapPranchas[it.localId] || it.remoteId || it.localId;
+            await processUpdate("pranchas", "id", id, it.payload);
+          } else if (it.op === "delete") {
+            const id = mapPranchas[it.localId] || it.remoteId || it.localId;
+            await processDelete("pranchas", "id", id);
+          }
+        } else if (it.table === "viagens") {
+          if (it.op === "insert") {
+            const p = { ...it.payload };
+            p.driver_id = mapMotoristas[p.driver_id] || p.driver_id;
+            p.truck_id = p.truck_id != null ? (mapCaminhoes[p.truck_id] || p.truck_id) : null;
+            p.prancha_id = p.prancha_id != null ? (mapPranchas[p.prancha_id] || p.prancha_id) : null;
+            const row = await processInsert("viagens", p);
+            const oldId = it.localId;
+            mapViagens[oldId] = row.id;
+            const idx = db.viagens.findIndex((d) => d.id === oldId);
+            if (idx>=0) db.viagens[idx] = { ...db.viagens[idx], id: row.id };
+            db.custos = db.custos.map((c) => (String(c.viagemId) === String(oldId) ? { ...c, viagemId: String(row.id) } : c));
+          } else if (it.op === "update") {
+            const id = mapViagens[it.localId] || it.remoteId || it.localId;
+            await processUpdate("viagens", "id", id, it.payload);
+          } else if (it.op === "delete") {
+            const id = mapViagens[it.localId] || it.remoteId || it.localId;
+            await processDelete("viagens", "id", id);
+          }
+        } else if (it.table === "custos") {
+          if (it.op === "insert") {
+            const p = { ...it.payload };
+            p.viagemId = p.viagemId != null ? String(mapViagens[Number(p.viagemId)] || p.viagemId) : p.viagemId;
+            await processInsert("custos", p);
+          } else if (it.op === "update") {
+            const id = it.remoteId || it.localId;
+            await processUpdate("custos", "id", id, it.payload);
+          } else if (it.op === "delete") {
+            const id = it.remoteId || it.localId;
+            await processDelete("custos", "id", id);
+          }
+        }
+      } catch (e) {
+        nextQueue.push(it);
+      }
+    }
+    setDB(db);
+    setQueue(nextQueue);
+  } finally { syncing = false; }
+}
+function ensureListeners() {
+  if (listenersRegistered) return;
+  listenersRegistered = true;
+  if (typeof window !== "undefined") {
+    window.addEventListener("online", () => { syncPending(); });
+  }
+}
 
 async function fetchJson(path, fallback) {
   try {
@@ -59,6 +182,8 @@ export async function initLoad() {
     db.seq.pranchas = Number.isFinite(db.seq.pranchas) ? db.seq.pranchas : (db.pranchas.reduce((m, x) => Math.max(m, x.id || 0), 0) + 1);
     setDB(db);
     await migrateCostsFromTrips();
+    ensureListeners();
+    await syncPending();
     return db;
   }
   const [motoristas, viagens, destinos, tipos, usuarios, config, caminhoes, pranchas, custos] = await Promise.all([
@@ -93,6 +218,8 @@ export async function initLoad() {
   };
   setDB(db);
   await migrateCostsFromTrips();
+  ensureListeners();
+  await syncPending();
   return db;
 }
 
@@ -121,7 +248,7 @@ export async function login(username, password) {
     return { token, user };
   }
   const { supabase: sb } = await import("./supabaseClient.js");
-  if (sb) {
+  if (sb && isOnline()) {
     const { data, error } = await sb.auth.signInWithPassword({ email: String(username), password: String(password) });
     if (error) throw error;
     const session = data?.session || null;
@@ -149,7 +276,7 @@ export async function registerUser(username, password, role = "user") {
     return j;
   }
   const { supabase: sb } = await import("./supabaseClient.js");
-  if (sb) {
+  if (sb && isOnline()) {
     const { error } = await sb.auth.signUp({ email: String(username), password: String(password) });
     if (error) throw error;
     return { username, role };
@@ -163,10 +290,10 @@ export async function registerUser(username, password, role = "user") {
   return { id, username, role };
 }
 
-export async function getMotoristas() { await initLoad(); if (API_URL) { const r = await api("/api/motoristas"); const j = await r.json(); return Array.isArray(j) ? j : []; } if (sb) { const { data } = await sb.from("motoristas").select("*").order("id", { ascending: false }); return Array.isArray(data) ? data : []; } return getDB().motoristas.slice().reverse(); }
-export async function saveMotorista(data) { await initLoad(); if (API_URL) { const r = await api("/api/motoristas", { method: "POST", body: JSON.stringify({ name: data.name, cpf: data.cpf || null, cnh_category: data.cnh_category || null, status: data.status || "Ativo" }) }); return await r.json(); } if (sb) { const payload = { name: data.name, cpf: data.cpf || null, cnh_category: data.cnh_category || null, status: data.status || "Ativo" }; const { data: row } = await sb.from("motoristas").insert([payload]).select().single(); return row; } const db = getDB(); const id = db.seq.motoristas++; const row = { id, name: data.name, cpf: data.cpf || null, cnh_category: data.cnh_category || null, status: data.status || "Ativo" }; db.motoristas.push(row); setDB(db); return row; }
-export async function updateMotorista(id, data) { await initLoad(); if (API_URL) { const r = await api(`/api/motoristas/${id}`, { method: "PUT", body: JSON.stringify({ name: data.name, cpf: data.cpf || null, cnh_category: data.cnh_category || null, status: data.status || "Ativo" }) }); return await r.json(); } if (sb) { const payload = { name: data.name, cpf: data.cpf || null, cnh_category: data.cnh_category || null, status: data.status || "Ativo" }; const { data: row } = await sb.from("motoristas").update(payload).eq("id", id).select().single(); return row; } const db = getDB(); const i = db.motoristas.findIndex((d) => d.id === id); if (i>=0) db.motoristas[i] = { id, name: data.name, cpf: data.cpf || null, cnh_category: data.cnh_category || null, status: data.status || "Ativo" }; setDB(db); return db.motoristas[i]; }
-export async function deleteMotorista(id) { await initLoad(); if (API_URL) { await api(`/api/motoristas/${id}`, { method: "DELETE" }); return { ok: true }; } if (sb) { await sb.from("motoristas").delete().eq("id", id); return { ok: true }; } const db = getDB(); db.motoristas = db.motoristas.filter((d) => d.id !== id); setDB(db); return { ok: true }; }
+export async function getMotoristas() { await initLoad(); if (API_URL) { const r = await api("/api/motoristas"); const j = await r.json(); return Array.isArray(j) ? j : []; } const { supabase: sb } = await import("./supabaseClient.js"); if (sb && isOnline()) { const { data } = await sb.from("motoristas").select("*").order("id", { ascending: false }); const rows = Array.isArray(data) ? data : []; const db = getDB(); db.motoristas = rows.slice(); setDB(db); return rows; } return getDB().motoristas.slice().reverse(); }
+export async function saveMotorista(data) { await initLoad(); if (API_URL) { const r = await api("/api/motoristas", { method: "POST", body: JSON.stringify({ name: data.name, cpf: data.cpf || null, cnh_category: data.cnh_category || null, status: data.status || "Ativo" }) }); return await r.json(); } const { supabase: sb } = await import("./supabaseClient.js"); const payload = { name: data.name, cpf: data.cpf || null, cnh_category: data.cnh_category || null, status: data.status || "Ativo" }; if (sb && isOnline()) { const { data: row } = await sb.from("motoristas").insert([payload]).select().single(); const db = getDB(); const idx = db.motoristas.findIndex((d) => d.id === row.id); if (idx>=0) db.motoristas[idx] = row; else db.motoristas.push(row); setDB(db); return row; } const db = getDB(); const id = db.seq.motoristas++; const row = { id, ...payload }; db.motoristas.push(row); setDB(db); enqueue({ table: "motoristas", op: "insert", payload, localId: id }); return row; }
+export async function updateMotorista(id, data) { await initLoad(); if (API_URL) { const r = await api(`/api/motoristas/${id}`, { method: "PUT", body: JSON.stringify({ name: data.name, cpf: data.cpf || null, cnh_category: data.cnh_category || null, status: data.status || "Ativo" }) }); return await r.json(); } const { supabase: sb } = await import("./supabaseClient.js"); const payload = { name: data.name, cpf: data.cpf || null, cnh_category: data.cnh_category || null, status: data.status || "Ativo" }; if (sb && isOnline()) { const { data: row } = await sb.from("motoristas").update(payload).eq("id", id).select().single(); const db = getDB(); const i = db.motoristas.findIndex((d) => d.id === id); if (i>=0) db.motoristas[i] = row; else db.motoristas.push(row); setDB(db); return row; } const db = getDB(); const i = db.motoristas.findIndex((d) => d.id === id); if (i>=0) db.motoristas[i] = { id, ...payload }; else db.motoristas.push({ id, ...payload }); setDB(db); enqueue({ table: "motoristas", op: "update", payload, localId: id }); return db.motoristas[i>=0?i:db.motoristas.length-1]; }
+export async function deleteMotorista(id) { await initLoad(); if (API_URL) { await api(`/api/motoristas/${id}`, { method: "DELETE" }); return { ok: true }; } const { supabase: sb } = await import("./supabaseClient.js"); if (sb && isOnline()) { await sb.from("motoristas").delete().eq("id", id); const db = getDB(); db.motoristas = db.motoristas.filter((d) => d.id !== id); setDB(db); return { ok: true }; } const db = getDB(); db.motoristas = db.motoristas.filter((d) => d.id !== id); setDB(db); enqueue({ table: "motoristas", op: "delete", localId: id }); return { ok: true }; }
 
 export async function getViagens(opts = {}) {
   await initLoad();
@@ -187,7 +314,7 @@ export async function getViagens(opts = {}) {
     const offset = (Number(page) - 1) * Number(pageSize);
     const data = rows.slice(offset, offset + Number(pageSize));
     return { data, total, page: Number(page), pageSize: Number(pageSize) };
-  } else if (sb) {
+  } else if (sb && isOnline()) {
     let query = sb.from("viagens").select("*");
     if (startDate) query = query.gte("date", startDate);
     if (endDate) query = query.lte("date", endDate);
@@ -236,18 +363,19 @@ export async function getViagens(opts = {}) {
   const data = rows.slice(offset, offset + Number(pageSize));
   return { data, total, page: Number(page), pageSize: Number(pageSize) };
 }
-export async function getViagem(id) { await initLoad(); if (API_URL) { const r = await api(`/api/viagens/${id}`); if (!r.ok) return null; return await r.json(); } if (sb) { const { data: t } = await sb.from("viagens").select("*").eq("id", Number(id)).single(); if (!t) return null; return { ...t, km_rodado: computeKm(t.km_start, t.km_end), horas: computeHours(t.date, t.start_time, t.end_time) }; } const db = getDB(); const t = db.viagens.find((x) => x.id === Number(id)); if (!t) return null; return { ...t, km_rodado: computeKm(t.km_start, t.km_end), horas: computeHours(t.date, t.start_time, t.end_time) }; }
-export async function saveViagem(data) { await initLoad(); if (API_URL) { const r = await api("/api/viagens", { method: "POST", body: JSON.stringify(data) }); return await r.json(); } if (sb) { const status = computeStatus(data.end_time, data.km_end); const payload = { date: data.date, driver_id: Number(data.driver_id), truck_id: data.truck_id != null ? Number(data.truck_id) : null, prancha_id: data.prancha_id != null ? Number(data.prancha_id) : null, destination: data.destination || null, service_type: data.service_type || null, description: data.description || null, start_time: data.start_time || null, end_time: data.end_time || null, km_start: data.km_start != null ? Number(data.km_start) : null, km_end: data.km_end != null ? Number(data.km_end) : null, fuel_liters: data.fuel_liters != null ? Number(data.fuel_liters) : 0, fuel_price: data.fuel_price != null ? Number(data.fuel_price) : 0, other_costs: data.other_costs != null ? Number(data.other_costs) : 0, maintenance_cost: data.maintenance_cost != null ? Number(data.maintenance_cost) : 0, driver_daily: data.driver_daily != null ? Number(data.driver_daily) : 0, requester: data.requester || null, status };
+export async function getViagem(id) { await initLoad(); if (API_URL) { const r = await api(`/api/viagens/${id}`); if (!r.ok) return null; return await r.json(); } if (sb && isOnline()) { const { data: t } = await sb.from("viagens").select("*").eq("id", Number(id)).single(); if (!t) return null; return { ...t, km_rodado: computeKm(t.km_start, t.km_end), horas: computeHours(t.date, t.start_time, t.end_time) }; } const db = getDB(); const t = db.viagens.find((x) => x.id === Number(id)); if (!t) return null; return { ...t, km_rodado: computeKm(t.km_start, t.km_end), horas: computeHours(t.date, t.start_time, t.end_time) }; }
+export async function saveViagem(data) { await initLoad(); if (API_URL) { const r = await api("/api/viagens", { method: "POST", body: JSON.stringify(data) }); return await r.json(); } const { supabase: sb } = await import("./supabaseClient.js"); if (sb && isOnline()) { const status = computeStatus(data.end_time, data.km_end); const payload = { date: data.date, driver_id: Number(data.driver_id), truck_id: data.truck_id != null ? Number(data.truck_id) : null, prancha_id: data.prancha_id != null ? Number(data.prancha_id) : null, destination: data.destination || null, service_type: data.service_type || null, description: data.description || null, start_time: data.start_time || null, end_time: data.end_time || null, km_start: data.km_start != null ? Number(data.km_start) : null, km_end: data.km_end != null ? Number(data.km_end) : null, fuel_liters: data.fuel_liters != null ? Number(data.fuel_liters) : 0, fuel_price: data.fuel_price != null ? Number(data.fuel_price) : 0, other_costs: data.other_costs != null ? Number(data.other_costs) : 0, maintenance_cost: data.maintenance_cost != null ? Number(data.maintenance_cost) : 0, driver_daily: data.driver_daily != null ? Number(data.driver_daily) : 0, requester: data.requester || null, status };
   const { data: row } = await sb.from("viagens").insert([payload]).select().single();
   if (row && row.truck_id != null && row.km_end != null) { await sb.from("caminhoes").update({ km_current: Number(row.km_end) }).eq("id", Number(row.truck_id)); }
   return { ...row, km_rodado: computeKm(row.km_start, row.km_end), horas: computeHours(row.date, row.start_time, row.end_time), total_cost: Number(row.fuel_liters || 0) * Number(row.fuel_price || 0) + Number(row.other_costs || 0) + Number(row.maintenance_cost || 0) + Number(row.driver_daily || 0) };
-} const db = getDB(); const id = db.seq.viagens++; const status = computeStatus(data.end_time, data.km_end); const t = { id, date: data.date, driver_id: Number(data.driver_id), truck_id: data.truck_id != null ? Number(data.truck_id) : null, prancha_id: data.prancha_id != null ? Number(data.prancha_id) : null, destination: data.destination || null, service_type: data.service_type || null, description: data.description || null, start_time: data.start_time || null, end_time: data.end_time || null, km_start: data.km_start != null ? Number(data.km_start) : null, km_end: data.km_end != null ? Number(data.km_end) : null, fuel_liters: data.fuel_liters != null ? Number(data.fuel_liters) : 0, fuel_price: data.fuel_price != null ? Number(data.fuel_price) : 0, other_costs: data.other_costs != null ? Number(data.other_costs) : 0, maintenance_cost: data.maintenance_cost != null ? Number(data.maintenance_cost) : 0, driver_daily: data.driver_daily != null ? Number(data.driver_daily) : 0, requester: data.requester || null, status }; db.viagens.push(t); if (t.truck_id != null && t.km_end != null) { const ti = db.caminhoes.findIndex((d) => d.id === Number(t.truck_id)); if (ti>=0) db.caminhoes[ti] = { ...db.caminhoes[ti], km_current: Number(t.km_end) }; } setDB(db); return { ...t, km_rodado: computeKm(t.km_start, t.km_end), horas: computeHours(t.date, t.start_time, t.end_time), total_cost: Number(t.fuel_liters || 0) * Number(t.fuel_price || 0) + Number(t.other_costs || 0) + Number(t.maintenance_cost || 0) + Number(t.driver_daily || 0) }; }
-export async function updateViagem(id, data) { await initLoad(); if (API_URL) { const r = await api(`/api/viagens/${id}`, { method: "PUT", body: JSON.stringify(data) }); return await r.json(); } if (sb) { const status = computeStatus(data.end_time, data.km_end); const payload = { date: data.date, driver_id: Number(data.driver_id), truck_id: data.truck_id != null ? Number(data.truck_id) : null, prancha_id: data.prancha_id != null ? Number(data.prancha_id) : null, destination: data.destination || null, service_type: data.service_type || null, description: data.description || null, start_time: data.start_time || null, end_time: data.end_time || null, km_start: data.km_start != null ? Number(data.km_start) : null, km_end: data.km_end != null ? Number(data.km_end) : null, fuel_liters: data.fuel_liters != null ? Number(data.fuel_liters) : 0, fuel_price: data.fuel_price != null ? Number(data.fuel_price) : 0, other_costs: data.other_costs != null ? Number(data.other_costs) : 0, maintenance_cost: data.maintenance_cost != null ? Number(data.maintenance_cost) : 0, driver_daily: data.driver_daily != null ? Number(data.driver_daily) : 0, requester: data.requester || null, status };
+} const db = getDB(); const id = db.seq.viagens++; const status = computeStatus(data.end_time, data.km_end); const t = { id, date: data.date, driver_id: Number(data.driver_id), truck_id: data.truck_id != null ? Number(data.truck_id) : null, prancha_id: data.prancha_id != null ? Number(data.prancha_id) : null, destination: data.destination || null, service_type: data.service_type || null, description: data.description || null, start_time: data.start_time || null, end_time: data.end_time || null, km_start: data.km_start != null ? Number(data.km_start) : null, km_end: data.km_end != null ? Number(data.km_end) : null, fuel_liters: data.fuel_liters != null ? Number(data.fuel_liters) : 0, fuel_price: data.fuel_price != null ? Number(data.fuel_price) : 0, other_costs: data.other_costs != null ? Number(data.other_costs) : 0, maintenance_cost: data.maintenance_cost != null ? Number(data.maintenance_cost) : 0, driver_daily: data.driver_daily != null ? Number(data.driver_daily) : 0, requester: data.requester || null, status }; db.viagens.push(t); if (t.truck_id != null && t.km_end != null) { const ti = db.caminhoes.findIndex((d) => d.id === Number(t.truck_id)); if (ti>=0) db.caminhoes[ti] = { ...db.caminhoes[ti], km_current: Number(t.km_end) }; } setDB(db); enqueue({ table: "viagens", op: "insert", payload: t, localId: id }); return { ...t, km_rodado: computeKm(t.km_start, t.km_end), horas: computeHours(t.date, t.start_time, t.end_time), total_cost: Number(t.fuel_liters || 0) * Number(t.fuel_price || 0) + Number(t.other_costs || 0) + Number(t.maintenance_cost || 0) + Number(t.driver_daily || 0) }; }
+export async function updateViagem(id, data) { await initLoad(); if (API_URL) { const r = await api(`/api/viagens/${id}`, { method: "PUT", body: JSON.stringify(data) }); return await r.json(); } if (sb && isOnline()) { const status = computeStatus(data.end_time, data.km_end); const payload = { date: data.date, driver_id: Number(data.driver_id), truck_id: data.truck_id != null ? Number(data.truck_id) : null, prancha_id: data.prancha_id != null ? Number(data.prancha_id) : null, destination: data.destination || null, service_type: data.service_type || null, description: data.description || null, start_time: data.start_time || null, end_time: data.end_time || null, km_start: data.km_start != null ? Number(data.km_start) : null, km_end: data.km_end != null ? Number(data.km_end) : null, fuel_liters: data.fuel_liters != null ? Number(data.fuel_liters) : 0, fuel_price: data.fuel_price != null ? Number(data.fuel_price) : 0, other_costs: data.other_costs != null ? Number(data.other_costs) : 0, maintenance_cost: data.maintenance_cost != null ? Number(data.maintenance_cost) : 0, driver_daily: data.driver_daily != null ? Number(data.driver_daily) : 0, requester: data.requester || null, status };
   const { data: row } = await sb.from("viagens").update(payload).eq("id", Number(id)).select().single();
   if (row && row.truck_id != null && row.km_end != null) { await sb.from("caminhoes").update({ km_current: Number(row.km_end) }).eq("id", Number(row.truck_id)); }
   return { ...row, km_rodado: computeKm(row.km_start, row.km_end), horas: computeHours(row.date, row.start_time, row.end_time), total_cost: Number(row.fuel_liters || 0) * Number(row.fuel_price || 0) + Number(row.other_costs || 0) + Number(row.maintenance_cost || 0) + Number(row.driver_daily || 0) };
-} const db = getDB(); const i = db.viagens.findIndex((t) => t.id === Number(id)); const status = computeStatus(data.end_time, data.km_end); if (i>=0) db.viagens[i] = { id: Number(id), date: data.date, driver_id: Number(data.driver_id), truck_id: data.truck_id != null ? Number(data.truck_id) : null, prancha_id: data.prancha_id != null ? Number(data.prancha_id) : null, destination: data.destination || null, service_type: data.service_type || null, description: data.description || null, start_time: data.start_time || null, end_time: data.end_time || null, km_start: data.km_start != null ? Number(data.km_start) : null, km_end: data.km_end != null ? Number(data.km_end) : null, fuel_liters: data.fuel_liters != null ? Number(data.fuel_liters) : 0, fuel_price: data.fuel_price != null ? Number(data.fuel_price) : 0, other_costs: data.other_costs != null ? Number(data.other_costs) : 0, maintenance_cost: data.maintenance_cost != null ? Number(data.maintenance_cost) : 0, driver_daily: data.driver_daily != null ? Number(data.driver_daily) : 0, requester: data.requester || null, status }; const t = db.viagens[i]; if (t.truck_id != null && t.km_end != null) { const ti = db.caminhoes.findIndex((d) => d.id === Number(t.truck_id)); if (ti>=0) db.caminhoes[ti] = { ...db.caminhoes[ti], km_current: Number(t.km_end) }; } setDB(db); return { ...t, km_rodado: computeKm(t.km_start, t.km_end), horas: computeHours(t.date, t.start_time, t.end_time), total_cost: Number(t.fuel_liters || 0) * Number(t.fuel_price || 0) + Number(t.other_costs || 0) + Number(t.maintenance_cost || 0) + Number(t.driver_daily || 0) }; }
-export async function deleteViagem(id) { await initLoad(); if (API_URL) { await api(`/api/viagens/${id}`, { method: "DELETE" }); return { ok: true }; } if (sb) { await sb.from("viagens").delete().eq("id", Number(id)); return { ok: true }; } const db = getDB(); db.viagens = db.viagens.filter((t) => t.id !== Number(id)); setDB(db); return { ok: true }; }
+} const db = getDB(); const i = db.viagens.findIndex((t) => t.id === Number(id)); const status = computeStatus(data.end_time, data.km_end); if (i>=0) db.viagens[i] = { id: Number(id), date: data.date, driver_id: Number(data.driver_id), truck_id: data.truck_id != null ? Number(data.truck_id) : null, prancha_id: data.prancha_id != null ? Number(data.prancha_id) : null, destination: data.destination || null, service_type: data.service_type || null, description: data.description || null, start_time: data.start_time || null, end_time: data.end_time || null, km_start: data.km_start != null ? Number(data.km_start) : null, km_end: data.km_end != null ? Number(data.km_end) : null, fuel_liters: data.fuel_liters != null ? Number(data.fuel_liters) : 0, fuel_price: data.fuel_price != null ? Number(data.fuel_price) : 0, other_costs: data.other_costs != null ? Number(data.other_costs) : 0, maintenance_cost: data.maintenance_cost != null ? Number(data.maintenance_cost) : 0, driver_daily: data.driver_daily != null ? Number(data.driver_daily) : 0, requester: data.requester || null, status }; const t = db.viagens[i]; if (t.truck_id != null && t.km_end != null) { const ti = db.caminhoes.findIndex((d) => d.id === Number(t.truck_id)); if (ti>=0) db.caminhoes[ti] = { ...db.caminhoes[ti], km_current: Number(t.km_end) }; } setDB(db);
+enqueue({ table: "viagens", op: "update", payload: t, localId: Number(id) }); return { ...t, km_rodado: computeKm(t.km_start, t.km_end), horas: computeHours(t.date, t.start_time, t.end_time), total_cost: Number(t.fuel_liters || 0) * Number(t.fuel_price || 0) + Number(t.other_costs || 0) + Number(t.maintenance_cost || 0) + Number(t.driver_daily || 0) }; }
+export async function deleteViagem(id) { await initLoad(); if (API_URL) { await api(`/api/viagens/${id}`, { method: "DELETE" }); return { ok: true }; } if (sb && isOnline()) { await sb.from("viagens").delete().eq("id", Number(id)); return { ok: true }; } const db = getDB(); db.viagens = db.viagens.filter((t) => t.id !== Number(id)); setDB(db); enqueue({ table: "viagens", op: "delete", localId: Number(id) }); return { ok: true }; }
 
 export async function getDestinos() { await initLoad(); return getDB().destinos; }
 export async function saveDestino(name) { await initLoad(); const db = getDB(); const id = db.seq.destinos++; const row = { id, name }; db.destinos.push(row); setDB(db); return row; }
@@ -260,15 +388,15 @@ export async function deleteTipoServico(id) { await initLoad(); const db = getDB
 export async function getTruck() { await initLoad(); return getDB().config.truck || {}; }
 export async function updateTruck(data) { await initLoad(); const db = getDB(); db.config.truck = { plate: data.plate || null, model: data.model || null, year: data.year != null ? Number(data.year) : null }; setDB(db); return db.config.truck; }
 
-export async function getCaminhoes() { await initLoad(); if (API_URL) { const r = await api("/api/caminhoes"); const j = await r.json(); return Array.isArray(j) ? j : []; } if (sb) { const { data } = await sb.from("caminhoes").select("*").order("id", { ascending: false }); return Array.isArray(data) ? data : []; } return getDB().caminhoes.slice().reverse(); }
-export async function saveCaminhao(data) { await initLoad(); if (API_URL) { const r = await api("/api/caminhoes", { method: "POST", body: JSON.stringify({ plate: data.plate || null, model: data.model || null, year: data.year != null ? Number(data.year) : null, chassis: data.chassis || null, km_current: data.km_current != null ? Number(data.km_current) : null, fleet: data.fleet || null, status: data.status || "Ativo" }) }); return await r.json(); } if (sb) { const payload = { plate: data.plate || null, model: data.model || null, year: data.year != null ? Number(data.year) : null, chassis: data.chassis || null, km_current: data.km_current != null ? Number(data.km_current) : null, fleet: data.fleet || null, status: data.status || "Ativo" }; const { data: row } = await sb.from("caminhoes").insert([payload]).select().single(); return row; } const db = getDB(); const id = db.seq.caminhoes++; const row = { id, plate: data.plate || null, model: data.model || null, year: data.year != null ? Number(data.year) : null, chassis: data.chassis || null, km_current: data.km_current != null ? Number(data.km_current) : null, fleet: data.fleet || null, status: data.status || "Ativo" }; db.caminhoes.push(row); setDB(db); return row; }
-export async function updateCaminhao(id, data) { await initLoad(); if (API_URL) { const r = await api(`/api/caminhoes/${id}`, { method: "PUT", body: JSON.stringify({ plate: data.plate || null, model: data.model || null, year: data.year != null ? Number(data.year) : null, chassis: data.chassis || null, km_current: data.km_current != null ? Number(data.km_current) : null, fleet: data.fleet || null, status: data.status || "Ativo" }) }); return await r.json(); } if (sb) { const payload = { plate: data.plate || null, model: data.model || null, year: data.year != null ? Number(data.year) : null, chassis: data.chassis || null, km_current: data.km_current != null ? Number(data.km_current) : null, fleet: data.fleet || null, status: data.status || "Ativo" }; const { data: row } = await sb.from("caminhoes").update(payload).eq("id", id).select().single(); return row; } const db = getDB(); const i = db.caminhoes.findIndex((d) => d.id === Number(id)); if (i>=0) db.caminhoes[i] = { id: Number(id), plate: data.plate || null, model: data.model || null, year: data.year != null ? Number(data.year) : null, chassis: data.chassis || null, km_current: data.km_current != null ? Number(data.km_current) : null, fleet: data.fleet || null, status: data.status || "Ativo" }; setDB(db); return db.caminhoes[i]; }
-export async function deleteCaminhao(id) { await initLoad(); if (API_URL) { await api(`/api/caminhoes/${id}`, { method: "DELETE" }); return { ok: true }; } if (sb) { await sb.from("caminhoes").delete().eq("id", id); return { ok: true }; } const db = getDB(); db.caminhoes = db.caminhoes.filter((d) => d.id !== Number(id)); setDB(db); return { ok: true }; }
+export async function getCaminhoes() { await initLoad(); if (API_URL) { const r = await api("/api/caminhoes"); const j = await r.json(); return Array.isArray(j) ? j : []; } const { supabase: sb } = await import("./supabaseClient.js"); if (sb && isOnline()) { const { data } = await sb.from("caminhoes").select("*").order("id", { ascending: false }); const rows = Array.isArray(data) ? data : []; const db = getDB(); db.caminhoes = rows.slice(); setDB(db); return rows; } return getDB().caminhoes.slice().reverse(); }
+export async function saveCaminhao(data) { await initLoad(); if (API_URL) { const r = await api("/api/caminhoes", { method: "POST", body: JSON.stringify({ plate: data.plate || null, model: data.model || null, year: data.year != null ? Number(data.year) : null, chassis: data.chassis || null, km_current: data.km_current != null ? Number(data.km_current) : null, fleet: data.fleet || null, status: data.status || "Ativo" }) }); return await r.json(); } const { supabase: sb } = await import("./supabaseClient.js"); const payload = { plate: data.plate || null, model: data.model || null, year: data.year != null ? Number(data.year) : null, chassis: data.chassis || null, km_current: data.km_current != null ? Number(data.km_current) : null, fleet: data.fleet || null, status: data.status || "Ativo" }; if (sb && isOnline()) { const { data: row } = await sb.from("caminhoes").insert([payload]).select().single(); const db = getDB(); const idx = db.caminhoes.findIndex((d) => d.id === row.id); if (idx>=0) db.caminhoes[idx] = row; else db.caminhoes.push(row); setDB(db); return row; } const db = getDB(); const id = db.seq.caminhoes++; const row = { id, ...payload }; db.caminhoes.push(row); setDB(db); enqueue({ table: "caminhoes", op: "insert", payload, localId: id }); return row; }
+export async function updateCaminhao(id, data) { await initLoad(); if (API_URL) { const r = await api(`/api/caminhoes/${id}`, { method: "PUT", body: JSON.stringify({ plate: data.plate || null, model: data.model || null, year: data.year != null ? Number(data.year) : null, chassis: data.chassis || null, km_current: data.km_current != null ? Number(data.km_current) : null, fleet: data.fleet || null, status: data.status || "Ativo" }) }); return await r.json(); } const { supabase: sb } = await import("./supabaseClient.js"); const payload = { plate: data.plate || null, model: data.model || null, year: data.year != null ? Number(data.year) : null, chassis: data.chassis || null, km_current: data.km_current != null ? Number(data.km_current) : null, fleet: data.fleet || null, status: data.status || "Ativo" }; if (sb && isOnline()) { const { data: row } = await sb.from("caminhoes").update(payload).eq("id", id).select().single(); const db = getDB(); const i = db.caminhoes.findIndex((d) => d.id === Number(id)); if (i>=0) db.caminhoes[i] = row; else db.caminhoes.push(row); setDB(db); return row; } const db = getDB(); const i = db.caminhoes.findIndex((d) => d.id === Number(id)); if (i>=0) db.caminhoes[i] = { id: Number(id), ...payload }; else db.caminhoes.push({ id: Number(id), ...payload }); setDB(db); enqueue({ table: "caminhoes", op: "update", payload, localId: Number(id) }); return db.caminhoes[i>=0?i:db.caminhoes.length-1]; }
+export async function deleteCaminhao(id) { await initLoad(); if (API_URL) { await api(`/api/caminhoes/${id}`, { method: "DELETE" }); return { ok: true }; } const { supabase: sb } = await import("./supabaseClient.js"); if (sb && isOnline()) { await sb.from("caminhoes").delete().eq("id", id); const db = getDB(); db.caminhoes = db.caminhoes.filter((d) => d.id !== Number(id)); setDB(db); return { ok: true }; } const db = getDB(); db.caminhoes = db.caminhoes.filter((d) => d.id !== Number(id)); setDB(db); enqueue({ table: "caminhoes", op: "delete", localId: Number(id) }); return { ok: true }; }
 
-export async function getPranchas() { await initLoad(); if (API_URL) { const r = await api("/api/pranchas"); const j = await r.json(); return Array.isArray(j) ? j : []; } if (sb) { const { data } = await sb.from("pranchas").select("*").order("id", { ascending: false }); return Array.isArray(data) ? data : []; } return getDB().pranchas.slice().reverse(); }
-export async function savePrancha(data) { await initLoad(); if (API_URL) { const r = await api("/api/pranchas", { method: "POST", body: JSON.stringify({ asset_number: data.asset_number || null, type: data.type || null, capacity: data.capacity != null ? Number(data.capacity) : null, year: data.year != null ? Number(data.year) : null, status: data.status || "Ativo" }) }); return await r.json(); } if (sb) { const payload = { asset_number: data.asset_number || null, type: data.type || null, capacity: data.capacity != null ? Number(data.capacity) : null, year: data.year != null ? Number(data.year) : null, status: data.status || "Ativo" }; const { data: row } = await sb.from("pranchas").insert([payload]).select().single(); return row; } const db = getDB(); const id = db.seq.pranchas++; const row = { id, asset_number: data.asset_number || null, type: data.type || null, capacity: data.capacity != null ? Number(data.capacity) : null, year: data.year != null ? Number(data.year) : null, status: data.status || "Ativo" }; db.pranchas.push(row); setDB(db); return row; }
-export async function updatePrancha(id, data) { await initLoad(); if (API_URL) { const r = await api(`/api/pranchas/${id}`, { method: "PUT", body: JSON.stringify({ asset_number: data.asset_number || null, type: data.type || null, capacity: data.capacity != null ? Number(data.capacity) : null, year: data.year != null ? Number(data.year) : null, status: data.status || "Ativo" }) }); return await r.json(); } if (sb) { const payload = { asset_number: data.asset_number || null, type: data.type || null, capacity: data.capacity != null ? Number(data.capacity) : null, year: data.year != null ? Number(data.year) : null, status: data.status || "Ativo" }; const { data: row } = await sb.from("pranchas").update(payload).eq("id", Number(id)).select().single(); return row; } const db = getDB(); const i = db.pranchas.findIndex((d) => d.id === Number(id)); if (i>=0) db.pranchas[i] = { id: Number(id), asset_number: data.asset_number || null, type: data.type || null, capacity: data.capacity != null ? Number(data.capacity) : null, year: data.year != null ? Number(data.year) : null, status: data.status || "Ativo" }; setDB(db); return db.pranchas[i]; }
-export async function deletePrancha(id) { await initLoad(); if (API_URL) { await api(`/api/pranchas/${id}`, { method: "DELETE" }); return { ok: true }; } if (sb) { await sb.from("pranchas").delete().eq("id", id); return { ok: true }; } const db = getDB(); db.pranchas = db.pranchas.filter((d) => d.id !== Number(id)); setDB(db); return { ok: true }; }
+export async function getPranchas() { await initLoad(); if (API_URL) { const r = await api("/api/pranchas"); const j = await r.json(); return Array.isArray(j) ? j : []; } const { supabase: sb } = await import("./supabaseClient.js"); if (sb && isOnline()) { const { data } = await sb.from("pranchas").select("*").order("id", { ascending: false }); const rows = Array.isArray(data) ? data : []; const db = getDB(); db.pranchas = rows.slice(); setDB(db); return rows; } return getDB().pranchas.slice().reverse(); }
+export async function savePrancha(data) { await initLoad(); if (API_URL) { const r = await api("/api/pranchas", { method: "POST", body: JSON.stringify({ asset_number: data.asset_number || null, type: data.type || null, capacity: data.capacity != null ? Number(data.capacity) : null, year: data.year != null ? Number(data.year) : null, status: data.status || "Ativo" }) }); return await r.json(); } const { supabase: sb } = await import("./supabaseClient.js"); const payload = { asset_number: data.asset_number || null, type: data.type || null, capacity: data.capacity != null ? Number(data.capacity) : null, year: data.year != null ? Number(data.year) : null, status: data.status || "Ativo" }; if (sb && isOnline()) { const { data: row } = await sb.from("pranchas").insert([payload]).select().single(); const db = getDB(); const idx = db.pranchas.findIndex((d) => d.id === row.id); if (idx>=0) db.pranchas[idx] = row; else db.pranchas.push(row); setDB(db); return row; } const db = getDB(); const id = db.seq.pranchas++; const row = { id, ...payload }; db.pranchas.push(row); setDB(db); enqueue({ table: "pranchas", op: "insert", payload, localId: id }); return row; }
+export async function updatePrancha(id, data) { await initLoad(); if (API_URL) { const r = await api(`/api/pranchas/${id}`, { method: "PUT", body: JSON.stringify({ asset_number: data.asset_number || null, type: data.type || null, capacity: data.capacity != null ? Number(data.capacity) : null, year: data.year != null ? Number(data.year) : null, status: data.status || "Ativo" }) }); return await r.json(); } const { supabase: sb } = await import("./supabaseClient.js"); const payload = { asset_number: data.asset_number || null, type: data.type || null, capacity: data.capacity != null ? Number(data.capacity) : null, year: data.year != null ? Number(data.year) : null, status: data.status || "Ativo" }; if (sb && isOnline()) { const { data: row } = await sb.from("pranchas").update(payload).eq("id", Number(id)).select().single(); const db = getDB(); const i = db.pranchas.findIndex((d) => d.id === Number(id)); if (i>=0) db.pranchas[i] = row; else db.pranchas.push(row); setDB(db); return row; } const db = getDB(); const i = db.pranchas.findIndex((d) => d.id === Number(id)); if (i>=0) db.pranchas[i] = { id: Number(id), ...payload }; else db.pranchas.push({ id: Number(id), ...payload }); setDB(db); enqueue({ table: "pranchas", op: "update", payload, localId: Number(id) }); return db.pranchas[i>=0?i:db.pranchas.length-1]; }
+export async function deletePrancha(id) { await initLoad(); if (API_URL) { await api(`/api/pranchas/${id}`, { method: "DELETE" }); return { ok: true }; } const { supabase: sb } = await import("./supabaseClient.js"); if (sb && isOnline()) { await sb.from("pranchas").delete().eq("id", id); const db = getDB(); db.pranchas = db.pranchas.filter((d) => d.id !== Number(id)); setDB(db); return { ok: true }; } const db = getDB(); db.pranchas = db.pranchas.filter((d) => d.id !== Number(id)); setDB(db); enqueue({ table: "pranchas", op: "delete", localId: Number(id) }); return { ok: true }; }
 
 export async function getViagemByCaminhao(id, opts = {}) { return getViagens({ ...opts, truckId: id }); }
 export async function getViagemByPrancha(id, opts = {}) { return getViagens({ ...opts, pranchaId: id }); }
@@ -287,7 +415,7 @@ export async function dashboard() {
   let caminhoes = [];
   let pranchas = [];
   let custos = [];
-  if (sb) {
+  if (sb && isOnline()) {
     const { data: v } = await sb.from("viagens").select("*");
     const { data: d } = await sb.from("motoristas").select("*");
     const { data: t } = await sb.from("caminhoes").select("*");
@@ -438,7 +566,7 @@ async function migrateCostsFromTrips() {
 export async function getCustos(opts = {}) {
   await initLoad();
   const { startDate, endDate, caminhaoId, pranchaId, driverId, aprovado, search, minCusto, maxCusto, page = 1, pageSize = 10 } = opts;
-  if (sb) {
+  if (sb && isOnline()) {
     let query = sb.from("custos").select("*");
     if (startDate) query = query.gte("dataRegistro", startDate);
     if (endDate) query = query.lte("dataRegistro", endDate);
@@ -486,7 +614,7 @@ export async function getCustos(opts = {}) {
   return { data, total, page: Number(page), pageSize: Number(pageSize) };
 }
 
-export async function getCustoById(id) { await initLoad(); if (sb) { const { data } = await sb.from("custos").select("*").eq("id", String(id)).single(); return data || null; } const db = getDB(); return db.custos.find((c) => String(c.id) === String(id)) || null; }
+export async function getCustoById(id) { await initLoad(); if (sb && isOnline()) { const { data } = await sb.from("custos").select("*").eq("id", String(id)).single(); return data || null; } const db = getDB(); return db.custos.find((c) => String(c.id) === String(id)) || null; }
 
 export async function saveCusto(raw) {
   await initLoad();
@@ -519,18 +647,19 @@ export async function saveCusto(raw) {
   const computed = computeCustoFields(base);
   const row = { ...base, ...computed };
   row.audit.push({ when: new Date().toISOString(), who: base.registradoPor || "", what: "Custo criado" });
-  if (sb) {
+  if (sb && isOnline()) {
     const { data } = await sb.from("custos").insert([row]).select().single();
     return data || row;
   }
   db.custos.push(row);
   setDB(db);
+  enqueue({ table: "custos", op: "insert", payload: row, localId: String(row.id) });
   return row;
 }
 
 export async function updateCusto(id, patch) {
   await initLoad();
-  if (sb) {
+  if (sb && isOnline()) {
     const { data: before } = await sb.from("custos").select("*").eq("id", String(id)).single();
     if (!before) return null;
     const merged = { ...before, ...patch, categoria: patch.categoria || before.categoria || "veículos pesados", outrosCustos: Array.isArray(patch.outrosCustos) ? patch.outrosCustos.map((o) => ({ descricao: o.descricao || "", valor: Number(o.valor || 0) })) : before.outrosCustos };
@@ -554,14 +683,15 @@ export async function updateCusto(id, patch) {
   after.audit = [...(before.audit || []), { when: new Date().toISOString(), who, what: `Atualizado: ${changed}` }];
   db.custos[i] = after;
   setDB(db);
+  enqueue({ table: "custos", op: "update", payload: after, localId: String(id) });
   return after;
 }
 
-export async function deleteCusto(id) { await initLoad(); if (sb) { await sb.from("custos").delete().eq("id", String(id)); return { ok: true }; } const db = getDB(); db.custos = db.custos.filter((c) => String(c.id) !== String(id)); setDB(db); return { ok: true }; }
+export async function deleteCusto(id) { await initLoad(); if (sb && isOnline()) { await sb.from("custos").delete().eq("id", String(id)); return { ok: true }; } const db = getDB(); db.custos = db.custos.filter((c) => String(c.id) !== String(id)); setDB(db); enqueue({ table: "custos", op: "delete", localId: String(id) }); return { ok: true }; }
 
 export async function attachFileToCusto(id, fileMeta, fileContentBase64) {
   await initLoad();
-  if (sb) {
+  if (sb && isOnline()) {
     const { data: before } = await sb.from("custos").select("*").eq("id", String(id)).single();
     if (!before) return null;
     const att = { id: uuid(), nome: fileMeta?.nome || fileMeta?.name || "arquivo", path: fileMeta?.path || null, base64: fileContentBase64 || null, uploadedAt: new Date().toISOString() };
@@ -580,6 +710,7 @@ export async function attachFileToCusto(id, fileMeta, fileContentBase64) {
   item.audit = [...(item.audit || []), { when: new Date().toISOString(), who, what: `Anexo adicionado: ${att.nome}` }];
   db.custos[i] = item;
   setDB(db);
+  enqueue({ table: "custos", op: "update", payload: item, localId: String(id) });
   return att;
 }
 
@@ -587,7 +718,7 @@ export async function approveCusto(id, usuario) {
   await initLoad();
   const user = usuario || JSON.parse(localStorage.getItem("user") || "{}");
   if ((user.role || "user") !== "admin") throw new Error("Acesso negado");
-  if (sb) {
+  if (sb && isOnline()) {
     const { data: before } = await sb.from("custos").select("*").eq("id", String(id)).single();
     if (!before) return null;
     const item = { ...before, aprovado: true, aprovadoPor: user.username || "", aprovadoEm: new Date().toISOString(), audit: [...(before.audit || []), { when: new Date().toISOString(), who: user.username || "", what: "Custo aprovado" }] };
@@ -604,5 +735,6 @@ export async function approveCusto(id, usuario) {
   item.audit = [...(item.audit || []), { when: item.aprovadoEm, who: item.aprovadoPor, what: "Custo aprovado" }];
   db.custos[i] = item;
   setDB(db);
+  enqueue({ table: "custos", op: "update", payload: item, localId: String(id) });
   return item;
 }
