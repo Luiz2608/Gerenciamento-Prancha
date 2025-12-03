@@ -436,7 +436,7 @@ export async function dashboard() {
   const m = String(now.getMonth() + 1).padStart(2, "0");
   const start = `${y}-${m}-01`;
   const endDate = new Date(y, now.getMonth() + 1, 0);
-  const end = `${y}-${String(endDate.getDate()).padStart(2, "0")}`;
+  const end = `${y}-${m}-${String(endDate.getDate()).padStart(2, "0")}`;
   let viagens = [];
   let motoristas = [];
   let caminhoes = [];
@@ -479,7 +479,7 @@ export async function dashboard() {
     const m2 = String(i + 1).padStart(2, "0");
     const s = `${y2}-${m2}-01`;
     const eDate = new Date(y2, i + 1, 0);
-    const e = `${y2}-${String(eDate.getDate()).padStart(2, "0")}`;
+    const e = `${y2}-${m2}-${String(eDate.getDate()).padStart(2, "0")}`;
     const rows = viagens.filter((t) => t.date >= s && t.date <= e);
     const km = rows.reduce((a, t) => a + computeKm(t.km_start, t.km_end), 0);
     const hrs = rows.reduce((a, t) => a + computeHours(t.date, t.start_time, t.end_time), 0);
@@ -501,7 +501,7 @@ export async function dashboard() {
     const m2 = String(i + 1).padStart(2, "0");
     const s = `${y2}-${m2}-01`;
     const eDate = new Date(y2, i + 1, 0);
-    const e = `${y2}-${String(eDate.getDate()).padStart(2, "0")}`;
+    const e = `${y2}-${m2}-${String(eDate.getDate()).padStart(2, "0")}`;
     const rows = custos.filter((c) => (c.dataRegistro || "").slice(0,10) >= s && (c.dataRegistro || "").slice(0,10) <= e);
     const total = rows.reduce((a, c) => a + Number(c.custoTotal || 0), 0);
     costsByMonth.push({ month: m2, total });
