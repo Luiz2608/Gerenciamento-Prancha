@@ -91,6 +91,7 @@ export default function MainLayout() {
             <Link onClick={closeMenuOnNavigate} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${isActive("/frota/pranchas") ? "bg-accent/20 text-white" : "hover:bg-white/10"}`} to="/frota/pranchas">🛠️ <span>Prancha</span></Link>
           </div>
           <Link onClick={closeMenuOnNavigate} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${isActive("/custos") ? "bg-accent/20 text-white" : "hover:bg-white/10"}`} to="/custos">💸 <span>Custos</span></Link>
+          <Link onClick={closeMenuOnNavigate} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${isActive("/exportar") ? "bg-accent/20 text-white" : "hover:bg-white/10"}`} to="/exportar">🗳️ <span>Exportar Dados</span></Link>
           
           <button className="flex items-center gap-3 px-4 py-3 rounded-xl transition hover:bg-white/10" onClick={goLogout}>🚪 <span>Sair</span></button>
         </nav>

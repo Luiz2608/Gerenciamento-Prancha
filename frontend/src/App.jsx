@@ -8,6 +8,7 @@ import FleetPranchas from "./pages/FleetPranchas.jsx";
 import Costs from "./pages/Costs.jsx";
 import HistoryUnified from "./pages/HistoryUnified.jsx";
 import MainLayout from "./layouts/MainLayout.jsx";
+import ExportarDados from "./pages/ExportarDados.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 
 export default function App() {
@@ -24,6 +25,7 @@ export default function App() {
             <Route path="/frota/caminhoes" element={<FleetTrucks />} />
             <Route path="/frota/pranchas" element={<FleetPranchas />} />
             <Route path="/custos" element={<Costs />} />
+            <Route path="/exportar" element={<ExportarDados />} />
           </Route>
         </Route>
       </Routes>
