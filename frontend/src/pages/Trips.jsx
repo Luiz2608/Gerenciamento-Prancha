@@ -12,7 +12,7 @@ export default function Trips() {
   const [pranchas, setPranchas] = useState([]);
   const [items, setItems] = useState([]);
   const tipoOptions = ["máquinas agrícolas","máquinas de construção","equipamentos industriais","veículos pesados","veículos leves"];
-  const [form, setForm] = useState({ date: "", requester: "", driver_id: "", truck_id: "", prancha_id: "", destination: "", service_type: "", description: "", start_time: "", end_time: "", km_start: "", km_end: "", fuel_liters: "", fuel_price: "", other_costs: "", maintenance_cost: "", driver_daily: "" });
+  const [form, setForm] = useState({ date: "", end_date: "", requester: "", driver_id: "", truck_id: "", prancha_id: "", destination: "", service_type: "", description: "", start_time: "", end_time: "", km_start: "", km_end: "", noKmStart: false, noKmEnd: false, fuel_liters: "", fuel_price: "", other_costs: "", maintenance_cost: "", driver_daily: "" });
   const [editing, setEditing] = useState(null);
 
   const loadDrivers = () => getMotoristas().then((r) => setDrivers(r));
@@ -58,6 +58,7 @@ export default function Trips() {
         setEditing(it);
         setForm({
           date: it.date ? fromIsoDate(it.date) : "",
+          end_date: it.end_date ? fromIsoDate(it.end_date) : "",
           requester: it.requester || "",
           driver_id: it.driver_id?.toString() || "",
           truck_id: it.truck_id?.toString() || "",
@@ -69,6 +70,8 @@ export default function Trips() {
           end_time: it.end_time || "",
           km_start: it.km_start?.toString() || "",
           km_end: it.km_end?.toString() || "",
+          noKmStart: false,
+          noKmEnd: false,
           fuel_liters: it.fuel_liters?.toString() || "",
           fuel_price: it.fuel_price?.toString() || "",
           other_costs: it.other_costs?.toString() || ""
@@ -127,11 +130,12 @@ export default function Trips() {
     const payload = {
       ...form,
       date: isValidDate(form.date) ? toIsoDate(form.date) : "",
+      end_date: isValidDate(form.end_date) ? toIsoDate(form.end_date) : (isValidDate(form.date) ? toIsoDate(form.date) : ""),
       driver_id: form.driver_id ? Number(form.driver_id) : null,
       truck_id: form.truck_id ? Number(form.truck_id) : null,
       prancha_id: form.prancha_id ? (pranchas.find((p) => String(p.asset_number || "") === String(form.prancha_id))?.id ?? null) : null,
-      km_start: form.km_start !== "" ? Number(form.km_start) : null,
-      km_end: form.km_end !== "" ? Number(form.km_end) : null,
+      km_start: form.noKmStart ? null : (form.km_start !== "" ? Number(form.km_start) : null),
+      km_end: form.noKmEnd ? null : (form.km_end !== "" ? Number(form.km_end) : null),
       fuel_liters: form.fuel_liters !== "" ? Number(form.fuel_liters) : 0,
       fuel_price: form.fuel_price !== "" ? Number(form.fuel_price) : 0,
       other_costs: form.other_costs !== "" ? Number(form.other_costs) : 0
@@ -145,15 +149,14 @@ export default function Trips() {
     if (!payload.prancha_id) missing.push("Prancha (Frota)");
     if (!form.destination) missing.push("Destino");
     if (!isValidTime(form.start_time)) missing.push("Hora saída");
-    if (form.km_start === "") missing.push("KM saída");
+    if (!form.noKmStart && form.km_start === "") missing.push("KM saída");
     if (missing.length) { toast?.show(`Erro → Aba Viagens → Campo ${missing[0]} obrigatório`, "error"); return; }
-    if (payload.date && payload.date < todayIso) { toast?.show("Erro → Aba Viagens → Campo Data deve ser hoje ou futura", "error"); return; }
     if (payload.km_end != null && payload.km_start != null && payload.km_end < payload.km_start) { toast?.show("KM final não pode ser menor que o KM inicial", "error"); return; }
     payload.requester = form.requester;
     if (editing) await updateViagem(editing.id, payload);
     else await saveViagem(payload);
     toast?.show(editing ? "Viagem atualizada" : "Viagem cadastrada", "success");
-    setForm({ date: "", requester: "", driver_id: "", truck_id: "", prancha_id: "", destination: "", service_type: "", description: "", start_time: "", end_time: "", km_start: "", km_end: "", fuel_liters: "", fuel_price: "", other_costs: "", maintenance_cost: "", driver_daily: "" });
+    setForm({ date: "", end_date: "", requester: "", driver_id: "", truck_id: "", prancha_id: "", destination: "", service_type: "", description: "", start_time: "", end_time: "", km_start: "", km_end: "", noKmStart: false, noKmEnd: false, fuel_liters: "", fuel_price: "", other_costs: "", maintenance_cost: "", driver_daily: "" });
     setEditing(null);
     loadTrips();
   };
@@ -172,6 +175,7 @@ export default function Trips() {
     setEditing(it);
     setForm({
       date: it.date ? fromIsoDate(it.date) : "",
+      end_date: it.end_date ? fromIsoDate(it.end_date) : "",
       requester: it.requester || "",
       driver_id: it.driver_id?.toString() || "",
       truck_id: it.truck_id?.toString() || "",
@@ -183,6 +187,8 @@ export default function Trips() {
       end_time: it.end_time || "",
       km_start: it.km_start?.toString() || "",
       km_end: it.km_end?.toString() || "",
+      noKmStart: false,
+      noKmEnd: false,
       fuel_liters: it.fuel_liters?.toString() || "",
       fuel_price: it.fuel_price?.toString() || "",
       other_costs: it.other_costs?.toString() || ""
@@ -223,11 +229,35 @@ export default function Trips() {
           </select>
           <input className="input md:col-span-4" placeholder="Descrição" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
           <input className={`input ${(!form.start_time || !isValidTime(form.start_time)) && 'ring-red-500 border-red-500'}`} placeholder="Hora saída (HH:MM)" value={form.start_time} onChange={(e) => setForm({ ...form, start_time: maskTime(e.target.value) })} />
+          <input className={`input ${!form.end_date || !isValidDate(form.end_date) ? 'ring-yellow-500 border-yellow-500' : ''}`} placeholder="Data retorno (DD/MM/YY ou DD/MM/YYYY)" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: maskDate(e.target.value) })} />
           <input className={`input ${form.end_time && !isValidTime(form.end_time) && 'ring-red-500 border-red-500'}`} placeholder="Hora retorno (HH:MM)" value={form.end_time} onChange={(e) => setForm({ ...form, end_time: maskTime(e.target.value) })} />
-          <input className={`input ${form.km_start === '' && 'ring-red-500 border-red-500'}`} placeholder="KM inicial" value={form.km_start} onChange={(e) => setForm({ ...form, km_start: e.target.value })} />
-          <input className={`input ${(form.km_end !== '' && form.km_start !== '' && Number(form.km_end) < Number(form.km_start)) && 'ring-red-500 border-red-500'}`} placeholder="KM final" value={form.km_end} onChange={(e) => setForm({ ...form, km_end: e.target.value })} />
+          <div className="flex items-center gap-2">
+            <input className={`input flex-1 ${(!form.noKmStart && form.km_start === '') && 'ring-red-500 border-red-500'}`} placeholder="KM inicial" value={form.km_start} onChange={(e) => setForm({ ...form, km_start: e.target.value })} disabled={form.noKmStart} />
+            <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={form.noKmStart} onChange={(e) => setForm({ ...form, noKmStart: e.target.checked, km_start: e.target.checked ? '' : form.km_start })} /> Não registrado</label>
+          </div>
+          <div className="flex items-center gap-2">
+            <input className={`input flex-1 ${(form.km_end !== '' && form.km_start !== '' && Number(form.km_end) < Number(form.km_start)) && 'ring-red-500 border-red-500'}`} placeholder="KM final" value={form.km_end} onChange={(e) => setForm({ ...form, km_end: e.target.value })} disabled={form.noKmEnd} />
+            <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={form.noKmEnd} onChange={(e) => setForm({ ...form, noKmEnd: e.target.checked, km_end: e.target.checked ? '' : form.km_end })} /> Não registrado</label>
+          </div>
           <input className="input" placeholder="Combustível (litros)" value={form.fuel_liters} onChange={(e) => setForm({ ...form, fuel_liters: e.target.value })} />
-          <input className="input" placeholder="Valor combustível (R$/litro)" value={form.fuel_price} onChange={(e) => setForm({ ...form, fuel_price: e.target.value })} />
+          <div className="flex gap-2">
+            <input className="input flex-1" placeholder="Valor combustível (R$/litro)" value={form.fuel_price} onChange={(e) => setForm({ ...form, fuel_price: e.target.value })} />
+            <button type="button" className="btn bg-yellow-500 hover:bg-yellow-600 text-white" onClick={async () => {
+              try {
+                const apiUrl = import.meta?.env?.VITE_FUEL_API_URL;
+                if (apiUrl) {
+                  const resp = await fetch(apiUrl);
+                  const json = await resp.json();
+                  const v = Number(json?.diesel ?? json?.gasolina ?? json?.fuel_price ?? 0);
+                  if (v > 0) { setForm({ ...form, fuel_price: String(v) }); toast?.show("Preço obtido pela API", "success"); return; }
+                }
+                const r = await getViagens({ page: 1, pageSize: 100 });
+                const last = r.data.find((t) => Number(t.fuel_price || 0) > 0);
+                if (last) { setForm({ ...form, fuel_price: String(last.fuel_price) }); toast?.show("Preço preenchido com último registro", "info"); }
+                else { toast?.show("Não foi possível obter preço", "error"); }
+              } catch { toast?.show("Não foi possível obter preço", "error"); }
+            }}>Buscar preço</button>
+          </div>
           <input className="input" placeholder="Outros custos (R$)" value={form.other_costs} onChange={(e) => setForm({ ...form, other_costs: e.target.value })} />
           <input className="input" placeholder="Manutenção (R$)" value={form.maintenance_cost} onChange={(e) => setForm({ ...form, maintenance_cost: e.target.value })} />
           <input className="input" placeholder="Diária do motorista (R$)" value={form.driver_daily} onChange={(e) => setForm({ ...form, driver_daily: e.target.value })} />
