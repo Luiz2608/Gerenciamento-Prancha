@@ -12,10 +12,11 @@ export default function Login() {
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
   const [online, setOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
+  const [showOffline, setShowOffline] = useState(false);
 
   useEffect(() => {
-    const onOffline = () => setOnline(false);
-    const onOnline = () => setOnline(true);
+    const onOffline = () => { setOnline(false); setShowOffline(true); setTimeout(() => setShowOffline(false), 5000); };
+    const onOnline = () => { setOnline(true); setShowOffline(false); };
     window.addEventListener("offline", onOffline);
     window.addEventListener("online", onOnline);
     return () => { window.removeEventListener("offline", onOffline); window.removeEventListener("online", onOnline); };
@@ -60,7 +61,7 @@ export default function Login() {
   return (
     <div className="min-h-screen gradient-bg flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        {!online && (
+        {showOffline && (
           <div className="mb-4 rounded-xl bg-yellow-500 text-white px-4 py-3 shadow-lg animate-fade">
             <div className="font-semibold">Modo offline</div>
             <div className="text-sm">Entrar usa dados locais; criar conta requer internet.</div>

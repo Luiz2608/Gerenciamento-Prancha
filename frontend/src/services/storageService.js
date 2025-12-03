@@ -486,7 +486,7 @@ export async function dashboard() {
     kmByMonth.push({ month: m2, km });
     hoursByMonth.push({ month: m2, hours: hrs });
   }
-  const tripsByDriver = motoristas.map((d) => ({ name: d.name, value: viagens.filter((t) => t.driver_id === d.id).length }));
+  const tripsByDriver = motoristas.map((d) => ({ name: d.name, value: monthTrips.filter((t) => t.driver_id === d.id).length }));
   const monthCosts = custos.filter((c) => (c.dataRegistro || "").slice(0,10) >= start && (c.dataRegistro || "").slice(0,10) <= end);
   const totalCostsMonth = monthCosts.reduce((a, c) => a + Number(c.custoTotal || 0), 0);
   const totalDrivers = motoristas.length;

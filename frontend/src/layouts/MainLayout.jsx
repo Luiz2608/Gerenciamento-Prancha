@@ -11,10 +11,16 @@ export default function MainLayout() {
   const [online, setOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
   const [reconnected, setReconnected] = useState(false);
   const [syncError, setSyncError] = useState(null);
+  const [showOffline, setShowOffline] = useState(false);
   useEffect(() => {
-    const onOffline = () => { setOnline(false); };
+    const onOffline = () => {
+      setOnline(false);
+      setShowOffline(true);
+      setTimeout(() => setShowOffline(false), 5000);
+    };
     const onOnline = async () => {
       setOnline(true);
+      setShowOffline(false);
       try {
         const { initLoad } = await import("../services/storageService.js");
         await initLoad();
@@ -44,7 +50,7 @@ export default function MainLayout() {
   const closeMenuOnNavigate = () => setOpen(false);
   return (
     <div className="min-h-screen flex bg-bg text-text dark:bg-[#0f172a] dark:text-[#f1f5f9]">
-      {!online && (
+      {showOffline && (
         <div className="fixed top-0 left-0 right-0 z-50">
           <div className="m-3 rounded-xl bg-yellow-500 text-white px-4 py-3 shadow-lg">
             <div className="font-semibold">Você está offline.</div>

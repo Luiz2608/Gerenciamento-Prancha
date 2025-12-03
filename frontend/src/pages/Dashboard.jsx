@@ -9,14 +9,18 @@ export default function Dashboard() {
   const [data, setData] = useState(null);
   useEffect(() => { dashboard().then((r) => setData(r)); }, []);
   useEffect(() => {
-    if (!supabase) return;
-    const ch1 = supabase.channel("public:viagens").on("postgres_changes", { event: "*", schema: "public", table: "viagens" }, () => { dashboard().then((r) => setData(r)); }).subscribe();
-    const ch2 = supabase.channel("public:motoristas").on("postgres_changes", { event: "*", schema: "public", table: "motoristas" }, () => { dashboard().then((r) => setData(r)); }).subscribe();
-    const ch3 = supabase.channel("public:caminhoes").on("postgres_changes", { event: "*", schema: "public", table: "caminhoes" }, () => { dashboard().then((r) => setData(r)); }).subscribe();
-    const ch4 = supabase.channel("public:pranchas").on("postgres_changes", { event: "*", schema: "public", table: "pranchas" }, () => { dashboard().then((r) => setData(r)); }).subscribe();
-    return () => { supabase.removeChannel(ch1); supabase.removeChannel(ch2); supabase.removeChannel(ch3); supabase.removeChannel(ch4); };
+    let ch1, ch2, ch3, ch4;
+    if (supabase) {
+      ch1 = supabase.channel("public:viagens").on("postgres_changes", { event: "*", schema: "public", table: "viagens" }, () => { dashboard().then((r) => setData(r)); }).subscribe();
+      ch2 = supabase.channel("public:motoristas").on("postgres_changes", { event: "*", schema: "public", table: "motoristas" }, () => { dashboard().then((r) => setData(r)); }).subscribe();
+      ch3 = supabase.channel("public:caminhoes").on("postgres_changes", { event: "*", schema: "public", table: "caminhoes" }, () => { dashboard().then((r) => setData(r)); }).subscribe();
+      ch4 = supabase.channel("public:pranchas").on("postgres_changes", { event: "*", schema: "public", table: "pranchas" }, () => { dashboard().then((r) => setData(r)); }).subscribe();
+    }
     const interval = setInterval(() => { dashboard().then((r) => setData(r)); }, 10000);
-    return () => { supabase.removeChannel(ch1); supabase.removeChannel(ch2); supabase.removeChannel(ch3); supabase.removeChannel(ch4); clearInterval(interval); };
+    return () => {
+      if (supabase) { supabase.removeChannel(ch1); supabase.removeChannel(ch2); supabase.removeChannel(ch3); supabase.removeChannel(ch4); }
+      clearInterval(interval);
+    };
   }, []);
   if (!data) return <div className="animate-fade">Carregando...</div>;
   return (
