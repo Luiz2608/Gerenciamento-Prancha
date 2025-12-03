@@ -12,7 +12,7 @@ export default function Trips() {
   const [pranchas, setPranchas] = useState([]);
   const [items, setItems] = useState([]);
   const tipoOptions = ["máquinas agrícolas","máquinas de construção","equipamentos industriais","veículos pesados","veículos leves"];
-  const [form, setForm] = useState({ date: "", end_date: "", requester: "", driver_id: "", truck_id: "", prancha_id: "", destination: "", service_type: "", status: "", description: "", start_time: "", end_time: "", km_start: "", km_end: "", km_trip: "", noKmStart: false, noKmEnd: false, fuel_liters: "", fuel_price: "", other_costs: "", maintenance_cost: "", driver_daily: "" });
+  const [form, setForm] = useState({ date: "", end_date: "", requester: "", driver_id: "", truck_id: "", prancha_id: "", destination: "", service_type: "", status: "", description: "", start_time: "", end_time: "", km_start: "", km_end: "", km_trip: "", km_per_liter: "", noKmStart: false, noKmEnd: false, fuel_liters: "", fuel_price: "", other_costs: "", maintenance_cost: "", driver_daily: "" });
   const [editing, setEditing] = useState(null);
   const [kmMode, setKmMode] = useState("");
 
@@ -141,6 +141,12 @@ export default function Trips() {
       fuel_price: form.fuel_price !== "" ? Number(form.fuel_price) : 0,
       other_costs: form.other_costs !== "" ? Number(form.other_costs) : 0
     };
+    if (form.km_trip !== "" && form.km_per_liter !== "") {
+      const kmTripNum = Number(form.km_trip);
+      const perLNum = Number(String(form.km_per_liter).replace(",", "."));
+      if (perLNum > 0) payload.fuel_liters = Number((kmTripNum / perLNum).toFixed(2));
+      else toast?.show("KM por litro inválido", "warning");
+    }
     const todayIso = new Date().toISOString().slice(0,10);
     const missing = [];
     if (!payload.date) missing.push("Data");
@@ -161,7 +167,7 @@ export default function Trips() {
     if (editing) await updateViagem(editing.id, payload);
     else await saveViagem(payload);
     toast?.show(editing ? "Viagem atualizada" : "Viagem cadastrada", "success");
-    setForm({ date: "", end_date: "", requester: "", driver_id: "", truck_id: "", prancha_id: "", destination: "", service_type: "", status: "", description: "", start_time: "", end_time: "", km_start: "", km_end: "", km_trip: "", noKmStart: false, noKmEnd: false, fuel_liters: "", fuel_price: "", other_costs: "", maintenance_cost: "", driver_daily: "" });
+    setForm({ date: "", end_date: "", requester: "", driver_id: "", truck_id: "", prancha_id: "", destination: "", service_type: "", status: "", description: "", start_time: "", end_time: "", km_start: "", km_end: "", km_trip: "", km_per_liter: "", noKmStart: false, noKmEnd: false, fuel_liters: "", fuel_price: "", other_costs: "", maintenance_cost: "", driver_daily: "" });
     setEditing(null);
     loadTrips();
   };
@@ -275,14 +281,24 @@ export default function Trips() {
               </div>
             )}
             {kmMode === 'KM da Viagem' && (
-              <div className="mt-3">
+              <div className="mt-3 space-y-3">
                 <input className="input" placeholder="KM da Viagem" inputMode="numeric" maxLength={10} value={form.km_trip} onChange={(e) => {
                   const val = e.target.value.replace(/\\D/g, '').slice(0, 10);
                   const kmStartNum = Number((form.km_start || '').replace(/\\D/g, ''));
                   const vNum = Number(val || '');
                   const newEnd = form.km_start !== '' ? String(kmStartNum + vNum) : form.km_end;
-                  setForm({ ...form, km_trip: val, km_end: newEnd });
+                  const perLNum = Number(String(form.km_per_liter || '').replace(',', '.'));
+                  const autoLiters = perLNum > 0 && vNum >= 0 ? String((vNum / perLNum).toFixed(2)) : form.fuel_liters;
+                  setForm({ ...form, km_trip: val, km_end: newEnd, fuel_liters: autoLiters });
                 }} />
+                <input className="input" placeholder="KM por Litro (Consumo do Caminhão)" inputMode="decimal" value={form.km_per_liter} onChange={(e) => {
+                  const raw = e.target.value.replace(/[^0-9.,]/g, '');
+                  const norm = raw.replace(',', '.');
+                  const kmTripNum = Number(form.km_trip || 0);
+                  const perLNum = Number(norm || 0);
+                  const autoLiters = perLNum > 0 && kmTripNum >= 0 ? String((kmTripNum / perLNum).toFixed(2)) : form.fuel_liters;
+                  setForm({ ...form, km_per_liter: raw, fuel_liters: autoLiters });
+                }} onBlur={() => { const v = Number(String(form.km_per_liter || '').replace(',', '.')); if (!(v > 0)) toast?.show("KM por litro inválido", "warning"); }} />
               </div>
             )}
           </div>
