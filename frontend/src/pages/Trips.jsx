@@ -148,6 +148,7 @@ export default function Trips() {
     if (!payload.truck_id) missing.push("Caminhão (Frota)");
     if (!payload.prancha_id) missing.push("Prancha (Frota)");
     if (!form.destination) missing.push("Destino");
+    if (!isValidDate(form.end_date)) missing.push("Data retorno");
     if (!isValidTime(form.start_time)) missing.push("Hora saída");
     if (!form.noKmStart && form.km_start === "") missing.push("KM saída");
     if (missing.length) { toast?.show(`Erro → Aba Viagens → Campo ${missing[0]} obrigatório`, "error"); return; }
@@ -228,9 +229,9 @@ export default function Trips() {
             {tipoOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
           </select>
           <input className="input md:col-span-4" placeholder="Descrição" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-          <input className={`input ${(!form.start_time || !isValidTime(form.start_time)) && 'ring-red-500 border-red-500'}`} placeholder="Hora saída (HH:MM)" value={form.start_time} onChange={(e) => setForm({ ...form, start_time: maskTime(e.target.value) })} />
+          <input className={`input ${(!form.start_time || !isValidTime(form.start_time)) && 'ring-red-500 border-red-500'}`} placeholder="Hora saída (HH:MM)" value={form.start_time} onChange={(e) => setForm({ ...form, start_time: maskTime(e.target.value), end_date: (!form.end_date && isValidDate(form.date)) ? form.date : form.end_date })} />
           <input className={`input ${!form.end_date || !isValidDate(form.end_date) ? 'ring-yellow-500 border-yellow-500' : ''}`} placeholder="Data retorno (DD/MM/YY ou DD/MM/YYYY)" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: maskDate(e.target.value) })} />
-          <input className={`input ${form.end_time && !isValidTime(form.end_time) && 'ring-red-500 border-red-500'}`} placeholder="Hora retorno (HH:MM)" value={form.end_time} onChange={(e) => setForm({ ...form, end_time: maskTime(e.target.value) })} />
+          <input className={`input ${form.end_time && !isValidTime(form.end_time) && 'ring-red-500 border-red-500'}`} placeholder="Hora retorno (HH:MM)" value={form.end_time} onChange={(e) => setForm({ ...form, end_time: maskTime(e.target.value), end_date: (!form.end_date && isValidDate(form.date)) ? form.date : form.end_date })} />
           <div className="flex items-center gap-2">
             <input className={`input flex-1 ${(!form.noKmStart && form.km_start === '') && 'ring-red-500 border-red-500'}`} placeholder="KM inicial" value={form.km_start} onChange={(e) => setForm({ ...form, km_start: e.target.value })} disabled={form.noKmStart} />
             <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={form.noKmStart} onChange={(e) => setForm({ ...form, noKmStart: e.target.checked, km_start: e.target.checked ? '' : form.km_start })} /> Não registrado</label>
@@ -286,7 +287,7 @@ export default function Trips() {
             {items.map((it, idx) => (
               <tr key={it.id} className={`${idx % 2 === 0 ? 'bg-slate-50 dark:bg-slate-800' : 'bg-white dark:bg-slate-700'} hover:bg-slate-100 dark:hover:bg-slate-600`}>
                 <td>{it.id}</td>
-                <td>{it.date}</td>
+                <td>{it.date}{it.end_date ? ` → ${it.end_date}` : ''}</td>
                 <td>{drivers.find((d) => d.id === it.driver_id)?.name || it.driver_id}</td>
                 <td>{trucks.find((t) => t.id === it.truck_id)?.fleet || trucks.find((t) => t.id === it.truck_id)?.plate || it.truck_id || ""}</td>
                 <td>{pranchas.find((p) => p.id === it.prancha_id)?.asset_number || pranchas.find((p) => p.id === it.prancha_id)?.identifier || it.prancha_id || ""}</td>
@@ -309,7 +310,7 @@ export default function Trips() {
         {items.map((it) => (
           <div key={it.id} className="card p-4">
             <div className="flex justify-between items-center">
-              <div className="font-semibold">#{it.id} • {it.date}</div>
+              <div className="font-semibold">#{it.id} • {it.date}{it.end_date ? ` → ${it.end_date}` : ''}</div>
               <div className="text-sm">{it.status}</div>
             </div>
             <div className="text-sm text-slate-600 dark:text-slate-300">Motorista: {drivers.find((d) => d.id === it.driver_id)?.name || it.driver_id}</div>
