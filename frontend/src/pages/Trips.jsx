@@ -148,7 +148,6 @@ export default function Trips() {
     if (!payload.truck_id) missing.push("Caminhão (Frota)");
     if (!payload.prancha_id) missing.push("Prancha (Frota)");
     if (!form.destination) missing.push("Destino");
-    if (!isValidDate(form.end_date)) missing.push("Data retorno");
     if (!isValidTime(form.start_time)) missing.push("Hora saída");
     if (!form.noKmStart && form.km_start === "") missing.push("KM saída");
     if (missing.length) { toast?.show(`Erro → Aba Viagens → Campo ${missing[0]} obrigatório`, "error"); return; }
