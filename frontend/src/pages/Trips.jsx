@@ -220,7 +220,7 @@ export default function Trips() {
           <select className={`select ${!form.truck_id && 'ring-red-500 border-red-500'}`} value={form.truck_id} onChange={(e) => {
             const val = e.target.value;
             const tr = trucks.find((t) => t.id === Number(val));
-            setForm({ ...form, truck_id: val, km_start: tr && tr.km_current != null ? String(tr.km_current) : form.km_start });
+            setForm({ ...form, truck_id: val, km_start: tr && tr.km_current != null ? String(tr.km_current).slice(0, 10) : form.km_start });
           }}>
             <option value="" disabled>Caminhão (Frota)</option>
             {trucks.map((t) => <option key={t.id} value={t.id}>{t.fleet || t.plate || t.model || t.id}</option>)}
@@ -253,18 +253,18 @@ export default function Trips() {
             {kmMode === 'KM Caminhão' && (
               <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="flex items-center gap-2">
-                  <input className={`input flex-1 ${(!form.noKmStart && form.km_start === '') && 'ring-red-500 border-red-500'}`} placeholder="KM inicial" value={form.km_start} onChange={(e) => {
-                    const val = e.target.value.replace(/\\D/g, '');
-                    const kmEndNum = Number((form.km_end || '').replace(/\\D/g, ''));
-                    const kmStartNum = Number(val || '');
-                    const autoTrip = (form.km_trip === '' && form.km_end !== '') ? String(Math.max(0, kmEndNum - kmStartNum)) : form.km_trip;
-                    setForm({ ...form, km_start: val, km_trip: autoTrip });
-                  }} disabled={form.noKmStart} />
+                <input className={`input flex-1 ${(!form.noKmStart && form.km_start === '') && 'ring-red-500 border-red-500'}`} placeholder="KM inicial" inputMode="numeric" maxLength={10} value={form.km_start} onChange={(e) => {
+                  const val = e.target.value.replace(/\\D/g, '').slice(0, 10);
+                  const kmEndNum = Number((form.km_end || '').replace(/\\D/g, ''));
+                  const kmStartNum = Number(val || '');
+                  const autoTrip = (form.km_trip === '' && form.km_end !== '') ? String(Math.max(0, kmEndNum - kmStartNum)) : form.km_trip;
+                  setForm({ ...form, km_start: val, km_trip: autoTrip });
+                }} disabled={form.noKmStart} />
                   <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={form.noKmStart} onChange={(e) => setForm({ ...form, noKmStart: e.target.checked, km_start: e.target.checked ? '' : form.km_start })} /> Não registrado</label>
                 </div>
                 <div className="flex items-center gap-2">
-                  <input className={`input flex-1 ${(form.km_end !== '' && form.km_start !== '' && Number(form.km_end) < Number(form.km_start)) && 'ring-red-500 border-red-500'}`} placeholder="KM final" value={form.km_end} onChange={(e) => {
-                    const val = e.target.value.replace(/\\D/g, '');
+                  <input className={`input flex-1 ${(form.km_end !== '' && form.km_start !== '' && Number(form.km_end) < Number(form.km_start)) && 'ring-red-500 border-red-500'}`} placeholder="KM final" inputMode="numeric" maxLength={10} value={form.km_end} onChange={(e) => {
+                    const val = e.target.value.replace(/\\D/g, '').slice(0, 10);
                     const kmStartNum = Number((form.km_start || '').replace(/\\D/g, ''));
                     const kmEndNum = Number(val || '');
                     const autoTrip = (val === '' || form.km_trip === '') && (form.km_start !== '' && val !== '') ? String(Math.max(0, kmEndNum - kmStartNum)) : form.km_trip;
@@ -276,8 +276,8 @@ export default function Trips() {
             )}
             {kmMode === 'KM da Viagem' && (
               <div className="mt-3">
-                <input className="input" placeholder="KM da Viagem" value={form.km_trip} onChange={(e) => {
-                  const val = e.target.value.replace(/\\D/g, '');
+                <input className="input" placeholder="KM da Viagem" inputMode="numeric" maxLength={10} value={form.km_trip} onChange={(e) => {
+                  const val = e.target.value.replace(/\\D/g, '').slice(0, 10);
                   const kmStartNum = Number((form.km_start || '').replace(/\\D/g, ''));
                   const vNum = Number(val || '');
                   const newEnd = form.km_start !== '' ? String(kmStartNum + vNum) : form.km_end;
