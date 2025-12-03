@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { dashboard } from "../services/storageService.js";
 import { supabase } from "../services/supabaseClient.js";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, LabelList, Legend } from "recharts";
 
 export default function Dashboard() {
   const now = new Date();
+  const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
+  const labelColor = isDark ? '#e5e7eb' : '#0f172a';
   const months = [
     { v: "01", n: "Jan" }, { v: "02", n: "Fev" }, { v: "03", n: "Mar" }, { v: "04", n: "Abr" },
     { v: "05", n: "Mai" }, { v: "06", n: "Jun" }, { v: "07", n: "Jul" }, { v: "08", n: "Ago" },
@@ -83,66 +85,81 @@ export default function Dashboard() {
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="card p-6">
-          <div className="font-semibold mb-4">KM por mês</div>
+          <div className="font-semibold mb-4 text-slate-900 dark:text-slate-100">KM por mês</div>
           <div className="h-72">
             <ResponsiveContainer>
               <BarChart data={data.kmByMonth}>
-                <XAxis dataKey="month" tick={{ fill: "#0f172a" }} />
-                <YAxis tick={{ fill: "#0f172a" }} />
+                <XAxis dataKey="month" tick={{ fill: labelColor }} />
+                <YAxis tick={{ fill: labelColor }} />
                 <Tooltip />
-                <Bar dataKey="km" fill="#2563eb" radius={[8,8,0,0]} />
+                <Legend wrapperStyle={{ color: labelColor }} />
+                <Bar dataKey="km" fill="#2563eb" radius={[8,8,0,0]}>
+                  <LabelList dataKey="km" position="top" fill={labelColor} />
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
         <div className="card p-6">
-          <div className="font-semibold mb-4">Viagens por motorista</div>
+          <div className="font-semibold mb-4 text-slate-900 dark:text-slate-100">Viagens por motorista</div>
           <div className="h-72">
             <ResponsiveContainer>
               <BarChart data={data.tripsByDriver}>
-                <XAxis dataKey="name" tick={{ fill: "#0f172a" }} interval={0} angle={-20} height={60} />
-                <YAxis tick={{ fill: "#0f172a" }} />
+                <XAxis dataKey="name" tick={{ fill: labelColor }} interval={0} angle={-20} height={60} />
+                <YAxis tick={{ fill: labelColor }} />
                 <Tooltip />
-                <Bar dataKey="value" fill="#0ea5e9" radius={[8,8,0,0]} />
+                <Legend wrapperStyle={{ color: labelColor }} />
+                <Bar dataKey="value" fill="#0ea5e9" radius={[8,8,0,0]}>
+                  <LabelList dataKey="value" position="top" fill={labelColor} />
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
         <div className="card p-6">
-          <div className="font-semibold mb-4">Horas por mês</div>
+          <div className="font-semibold mb-4 text-slate-900 dark:text-slate-100">Horas por mês</div>
           <div className="h-72">
             <ResponsiveContainer>
               <LineChart data={data.hoursByMonth}>
-                <XAxis dataKey="month" tick={{ fill: "#0f172a" }} />
-                <YAxis tick={{ fill: "#0f172a" }} />
+                <XAxis dataKey="month" tick={{ fill: labelColor }} />
+                <YAxis tick={{ fill: labelColor }} />
                 <Tooltip />
-                <Line type="monotone" dataKey="hours" stroke="#38bdf8" strokeWidth={3} dot={false} />
+                <Legend wrapperStyle={{ color: labelColor }} />
+                <Line type="monotone" dataKey="hours" stroke="#38bdf8" strokeWidth={3} dot={false}>
+                  <LabelList dataKey="hours" position="top" fill={labelColor} />
+                </Line>
               </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
         <div className="card p-6">
-          <div className="font-semibold mb-4">Custos por mês</div>
+          <div className="font-semibold mb-4 text-slate-900 dark:text-slate-100">Custos por mês</div>
           <div className="h-72">
             <ResponsiveContainer>
               <BarChart data={data.costsByMonth}>
-                <XAxis dataKey="month" />
-                <YAxis />
+                <XAxis dataKey="month" tick={{ fill: labelColor }} />
+                <YAxis tick={{ fill: labelColor }} />
                 <Tooltip />
-                <Bar dataKey="total" fill="#ef4444" radius={[8,8,0,0]} />
+                <Legend wrapperStyle={{ color: labelColor }} />
+                <Bar dataKey="total" fill="#ef4444" radius={[8,8,0,0]}>
+                  <LabelList dataKey="total" position="top" fill={labelColor} />
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
         <div className="card p-6 lg:col-span-3">
-          <div className="font-semibold mb-4">Custos por categoria</div>
+          <div className="font-semibold mb-4 text-slate-900 dark:text-slate-100">Custos por categoria</div>
           <div className="h-72">
             <ResponsiveContainer>
               <BarChart data={data.costsByCategory}>
-                <XAxis dataKey="name" tick={{ fill: "#0f172a" }} interval={0} angle={-20} height={60} />
-                <YAxis tick={{ fill: "#0f172a" }} />
+                <XAxis dataKey="name" tick={{ fill: labelColor }} interval={0} angle={-20} height={60} />
+                <YAxis tick={{ fill: labelColor }} />
                 <Tooltip />
-                <Bar dataKey="value" fill="#f59e0b" radius={[8,8,0,0]} />
+                <Legend wrapperStyle={{ color: labelColor }} />
+                <Bar dataKey="value" fill="#f59e0b" radius={[8,8,0,0]}>
+                  <LabelList dataKey="value" position="top" fill={labelColor} />
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
