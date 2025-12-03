@@ -215,7 +215,7 @@ export default function Trips() {
           <input className={`input ${(!form.date || !isValidDate(form.date)) && 'ring-red-500 border-red-500'}`} placeholder="Data (DD/MM/YY ou DD/MM/YYYY)" value={form.date} onChange={(e) => setForm({ ...form, date: maskDate(e.target.value) })} />
           <input className={`input ${!form.requester && 'ring-red-500 border-red-500'}`} placeholder="Solicitante" value={form.requester} onChange={(e) => setForm({ ...form, requester: e.target.value })} />
           <select className={`select ${!form.driver_id && 'ring-red-500 border-red-500'}`} value={form.driver_id} onChange={(e) => setForm({ ...form, driver_id: e.target.value })}>
-            <option value="">Motorista</option>
+            <option value="" disabled>Motorista</option>
             {drivers.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
           <select className={`select ${!form.truck_id && 'ring-red-500 border-red-500'}`} value={form.truck_id} onChange={(e) => {
@@ -223,20 +223,20 @@ export default function Trips() {
             const tr = trucks.find((t) => t.id === Number(val));
             setForm({ ...form, truck_id: val, km_start: tr && tr.km_current != null ? String(tr.km_current) : form.km_start });
           }}>
-            <option value="">Caminhão (Frota)</option>
+            <option value="" disabled>Caminhão (Frota)</option>
             {trucks.map((t) => <option key={t.id} value={t.id}>{t.fleet || t.plate || t.model || t.id}</option>)}
           </select>
           <select className={`select ${!form.prancha_id && 'ring-red-500 border-red-500'}`} value={form.prancha_id} onChange={(e) => setForm({ ...form, prancha_id: e.target.value })}>
-            <option value="">Prancha</option>
+            <option value="" disabled>Prancha</option>
             {pranchas.map((p) => <option key={p.id} value={p.asset_number || ''}>{p.asset_number || p.identifier || p.model || p.id}</option>)}
           </select>
           <input className={`input ${!form.destination && 'ring-red-500 border-red-500'}`} placeholder="Destino" value={form.destination} onChange={(e) => setForm({ ...form, destination: e.target.value })} />
           <select className="select" value={form.service_type} onChange={(e) => setForm({ ...form, service_type: e.target.value })}>
-            <option value="">Tipo</option>
+            <option value="" disabled>Tipo</option>
             {tipoOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
           </select>
           <select className={`select ${!form.status && 'ring-red-500 border-red-500'}`} value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-            <option value="">Status</option>
+            <option value="" disabled>Status</option>
             <option value="Previsto">Previsto</option>
             <option value="Em Andamento">Em Andamento</option>
             <option value="Finalizado">Finalizado</option>
@@ -289,7 +289,7 @@ export default function Trips() {
                   const vNum = Number(val || '');
                   const newEnd = form.km_start !== '' ? String(kmStartNum + vNum) : form.km_end;
                   setForm({ ...form, km_trip: val, km_end: newEnd });
-                }} disabled={form.status !== 'Finalizado'} />
+                }} />
               </div>
             )}
           </div>

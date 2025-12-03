@@ -40,12 +40,12 @@ export default function HistoryUnified() {
         </select>
         <input className="input" placeholder="Placa" value={filters.plate} onChange={(e) => setFilters({ ...filters, plate: e.target.value })} />
         <select className="select" value={filters.driverId} onChange={(e) => setFilters({ ...filters, driverId: e.target.value })}>
-          <option value="">Motorista</option>
+          <option value="" disabled>Motorista</option>
           {drivers.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
         </select>
         <input className="input" placeholder="Destino" value={filters.destination} onChange={(e) => setFilters({ ...filters, destination: e.target.value })} />
         <select className="select" value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}>
-          <option value="">Status</option>
+          <option value="" disabled>Status</option>
           <option>Pendente</option>
           <option>Em andamento</option>
           <option>Finalizada</option>

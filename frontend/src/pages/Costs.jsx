@@ -164,19 +164,19 @@ export default function Costs() {
         <input className={`input ${filters.startDate && !isValidDate(filters.startDate) && 'ring-red-500 border-red-500'}`} placeholder="Início (DD/MM/YYYY)" value={filters.startDate} onChange={(e) => setFilters({ ...filters, startDate: maskDate(e.target.value) })} />
         <input className={`input ${filters.endDate && !isValidDate(filters.endDate) && 'ring-red-500 border-red-500'}`} placeholder="Fim (DD/MM/YYYY)" value={filters.endDate} onChange={(e) => setFilters({ ...filters, endDate: maskDate(e.target.value) })} />
         <select className="select" value={filters.caminhaoId} onChange={(e) => setFilters({ ...filters, caminhaoId: e.target.value })}>
-          <option value="">Caminhão</option>
+          <option value="" disabled>Caminhão</option>
           {trucks.map((t) => <option key={t.id} value={t.id}>{t.plate || t.model || t.id}</option>)}
         </select>
         <select className="select" value={filters.pranchaId} onChange={(e) => setFilters({ ...filters, pranchaId: e.target.value })}>
-          <option value="">Prancha</option>
+          <option value="" disabled>Prancha</option>
           {pranchas.map((p) => <option key={p.id} value={p.id}>{p.identifier || p.model || p.id}</option>)}
         </select>
         <select className="select" value={filters.driverId} onChange={(e) => setFilters({ ...filters, driverId: e.target.value })}>
-          <option value="">Motorista</option>
+          <option value="" disabled>Motorista</option>
           {drivers.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
         </select>
         <select className="select" value={filters.aprovado} onChange={(e) => setFilters({ ...filters, aprovado: e.target.value })}>
-          <option value="">Aprovado?</option>
+          <option value="" disabled>Aprovado?</option>
           <option value="true">Sim</option>
           <option value="false">Não</option>
         </select>
@@ -368,7 +368,7 @@ export default function Costs() {
         <div className="font-semibold mb-4 text-secondary text-xl">Novo custo</div>
         <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-4 gap-4" onKeyDown={handleEnterInContainer}>
           <select className="select" value={form.viagemId} onChange={(e) => handleTripLink(e.target.value)}>
-            <option value="">Vincular viagem</option>
+            <option value="" disabled>Vincular viagem</option>
             {trips.map((t) => <option key={t.id} value={t.id}>{t.id} - {t.date}</option>)}
           </select>
           <input className={`input ${form.dataRegistro && !isValidDate(form.dataRegistro) && 'ring-red-500 border-red-500'}`} placeholder="Data registro (DD/MM/YYYY)" value={form.dataRegistro} onChange={(e) => setForm({ ...form, dataRegistro: maskDate(e.target.value) })} />

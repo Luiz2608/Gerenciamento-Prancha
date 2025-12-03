@@ -31,18 +31,18 @@ export default function HistoryTruck() {
     <div className="space-y-8">
       <div className="card p-6 grid grid-cols-1 md:grid-cols-6 gap-4">
         <select className="select" value={filters.truckId} onChange={(e) => setFilters({ ...filters, truckId: e.target.value })}>
-          <option value="">Caminhão</option>
+          <option value="" disabled>Caminhão</option>
           {trucks.map((t) => <option key={t.id} value={t.id}>{t.plate || t.model || t.id}</option>)}
         </select>
         <input className="input" placeholder="Início" value={filters.startDate} onChange={(e) => setFilters({ ...filters, startDate: e.target.value })} />
         <input className="input" placeholder="Fim" value={filters.endDate} onChange={(e) => setFilters({ ...filters, endDate: e.target.value })} />
         <select className="select" value={filters.driverId} onChange={(e) => setFilters({ ...filters, driverId: e.target.value })}>
-          <option value="">Motorista</option>
+          <option value="" disabled>Motorista</option>
           {drivers.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
         </select>
         <input className="input" placeholder="Destino" value={filters.destination} onChange={(e) => setFilters({ ...filters, destination: e.target.value })} />
         <select className="select" value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}>
-          <option value="">Status</option>
+          <option value="" disabled>Status</option>
           <option>Pendente</option>
           <option>Em andamento</option>
           <option>Finalizada</option>
