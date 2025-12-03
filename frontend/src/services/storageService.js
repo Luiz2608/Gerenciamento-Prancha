@@ -56,11 +56,13 @@ async function syncPending() {
     const mapPranchas = {};
     const mapViagens = {};
     const processInsert = async (table, payload) => {
-      const { data: row } = await sb.from(table).insert([payload]).select().single();
+      const { data: row, error } = await sb.from(table).insert([payload]).select().single();
+      if (error || !row) throw (error || new Error("insert_failed"));
       return row;
     };
     const processUpdate = async (table, idField, idVal, payload) => {
-      const { data: row } = await sb.from(table).update(payload).eq(idField, idVal).select().single();
+      const { data: row, error } = await sb.from(table).update(payload).eq(idField, idVal).select().single();
+      if (error || !row) throw (error || new Error("update_failed"));
       return row;
     };
     const processDelete = async (table, idField, idVal) => { await sb.from(table).delete().eq(idField, idVal); return { ok: true }; };
@@ -114,10 +116,27 @@ async function syncPending() {
           }
         } else if (it.table === "viagens") {
           if (it.op === "insert") {
-            const p = { ...it.payload };
-            p.driver_id = mapMotoristas[p.driver_id] || p.driver_id;
-            p.truck_id = p.truck_id != null ? (mapCaminhoes[p.truck_id] || p.truck_id) : null;
-            p.prancha_id = p.prancha_id != null ? (mapPranchas[p.prancha_id] || p.prancha_id) : null;
+            const src = it.payload;
+            let p = {
+              date: src.date,
+              driver_id: Number(mapMotoristas[src.driver_id] || src.driver_id),
+              truck_id: src.truck_id != null ? Number(mapCaminhoes[src.truck_id] || src.truck_id) : null,
+              prancha_id: src.prancha_id != null ? Number(mapPranchas[src.prancha_id] || src.prancha_id) : null,
+              destination: src.destination || null,
+              service_type: src.service_type || null,
+              description: src.description || null,
+              start_time: src.start_time || null,
+              end_time: src.end_time || null,
+              km_start: src.km_start != null ? Number(src.km_start) : null,
+              km_end: src.km_end != null ? Number(src.km_end) : null,
+              fuel_liters: src.fuel_liters != null ? Number(src.fuel_liters) : 0,
+              fuel_price: src.fuel_price != null ? Number(src.fuel_price) : 0,
+              other_costs: src.other_costs != null ? Number(src.other_costs) : 0,
+              maintenance_cost: src.maintenance_cost != null ? Number(src.maintenance_cost) : 0,
+              driver_daily: src.driver_daily != null ? Number(src.driver_daily) : 0,
+              requester: src.requester || null,
+              status: computeStatus(src.end_time, src.km_end)
+            };
             const row = await processInsert("viagens", p);
             const oldId = it.localId;
             mapViagens[oldId] = row.id;
@@ -126,7 +145,28 @@ async function syncPending() {
             db.custos = db.custos.map((c) => (String(c.viagemId) === String(oldId) ? { ...c, viagemId: String(row.id) } : c));
           } else if (it.op === "update") {
             const id = mapViagens[it.localId] || it.remoteId || it.localId;
-            await processUpdate("viagens", "id", id, it.payload);
+            const src = it.payload;
+            const p = {
+              date: src.date,
+              driver_id: Number(src.driver_id),
+              truck_id: src.truck_id != null ? Number(src.truck_id) : null,
+              prancha_id: src.prancha_id != null ? Number(src.prancha_id) : null,
+              destination: src.destination || null,
+              service_type: src.service_type || null,
+              description: src.description || null,
+              start_time: src.start_time || null,
+              end_time: src.end_time || null,
+              km_start: src.km_start != null ? Number(src.km_start) : null,
+              km_end: src.km_end != null ? Number(src.km_end) : null,
+              fuel_liters: src.fuel_liters != null ? Number(src.fuel_liters) : 0,
+              fuel_price: src.fuel_price != null ? Number(src.fuel_price) : 0,
+              other_costs: src.other_costs != null ? Number(src.other_costs) : 0,
+              maintenance_cost: src.maintenance_cost != null ? Number(src.maintenance_cost) : 0,
+              driver_daily: src.driver_daily != null ? Number(src.driver_daily) : 0,
+              requester: src.requester || null,
+              status: computeStatus(src.end_time, src.km_end)
+            };
+            await processUpdate("viagens", "id", id, p);
           } else if (it.op === "delete") {
             const id = mapViagens[it.localId] || it.remoteId || it.localId;
             await processDelete("viagens", "id", id);
@@ -449,15 +489,16 @@ export async function deletePrancha(id) { await initLoad(); if (API_URL) { await
 export async function getViagemByCaminhao(id, opts = {}) { return getViagens({ ...opts, truckId: id }); }
 export async function getViagemByPrancha(id, opts = {}) { return getViagens({ ...opts, pranchaId: id }); }
 
-export async function dashboard() {
+export async function dashboard(opts = {}) {
   await initLoad();
   const { supabase: sb } = await import("./supabaseClient.js");
   const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  const start = `${y}-${m}-01`;
-  const endDate = new Date(y, now.getMonth() + 1, 0);
-  const end = `${y}-${m}-${String(endDate.getDate()).padStart(2, "0")}`;
+  const year = Number(opts.year || now.getFullYear());
+  const monthNum = Number(opts.month || (now.getMonth() + 1));
+  const month = String(Math.min(12, Math.max(1, monthNum))).padStart(2, "0");
+  const start = String(opts.startDate || `${year}-${month}-01`);
+  const endDate0 = opts.endDate ? (() => { const [y2, m2, d2] = String(opts.endDate).split("-").map(Number); return new Date(y2, (m2 - 1), d2); })() : new Date(year, (Number(month) - 1) + 1, 0);
+  const end = String(opts.endDate || `${year}-${month}-${String(endDate0.getDate()).padStart(2, "0")}`);
   let viagens = [];
   let motoristas = [];
   let caminhoes = [];
@@ -495,7 +536,7 @@ export async function dashboard() {
   const kmByMonth = [];
   const hoursByMonth = [];
   for (let i = 0; i < 12; i++) {
-    const d = new Date(y, i, 1);
+    const d = new Date(year, i, 1);
     const y2 = d.getFullYear();
     const m2 = String(i + 1).padStart(2, "0");
     const s = `${y2}-${m2}-01`;
@@ -510,6 +551,7 @@ export async function dashboard() {
   const tripsByDriver = motoristas.map((d) => ({ name: d.name, value: monthTrips.filter((t) => t.driver_id === d.id).length }));
   const monthCosts = custos.filter((c) => (c.dataRegistro || "").slice(0,10) >= start && (c.dataRegistro || "").slice(0,10) <= end);
   const totalCostsMonth = monthCosts.reduce((a, c) => a + Number(c.custoTotal || 0), 0);
+  const totalCompleted = monthTrips.filter((t) => t.status === "Finalizada").length;
   const totalDrivers = motoristas.length;
   const totalTrucks = caminhoes.length;
   const totalPranchas = pranchas.length;
@@ -517,7 +559,7 @@ export async function dashboard() {
   const costsByCategory = ["máquinas agrícolas","máquinas de construção","equipamentos industriais","veículos pesados","veículos leves"].map((name) => ({ name, value: custos.filter((c) => (c.categoria || "veículos pesados") === name).reduce((a, c) => a + Number(c.custoTotal || 0), 0) }));
   const costsByMonth = [];
   for (let i = 0; i < 12; i++) {
-    const d = new Date(y, i, 1);
+    const d = new Date(year, i, 1);
     const y2 = d.getFullYear();
     const m2 = String(i + 1).padStart(2, "0");
     const s = `${y2}-${m2}-01`;
@@ -527,7 +569,7 @@ export async function dashboard() {
     const total = rows.reduce((a, c) => a + Number(c.custoTotal || 0), 0);
     costsByMonth.push({ month: m2, total });
   }
-  return { totalTrips, totalKm, totalHours, topDriver, topDestination, kmByMonth, hoursByMonth, tripsByDriver, totalCostsMonth, totalDrivers, totalTrucks, totalPranchas, totalCustos, costsByCategory, costsByMonth };
+  return { totalTrips, totalKm, totalHours, totalCompleted, topDriver, topDestination, kmByMonth, hoursByMonth, tripsByDriver, totalCostsMonth, totalDrivers, totalTrucks, totalPranchas, totalCustos, costsByCategory, costsByMonth };
 }
 
 export async function exportCsv(filters = {}) {

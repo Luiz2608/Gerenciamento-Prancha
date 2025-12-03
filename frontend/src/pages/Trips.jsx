@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { getMotoristas, getViagens, getViagem, saveViagem, updateViagem, deleteViagem, getCaminhoes, getPranchas } from "../services/storageService.js";
+import { getMotoristas, getViagens, getViagem, saveViagem, updateViagem, deleteViagem, getCaminhoes, getPranchas, getCustos } from "../services/storageService.js";
 import { useToast } from "../components/ToastProvider.jsx";
 import { supabase } from "../services/supabaseClient.js";
 
@@ -232,29 +232,63 @@ export default function Trips() {
           <input className={`input ${!form.end_date || !isValidDate(form.end_date) ? 'ring-yellow-500 border-yellow-500' : ''}`} placeholder="Data retorno (DD/MM/YY ou DD/MM/YYYY)" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: maskDate(e.target.value) })} />
           <input className={`input ${form.end_time && !isValidTime(form.end_time) && 'ring-red-500 border-red-500'}`} placeholder="Hora retorno (HH:MM)" value={form.end_time} onChange={(e) => setForm({ ...form, end_time: maskTime(e.target.value), end_date: (!form.end_date && isValidDate(form.date)) ? form.date : form.end_date })} />
           <div className="flex items-center gap-2">
-            <input className={`input flex-1 ${(!form.noKmStart && form.km_start === '') && 'ring-red-500 border-red-500'}`} placeholder="KM inicial" value={form.km_start} onChange={(e) => setForm({ ...form, km_start: e.target.value })} disabled={form.noKmStart} />
+            <input className={`input flex-1 ${(!form.noKmStart && form.km_start === '') && 'ring-red-500 border-red-500'}`} placeholder="KM inicial" value={form.km_start} onChange={(e) => setForm({ ...form, km_start: e.target.value.replace(/\D/g, '') })} disabled={form.noKmStart} />
             <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={form.noKmStart} onChange={(e) => setForm({ ...form, noKmStart: e.target.checked, km_start: e.target.checked ? '' : form.km_start })} /> Não registrado</label>
           </div>
           <div className="flex items-center gap-2">
-            <input className={`input flex-1 ${(form.km_end !== '' && form.km_start !== '' && Number(form.km_end) < Number(form.km_start)) && 'ring-red-500 border-red-500'}`} placeholder="KM final" value={form.km_end} onChange={(e) => setForm({ ...form, km_end: e.target.value })} disabled={form.noKmEnd} />
+            <input className={`input flex-1 ${(form.km_end !== '' && form.km_start !== '' && Number(form.km_end) < Number(form.km_start)) && 'ring-red-500 border-red-500'}`} placeholder="KM final" value={form.km_end} onChange={(e) => setForm({ ...form, km_end: e.target.value.replace(/\D/g, '') })} disabled={form.noKmEnd} />
             <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={form.noKmEnd} onChange={(e) => setForm({ ...form, noKmEnd: e.target.checked, km_end: e.target.checked ? '' : form.km_end })} /> Não registrado</label>
           </div>
           <input className="input" placeholder="Combustível (litros)" value={form.fuel_liters} onChange={(e) => setForm({ ...form, fuel_liters: e.target.value })} />
           <div className="flex gap-2">
             <input className="input flex-1" placeholder="Valor combustível (R$/litro)" value={form.fuel_price} onChange={(e) => setForm({ ...form, fuel_price: e.target.value })} />
-            <button type="button" className="btn bg-yellow-500 hover:bg-yellow-600 text-white" onClick={async () => {
+            <button type="button" className="btn btn-secondary" onClick={async () => {
               try {
+                const petroUrl = "https://precos.petrobras.com.br/sele%C3%A7%C3%A3o-de-estados-diesel";
+                const extract = (html) => {
+                  const txt = String(html || "");
+                  const m = txt.match(/Pre\s?ço\s?M[ée]dio\s?do\s?Brasil[^\n]*?R\$\s*([0-9]{1,2}[\.,][0-9]{2})/i);
+                  if (m) return Number(m[1].replace(/\./g, "").replace(",", "."));
+                  const m2 = txt.match(/Diesel\s*S-?10[^\n]*?R\$\s*([0-9]{1,2}[\.,][0-9]{2})/i);
+                  if (m2) return Number(m2[1].replace(/\./g, "").replace(",", "."));
+                  return 0;
+                };
+                let v = 0;
+                try {
+                  const rJina = `https://r.jina.ai/http://${petroUrl.replace(/^https?:\/\//, "")}`;
+                  const r1 = await fetch(rJina);
+                  if (r1.ok) { const t1 = await r1.text(); v = extract(t1) || 0; }
+                } catch {}
+                if (!v) {
+                  try {
+                    const proxyGet = `https://api.allorigins.win/get?url=${encodeURIComponent(petroUrl)}`;
+                    const r2 = await fetch(proxyGet);
+                    if (r2.ok) { const j2 = await r2.json(); v = extract(j2.contents) || 0; }
+                  } catch {}
+                }
+                if (!v) {
+                  try {
+                    const proxyRaw = `https://api.allorigins.win/raw?url=${encodeURIComponent(petroUrl)}`;
+                    const r3 = await fetch(proxyRaw);
+                    if (r3.ok) { const t3 = await r3.text(); v = extract(t3) || 0; }
+                  } catch {}
+                }
+                if (v > 0) { setForm({ ...form, fuel_price: String(v.toFixed(2)) }); toast?.show("Preço obtido do site da Petrobras", "success"); return; }
                 const apiUrl = import.meta?.env?.VITE_FUEL_API_URL;
                 if (apiUrl) {
                   const resp = await fetch(apiUrl);
                   const json = await resp.json();
-                  const v = Number(json?.diesel ?? json?.gasolina ?? json?.fuel_price ?? 0);
-                  if (v > 0) { setForm({ ...form, fuel_price: String(v) }); toast?.show("Preço obtido pela API", "success"); return; }
+                  const v2 = Number(json?.diesel ?? json?.gasolina ?? json?.fuel_price ?? 0);
+                  if (v2 > 0) { setForm({ ...form, fuel_price: String(v2.toFixed(2)) }); toast?.show("Preço obtido pela API", "success"); return; }
                 }
-                const r = await getViagens({ page: 1, pageSize: 100 });
-                const last = r.data.find((t) => Number(t.fuel_price || 0) > 0);
-                if (last) { setForm({ ...form, fuel_price: String(last.fuel_price) }); toast?.show("Preço preenchido com último registro", "info"); }
-                else { toast?.show("Não foi possível obter preço", "error"); }
+                const custos = await getCustos({ page: 1, pageSize: 200 });
+                const lastCusto = custos.data.find((c) => Number(c.valorLitro || 0) > 0);
+                if (lastCusto) { setForm({ ...form, fuel_price: String(Number(lastCusto.valorLitro).toFixed(2)) }); toast?.show("Preço preenchido com último custo", "info"); return; }
+                const r = await getViagens({ page: 1, pageSize: 1000 });
+                const lastTrip = r.data.find((t) => Number(t.fuel_price || 0) > 0);
+                if (lastTrip) { setForm({ ...form, fuel_price: String(Number(lastTrip.fuel_price).toFixed(2)) }); toast?.show("Preço preenchido com última viagem", "info"); return; }
+                setForm({ ...form, fuel_price: String(Number(6.0).toFixed(2)) });
+                toast?.show("Preço padrão aplicado (R$ 6,00)", "info");
               } catch { toast?.show("Não foi possível obter preço", "error"); }
             }}>Buscar preço</button>
           </div>

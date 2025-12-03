@@ -1,22 +1,31 @@
 import { useEffect, useState } from "react";
 import { dashboard } from "../services/storageService.js";
 import { supabase } from "../services/supabaseClient.js";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts";
-
-const colors = ["#2563eb", "#38bdf8", "#22c55e", "#a78bfa", "#f59e0b", "#ef4444", "#14b8a6", "#0ea5e9"];
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
 
 export default function Dashboard() {
+  const now = new Date();
+  const months = [
+    { v: "01", n: "Jan" }, { v: "02", n: "Fev" }, { v: "03", n: "Mar" }, { v: "04", n: "Abr" },
+    { v: "05", n: "Mai" }, { v: "06", n: "Jun" }, { v: "07", n: "Jul" }, { v: "08", n: "Ago" },
+    { v: "09", n: "Set" }, { v: "10", n: "Out" }, { v: "11", n: "Nov" }, { v: "12", n: "Dez" }
+  ];
   const [data, setData] = useState(null);
-  useEffect(() => { dashboard().then((r) => setData(r)); }, []);
+  const [period, setPeriod] = useState({ month: String(now.getMonth() + 1).padStart(2, "0"), year: now.getFullYear() });
+  const refresh = async (p = period) => {
+    const r = await dashboard({ month: Number(p.month), year: Number(p.year) });
+    setData(r);
+  };
+  useEffect(() => { refresh(period); }, []);
   useEffect(() => {
     let ch1, ch2, ch3, ch4;
     if (supabase) {
-      ch1 = supabase.channel("public:viagens").on("postgres_changes", { event: "*", schema: "public", table: "viagens" }, () => { dashboard().then((r) => setData(r)); }).subscribe();
-      ch2 = supabase.channel("public:motoristas").on("postgres_changes", { event: "*", schema: "public", table: "motoristas" }, () => { dashboard().then((r) => setData(r)); }).subscribe();
-      ch3 = supabase.channel("public:caminhoes").on("postgres_changes", { event: "*", schema: "public", table: "caminhoes" }, () => { dashboard().then((r) => setData(r)); }).subscribe();
-      ch4 = supabase.channel("public:pranchas").on("postgres_changes", { event: "*", schema: "public", table: "pranchas" }, () => { dashboard().then((r) => setData(r)); }).subscribe();
+      ch1 = supabase.channel("public:viagens").on("postgres_changes", { event: "*", schema: "public", table: "viagens" }, () => { refresh(); }).subscribe();
+      ch2 = supabase.channel("public:motoristas").on("postgres_changes", { event: "*", schema: "public", table: "motoristas" }, () => { refresh(); }).subscribe();
+      ch3 = supabase.channel("public:caminhoes").on("postgres_changes", { event: "*", schema: "public", table: "caminhoes" }, () => { refresh(); }).subscribe();
+      ch4 = supabase.channel("public:pranchas").on("postgres_changes", { event: "*", schema: "public", table: "pranchas" }, () => { refresh(); }).subscribe();
     }
-    const interval = setInterval(() => { dashboard().then((r) => setData(r)); }, 10000);
+    const interval = setInterval(() => { refresh(); }, 10000);
     return () => {
       if (supabase) { supabase.removeChannel(ch1); supabase.removeChannel(ch2); supabase.removeChannel(ch3); supabase.removeChannel(ch4); }
       clearInterval(interval);
@@ -25,8 +34,16 @@ export default function Dashboard() {
   if (!data) return <div className="animate-fade">Carregando...</div>;
   return (
     <div className="space-y-8 animate-fade overflow-x-auto overflow-y-auto min-h-screen page" style={{ WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain', overscrollBehaviorY: 'contain', touchAction: 'pan-y' }}>
-      
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+      <div className="sticky top-0 z-10 bg-white/80 backdrop-blur border rounded-2xl p-4 flex flex-col md:flex-row md:items-center gap-3">
+        <div className="font-semibold">Período</div>
+        <select className="select" value={period.month} onChange={(e) => { const p = { ...period, month: e.target.value }; setPeriod(p); refresh(p); }}>
+          {months.map((m) => (<option key={m.v} value={m.v}>{m.n}</option>))}
+        </select>
+        <input className="input w-28" inputMode="numeric" value={period.year} onChange={(e) => { const p = { ...period, year: e.target.value.replace(/[^0-9]/g, '').slice(0,4) || "" }; setPeriod(p); }} onBlur={() => { const y = Number(period.year || now.getFullYear()); const p = { ...period, year: y }; setPeriod(p); refresh(p); }} />
+        <div className="text-xs text-slate-500">Preparado para futuro intervalo personalizado</div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="card card-hover p-6 border-t-4 border-accent">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-2xl bg-accent/20 text-accent flex items-center justify-center text-2xl">🧭</div>
@@ -36,12 +53,12 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
-        <div className="card card-hover p-6 border-t-4 border-primary">
+        <div className="card card-hover p-6 border-t-4 border-pink-500">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-primary/20 text-primary flex items-center justify-center text-2xl">🛣️</div>
+            <div className="w-12 h-12 rounded-2xl bg-pink-500/20 text-pink-600 flex items-center justify-center text-2xl">💸</div>
             <div>
-              <div className="text-sm">KM no mês</div>
-              <div className="text-3xl font-bold">{data.totalKm}</div>
+              <div className="text-sm">Total gasto</div>
+              <div className="text-3xl font-bold">R$ {Number(data.totalCostsMonth || 0).toFixed(2)}</div>
             </div>
           </div>
         </div>
@@ -49,62 +66,17 @@ export default function Dashboard() {
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-2xl bg-green-500/20 text-green-600 flex items-center justify-center text-2xl">⏱️</div>
             <div>
-              <div className="text-sm">Horas no mês</div>
+              <div className="text-sm">Horas trabalhadas</div>
               <div className="text-3xl font-bold">{data.totalHours}</div>
             </div>
           </div>
         </div>
-        <div className="card card-hover p-6 border-t-4 border-yellow-400">
+        <div className="card card-hover p-6 border-t-4 border-primary">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-yellow-400/20 text-yellow-600 flex items-center justify-center text-2xl">👨‍✈️</div>
+            <div className="w-12 h-12 rounded-2xl bg-primary/20 text-primary flex items-center justify-center text-2xl">✅</div>
             <div>
-              <div className="text-sm">Motorista destaque</div>
-              <div className="text-3xl font-bold">{data.topDriver || "-"}</div>
-            </div>
-          </div>
-        </div>
-        <div className="card card-hover p-6 border-t-4 border-purple-500">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-purple-500/20 text-purple-600 flex items-center justify-center text-2xl">📍</div>
-            <div>
-              <div className="text-sm">Destino frequente</div>
-              <div className="text-3xl font-bold">{data.topDestination || "-"}</div>
-            </div>
-          </div>
-        </div>
-        <div className="card card-hover p-6 border-t-4 border-pink-500">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-pink-500/20 text-pink-600 flex items-center justify-center text-2xl">💸</div>
-            <div>
-              <div className="text-sm">Custos no mês</div>
-              <div className="text-3xl font-bold">R$ {data.totalCostsMonth.toFixed(2)}</div>
-            </div>
-          </div>
-        </div>
-        <div className="card card-hover p-6 border-t-4 border-slate-500">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-slate-500/20 text-slate-700 flex items-center justify-center text-2xl">🧑‍🔧</div>
-            <div>
-              <div className="text-sm">Motoristas</div>
-              <div className="text-3xl font-bold">{data.totalDrivers}</div>
-            </div>
-          </div>
-        </div>
-        <div className="card card-hover p-6 border-t-4 border-slate-700">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-slate-700/20 text-slate-800 flex items-center justify-center text-2xl">🚛</div>
-            <div>
-              <div className="text-sm">Caminhões</div>
-              <div className="text-3xl font-bold">{data.totalTrucks}</div>
-            </div>
-          </div>
-        </div>
-        <div className="card card-hover p-6 border-t-4 border-slate-800">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-slate-800/20 text-slate-900 flex items-center justify-center text-2xl">🛠️</div>
-            <div>
-              <div className="text-sm">Pranchas</div>
-              <div className="text-3xl font-bold">{data.totalPranchas}</div>
+              <div className="text-sm">Serviços concluídos</div>
+              <div className="text-3xl font-bold">{data.totalCompleted}</div>
             </div>
           </div>
         </div>
@@ -127,14 +99,12 @@ export default function Dashboard() {
           <div className="font-semibold mb-4">Viagens por motorista</div>
           <div className="h-72">
             <ResponsiveContainer>
-              <PieChart>
-                <Pie data={data.tripsByDriver} dataKey="value" nameKey="name" outerRadius={110}>
-                  {data.tripsByDriver.map((_, i) => (
-                    <Cell key={i} fill={colors[i % colors.length]} stroke="#ffffff" />
-                  ))}
-                </Pie>
+              <BarChart data={data.tripsByDriver}>
+                <XAxis dataKey="name" tick={{ fill: "#0f172a" }} interval={0} angle={-20} height={60} />
+                <YAxis tick={{ fill: "#0f172a" }} />
                 <Tooltip />
-              </PieChart>
+                <Bar dataKey="value" fill="#0ea5e9" radius={[8,8,0,0]} />
+              </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
@@ -168,14 +138,12 @@ export default function Dashboard() {
           <div className="font-semibold mb-4">Custos por categoria</div>
           <div className="h-72">
             <ResponsiveContainer>
-              <PieChart>
-                <Pie data={data.costsByCategory} dataKey="value" nameKey="name" outerRadius={140}>
-                  {data.costsByCategory.map((_, i) => (
-                    <Cell key={i} fill={colors[i % colors.length]} stroke="#ffffff" />
-                  ))}
-                </Pie>
+              <BarChart data={data.costsByCategory}>
+                <XAxis dataKey="name" tick={{ fill: "#0f172a" }} interval={0} angle={-20} height={60} />
+                <YAxis tick={{ fill: "#0f172a" }} />
                 <Tooltip />
-              </PieChart>
+                <Bar dataKey="value" fill="#f59e0b" radius={[8,8,0,0]} />
+              </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
