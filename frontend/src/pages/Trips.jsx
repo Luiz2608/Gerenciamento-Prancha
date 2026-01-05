@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { getMotoristas, getViagens, getViagem, saveViagem, updateViagem, deleteViagem, getCaminhoes, getPranchas, getCustos } from "../services/storageService.js";
 import { useToast } from "../components/ToastProvider.jsx";
@@ -15,6 +15,8 @@ export default function Trips() {
   const [form, setForm] = useState({ date: "", end_date: "", requester: "", driver_id: "", truck_id: "", prancha_id: "", destination: "", service_type: "", status: "", description: "", start_time: "", end_time: "", km_start: "", km_end: "", km_trip: "", km_per_liter: "", noKmStart: false, noKmEnd: false, fuel_liters: "", fuel_price: "", other_costs: "", maintenance_cost: "", driver_daily: "" });
   const [editing, setEditing] = useState(null);
   const [kmMode, setKmMode] = useState("");
+  const [showValidation, setShowValidation] = useState(false);
+  const formRef = useRef(null);
 
   const loadDrivers = () => getMotoristas().then((r) => setDrivers(r));
   const loadTrucks = () => getCaminhoes().then((r) => setTrucks(r.filter((x) => x.status === "Ativo")));
@@ -126,8 +128,52 @@ export default function Trips() {
     return `${String(d).padStart(2,"0")}/${String(m).padStart(2,"0")}/${y}`;
   };
 
+  const getErrors = () => {
+    const errs = {};
+    if (!form.date) errs.date = "Campo obrigatório";
+    else if (!isValidDate(form.date)) errs.date = "Data inválida";
+
+    if (!form.requester) errs.requester = "Campo obrigatório";
+    if (!form.driver_id) errs.driver_id = "Campo obrigatório";
+    if (!form.truck_id) errs.truck_id = "Campo obrigatório";
+    if (!form.prancha_id) errs.prancha_id = "Campo obrigatório";
+    if (!form.destination) errs.destination = "Campo obrigatório";
+    if (!form.service_type) errs.service_type = "Campo obrigatório";
+    if (!form.status) errs.status = "Campo obrigatório";
+
+    if (!form.start_time) errs.start_time = "Campo obrigatório";
+    else if (!isValidTime(form.start_time)) errs.start_time = "Hora inválida";
+
+    if (!form.noKmStart && form.km_start === "") errs.km_start = "Campo obrigatório";
+    
+    if (form.end_time && !isValidTime(form.end_time)) errs.end_time = "Hora inválida";
+    
+    if (form.end_date && !isValidDate(form.end_date)) errs.end_date = "Data inválida";
+    
+    if (form.km_trip !== "") {
+       const vkm = Number(form.km_trip);
+       if (!(vkm >= 0)) errs.km_trip = "Não pode ser negativo";
+    }
+    
+    if (!errs.km_start && !errs.km_end && !form.noKmStart && !form.noKmEnd && form.km_end !== "" && form.km_start !== "") {
+        if (Number(form.km_end) < Number(form.km_start)) {
+            errs.km_end = "Menor que KM inicial";
+        }
+    }
+    return errs;
+  };
+  const validationErrors = showValidation ? getErrors() : {};
+
   const submit = async (e) => {
     e.preventDefault();
+    setShowValidation(true);
+    const errs = getErrors();
+    if (Object.keys(errs).length > 0) {
+        toast?.show("Verifique os campos obrigatórios", "error");
+        // Scroll to the first error? formRef is on the form.
+        if (formRef.current) formRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
+    }
     const payload = {
       ...form,
       date: isValidDate(form.date) ? toIsoDate(form.date) : "",
@@ -147,21 +193,7 @@ export default function Trips() {
       if (perLNum > 0) payload.fuel_liters = Number((kmTripNum / perLNum).toFixed(2));
       else toast?.show("KM por litro inválido", "warning");
     }
-    const todayIso = new Date().toISOString().slice(0,10);
-    const missing = [];
-    if (!payload.date) missing.push("Data");
-    if (!form.requester) missing.push("Solicitante");
-    if (!payload.driver_id) missing.push("Motorista");
-    if (!payload.truck_id) missing.push("Caminhão (Frota)");
-    if (!payload.prancha_id) missing.push("Prancha (Frota)");
-    if (!form.destination) missing.push("Destino");
-    if (!isValidTime(form.start_time)) missing.push("Hora saída");
-    if (!form.noKmStart && form.km_start === "") missing.push("KM saída");
-    if (!form.status) missing.push("Status da Viagem");
-    if (missing.length) { toast?.show(`Erro → Aba Viagens → Campo ${missing[0]} obrigatório`, "error"); return; }
-    if (form.km_trip !== "") { const vkm = Number(form.km_trip); if (!(vkm >= 0)) { toast?.show("KM da Viagem não pode ser negativo", "error"); return; } }
-    if (payload.km_end != null && payload.km_start != null && payload.km_end < payload.km_start) { toast?.show("KM final não pode ser menor que o KM inicial", "error"); return; }
-    if (form.km_trip !== "" && payload.km_start != null) { payload.km_end = Number(payload.km_start) + Number(form.km_trip); }
+    
     payload.requester = form.requester;
     payload.status = form.status;
     if (editing) await updateViagem(editing.id, payload);
@@ -169,6 +201,7 @@ export default function Trips() {
     toast?.show(editing ? "Viagem atualizada" : "Viagem cadastrada", "success");
     setForm({ date: "", end_date: "", requester: "", driver_id: "", truck_id: "", prancha_id: "", destination: "", service_type: "", status: "", description: "", start_time: "", end_time: "", km_start: "", km_end: "", km_trip: "", km_per_liter: "", noKmStart: false, noKmEnd: false, fuel_liters: "", fuel_price: "", other_costs: "", maintenance_cost: "", driver_daily: "" });
     setEditing(null);
+    setShowValidation(false);
     loadTrips();
   };
 
@@ -184,6 +217,7 @@ export default function Trips() {
 
   const edit = (it) => {
     setEditing(it);
+    setShowValidation(false);
     setForm({
       date: it.date ? fromIsoDate(it.date) : "",
       end_date: it.end_date ? fromIsoDate(it.end_date) : "",
@@ -207,6 +241,7 @@ export default function Trips() {
       other_costs: it.other_costs?.toString() || ""
     });
     toast?.show("Edição carregada", "info");
+    if (formRef.current) formRef.current.scrollIntoView({ behavior: "smooth" });
   };
 
   const del = async (id) => { await deleteViagem(id); toast?.show("Viagem excluída", "success"); loadTrips(); };
@@ -216,40 +251,75 @@ export default function Trips() {
     <div className="space-y-8 overflow-x-auto overflow-y-auto min-h-screen page" style={{ WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain', overscrollBehaviorY: 'contain', touchAction: 'pan-y' }}>
       <div className="card p-6 animate-fade">
         <div className="font-semibold mb-4 text-secondary text-xl">Cadastro de Viagens</div>
-        <form onSubmit={submit} onKeyDown={handleFormKeyDown} className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <input className={`input ${(!form.date || !isValidDate(form.date)) && 'ring-red-500 border-red-500'}`} placeholder="Data (DD/MM/YY ou DD/MM/YYYY)" value={form.date} onChange={(e) => setForm({ ...form, date: maskDate(e.target.value) })} />
-          <input className={`input ${!form.requester && 'ring-red-500 border-red-500'}`} placeholder="Solicitante" value={form.requester} onChange={(e) => setForm({ ...form, requester: e.target.value })} />
-          <select className={`select ${!form.driver_id && 'ring-red-500 border-red-500'}`} value={form.driver_id} onChange={(e) => setForm({ ...form, driver_id: e.target.value })}>
-            <option value="" disabled>Motorista</option>
-            {drivers.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-          </select>
-          <select className={`select ${!form.truck_id && 'ring-red-500 border-red-500'}`} value={form.truck_id} onChange={(e) => {
-            const val = e.target.value;
-            const tr = trucks.find((t) => t.id === Number(val));
-            setForm({ ...form, truck_id: val, km_start: tr && tr.km_current != null ? String(tr.km_current).slice(0, 10) : form.km_start });
-          }}>
-            <option value="" disabled>Caminhão (Frota)</option>
-            {trucks.map((t) => <option key={t.id} value={t.id}>{t.fleet || t.plate || t.model || t.id}</option>)}
-          </select>
-          <select className={`select ${!form.prancha_id && 'ring-red-500 border-red-500'}`} value={form.prancha_id} onChange={(e) => setForm({ ...form, prancha_id: e.target.value })}>
-            <option value="" disabled>Prancha</option>
-            {pranchas.map((p) => <option key={p.id} value={p.asset_number || ''}>{p.asset_number || p.identifier || p.model || p.id}</option>)}
-          </select>
-          <input className={`input ${!form.destination && 'ring-red-500 border-red-500'}`} placeholder="Destino" value={form.destination} onChange={(e) => setForm({ ...form, destination: e.target.value })} />
-          <select className="select" value={form.service_type} onChange={(e) => setForm({ ...form, service_type: e.target.value })}>
-            <option value="" disabled>Tipo</option>
-            {tipoOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
-          </select>
-          <select className={`select ${!form.status && 'ring-red-500 border-red-500'}`} value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-            <option value="" disabled>Status</option>
-            <option value="Previsto">Previsto</option>
-            <option value="Em Andamento">Em Andamento</option>
-            <option value="Finalizado">Finalizado</option>
-          </select>
-          <input className="input md:col-span-4" placeholder="Descrição" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-          <input className={`input ${(!form.start_time || !isValidTime(form.start_time)) && 'ring-red-500 border-red-500'}`} placeholder="Hora saída (HH:MM)" value={form.start_time} onChange={(e) => setForm({ ...form, start_time: maskTime(e.target.value), end_date: (!form.end_date && isValidDate(form.date)) ? form.date : form.end_date })} />
-          <input className={`input ${!form.end_date || !isValidDate(form.end_date) ? 'ring-yellow-500 border-yellow-500' : ''}`} placeholder="Data retorno (DD/MM/YY ou DD/MM/YYYY)" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: maskDate(e.target.value) })} />
-          <input className={`input ${form.end_time && !isValidTime(form.end_time) && 'ring-red-500 border-red-500'}`} placeholder="Hora retorno (HH:MM)" value={form.end_time} onChange={(e) => setForm({ ...form, end_time: maskTime(e.target.value), end_date: (!form.end_date && isValidDate(form.date)) ? form.date : form.end_date })} />
+        <form ref={formRef} onSubmit={submit} onKeyDown={handleFormKeyDown} className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="flex flex-col">
+            <input className={`input ${validationErrors.date ? 'ring-red-500 border-red-500' : ''}`} placeholder="Data (DD/MM/YY)" value={form.date} onChange={(e) => setForm({ ...form, date: maskDate(e.target.value) })} />
+            {validationErrors.date && <span className="text-red-500 text-xs mt-1">{validationErrors.date}</span>}
+          </div>
+          <div className="flex flex-col">
+            <input className={`input ${validationErrors.requester ? 'ring-red-500 border-red-500' : ''}`} placeholder="Solicitante" value={form.requester} onChange={(e) => setForm({ ...form, requester: e.target.value })} />
+            {validationErrors.requester && <span className="text-red-500 text-xs mt-1">{validationErrors.requester}</span>}
+          </div>
+          <div className="flex flex-col">
+            <select className={`select ${validationErrors.driver_id ? 'ring-red-500 border-red-500' : ''}`} value={form.driver_id} onChange={(e) => setForm({ ...form, driver_id: e.target.value })}>
+              <option value="" disabled>Motorista</option>
+              {drivers.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+            </select>
+            {validationErrors.driver_id && <span className="text-red-500 text-xs mt-1">{validationErrors.driver_id}</span>}
+          </div>
+          <div className="flex flex-col">
+            <select className={`select ${validationErrors.truck_id ? 'ring-red-500 border-red-500' : ''}`} value={form.truck_id} onChange={(e) => {
+              const val = e.target.value;
+              const tr = trucks.find((t) => t.id === Number(val));
+              setForm({ ...form, truck_id: val, km_start: tr && tr.km_current != null ? String(tr.km_current).slice(0, 10) : form.km_start });
+            }}>
+              <option value="" disabled>Caminhão (Frota)</option>
+              {trucks.map((t) => <option key={t.id} value={t.id}>{t.fleet || t.plate || t.model || t.id}</option>)}
+            </select>
+            {validationErrors.truck_id && <span className="text-red-500 text-xs mt-1">{validationErrors.truck_id}</span>}
+          </div>
+          <div className="flex flex-col">
+            <select className={`select ${validationErrors.prancha_id ? 'ring-red-500 border-red-500' : ''}`} value={form.prancha_id} onChange={(e) => setForm({ ...form, prancha_id: e.target.value })}>
+              <option value="" disabled>Prancha</option>
+              {pranchas.map((p) => <option key={p.id} value={p.asset_number || ''}>{p.asset_number || p.identifier || p.model || p.id}</option>)}
+            </select>
+            {validationErrors.prancha_id && <span className="text-red-500 text-xs mt-1">{validationErrors.prancha_id}</span>}
+          </div>
+          <div className="flex flex-col">
+            <input className={`input ${validationErrors.destination ? 'ring-red-500 border-red-500' : ''}`} placeholder="Destino" value={form.destination} onChange={(e) => setForm({ ...form, destination: e.target.value })} />
+            {validationErrors.destination && <span className="text-red-500 text-xs mt-1">{validationErrors.destination}</span>}
+          </div>
+          <div className="flex flex-col">
+            <select className={`select ${validationErrors.service_type ? 'ring-red-500 border-red-500' : ''}`} value={form.service_type} onChange={(e) => setForm({ ...form, service_type: e.target.value })}>
+              <option value="" disabled>Tipo</option>
+              {tipoOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+            </select>
+            {validationErrors.service_type && <span className="text-red-500 text-xs mt-1">{validationErrors.service_type}</span>}
+          </div>
+          <div className="flex flex-col">
+            <select className={`select ${validationErrors.status ? 'ring-red-500 border-red-500' : ''}`} value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+              <option value="" disabled>Status</option>
+              <option value="Previsto">Previsto</option>
+              <option value="Em Andamento">Em Andamento</option>
+              <option value="Finalizado">Finalizado</option>
+            </select>
+            {validationErrors.status && <span className="text-red-500 text-xs mt-1">{validationErrors.status}</span>}
+          </div>
+          <div className="flex flex-col md:col-span-4">
+            <input className="input" placeholder="Descrição" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+          </div>
+          <div className="flex flex-col">
+            <input className={`input ${validationErrors.start_time ? 'ring-red-500 border-red-500' : ''}`} placeholder="Hora saída (HH:MM)" value={form.start_time} onChange={(e) => setForm({ ...form, start_time: maskTime(e.target.value), end_date: (!form.end_date && isValidDate(form.date)) ? form.date : form.end_date })} />
+            {validationErrors.start_time && <span className="text-red-500 text-xs mt-1">{validationErrors.start_time}</span>}
+          </div>
+          <div className="flex flex-col">
+            <input className={`input ${validationErrors.end_date ? 'ring-red-500 border-red-500' : (!form.end_date || !isValidDate(form.end_date) ? 'ring-yellow-500 border-yellow-500' : '')}`} placeholder="Data retorno (DD/MM/YY)" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: maskDate(e.target.value) })} />
+            {validationErrors.end_date && <span className="text-red-500 text-xs mt-1">{validationErrors.end_date}</span>}
+          </div>
+          <div className="flex flex-col">
+            <input className={`input ${validationErrors.end_time ? 'ring-red-500 border-red-500' : ''}`} placeholder="Hora retorno (HH:MM)" value={form.end_time} onChange={(e) => setForm({ ...form, end_time: maskTime(e.target.value), end_date: (!form.end_date && isValidDate(form.date)) ? form.date : form.end_date })} />
+            {validationErrors.end_time && <span className="text-red-500 text-xs mt-1">{validationErrors.end_time}</span>}
+          </div>
           <div className="md:col-span-4">
             <select className="select w-full max-w-sm" value={kmMode} onChange={(e) => setKmMode(e.target.value)}>
               <option value="" disabled>Tipo de KM</option>
@@ -258,39 +328,48 @@ export default function Trips() {
             </select>
             {kmMode === 'KM Caminhão' && (
               <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="flex items-center gap-2">
-                <input className={`input flex-1 ${(!form.noKmStart && form.km_start === '') && 'ring-red-500 border-red-500'}`} placeholder="KM inicial" inputMode="numeric" maxLength={10} value={form.km_start} onChange={(e) => {
-                  const val = e.target.value.replace(/\\D/g, '').slice(0, 10);
-                  const kmEndNum = Number((form.km_end || '').replace(/\\D/g, ''));
-                  const kmStartNum = Number(val || '');
-                  const autoTrip = (form.km_trip === '' && form.km_end !== '') ? String(Math.max(0, kmEndNum - kmStartNum)) : form.km_trip;
-                  setForm({ ...form, km_start: val, km_trip: autoTrip });
-                }} disabled={form.noKmStart} />
-                  <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={form.noKmStart} onChange={(e) => setForm({ ...form, noKmStart: e.target.checked, km_start: e.target.checked ? '' : form.km_start })} /> Não registrado</label>
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-2">
+                    <input className={`input flex-1 ${validationErrors.km_start ? 'ring-red-500 border-red-500' : ''}`} placeholder="KM inicial" inputMode="numeric" maxLength={10} value={form.km_start} onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                      const kmEndNum = Number((form.km_end || '').replace(/\D/g, ''));
+                      const kmStartNum = Number(val || '');
+                      const autoTrip = (form.km_trip === '' && form.km_end !== '') ? String(Math.max(0, kmEndNum - kmStartNum)) : form.km_trip;
+                      setForm({ ...form, km_start: val, km_trip: autoTrip });
+                    }} disabled={form.noKmStart} />
+                    <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={form.noKmStart} onChange={(e) => setForm({ ...form, noKmStart: e.target.checked, km_start: e.target.checked ? '' : form.km_start })} /> Não registrado</label>
+                  </div>
+                  {validationErrors.km_start && <span className="text-red-500 text-xs mt-1">{validationErrors.km_start}</span>}
                 </div>
-                <div className="flex items-center gap-2">
-                  <input className={`input flex-1 ${(form.km_end !== '' && form.km_start !== '' && Number(form.km_end) < Number(form.km_start)) && 'ring-red-500 border-red-500'}`} placeholder="KM final" inputMode="numeric" maxLength={10} value={form.km_end} onChange={(e) => {
-                    const val = e.target.value.replace(/\\D/g, '').slice(0, 10);
-                    const kmStartNum = Number((form.km_start || '').replace(/\\D/g, ''));
-                    const kmEndNum = Number(val || '');
-                    const autoTrip = (val === '' || form.km_trip === '') && (form.km_start !== '' && val !== '') ? String(Math.max(0, kmEndNum - kmStartNum)) : form.km_trip;
-                    setForm({ ...form, km_end: val, km_trip: autoTrip });
-                  }} disabled={form.noKmEnd || !(form.status === 'Em Andamento' || form.status === 'Finalizado')} />
-                  <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={form.noKmEnd} onChange={(e) => setForm({ ...form, noKmEnd: e.target.checked, km_end: e.target.checked ? '' : form.km_end })} /> Não registrado</label>
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-2">
+                    <input className={`input flex-1 ${validationErrors.km_end ? 'ring-red-500 border-red-500' : ''}`} placeholder="KM final" inputMode="numeric" maxLength={10} value={form.km_end} onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                      const kmStartNum = Number((form.km_start || '').replace(/\D/g, ''));
+                      const kmEndNum = Number(val || '');
+                      const autoTrip = (val === '' || form.km_trip === '') && (form.km_start !== '' && val !== '') ? String(Math.max(0, kmEndNum - kmStartNum)) : form.km_trip;
+                      setForm({ ...form, km_end: val, km_trip: autoTrip });
+                    }} disabled={form.noKmEnd || !(form.status === 'Em Andamento' || form.status === 'Finalizado')} />
+                    <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={form.noKmEnd} onChange={(e) => setForm({ ...form, noKmEnd: e.target.checked, km_end: e.target.checked ? '' : form.km_end })} /> Não registrado</label>
+                  </div>
+                  {validationErrors.km_end && <span className="text-red-500 text-xs mt-1">{validationErrors.km_end}</span>}
                 </div>
               </div>
             )}
             {kmMode === 'KM da Viagem' && (
               <div className="mt-3 space-y-3">
-                <input className="input" placeholder="KM da Viagem" inputMode="numeric" maxLength={10} value={form.km_trip} onChange={(e) => {
-                  const val = e.target.value.replace(/\\D/g, '').slice(0, 10);
-                  const kmStartNum = Number((form.km_start || '').replace(/\\D/g, ''));
-                  const vNum = Number(val || '');
-                  const newEnd = form.km_start !== '' ? String(kmStartNum + vNum) : form.km_end;
-                  const perLNum = Number(String(form.km_per_liter || '').replace(',', '.'));
-                  const autoLiters = perLNum > 0 && vNum >= 0 ? String((vNum / perLNum).toFixed(2)) : form.fuel_liters;
-                  setForm({ ...form, km_trip: val, km_end: newEnd, fuel_liters: autoLiters });
-                }} />
+                <div className="flex flex-col">
+                  <input className={`input ${validationErrors.km_trip ? 'ring-red-500 border-red-500' : ''}`} placeholder="KM da Viagem" inputMode="numeric" maxLength={10} value={form.km_trip} onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                    const kmStartNum = Number((form.km_start || '').replace(/\D/g, ''));
+                    const vNum = Number(val || '');
+                    const newEnd = form.km_start !== '' ? String(kmStartNum + vNum) : form.km_end;
+                    const perLNum = Number(String(form.km_per_liter || '').replace(',', '.'));
+                    const autoLiters = perLNum > 0 && vNum >= 0 ? String((vNum / perLNum).toFixed(2)) : form.fuel_liters;
+                    setForm({ ...form, km_trip: val, km_end: newEnd, fuel_liters: autoLiters });
+                  }} />
+                  {validationErrors.km_trip && <span className="text-red-500 text-xs mt-1">{validationErrors.km_trip}</span>}
+                </div>
                 <input className="input" placeholder="KM por Litro (Consumo do Caminhão)" inputMode="decimal" value={form.km_per_liter} onChange={(e) => {
                   const raw = e.target.value.replace(/[^0-9.,]/g, '');
                   const norm = raw.replace(',', '.');
@@ -358,7 +437,10 @@ export default function Trips() {
           <input className="input" placeholder="Outros custos (R$)" value={form.other_costs} onChange={(e) => setForm({ ...form, other_costs: e.target.value })} />
           <input className="input" placeholder="Manutenção (R$)" value={form.maintenance_cost} onChange={(e) => setForm({ ...form, maintenance_cost: e.target.value })} />
           <input className="input" placeholder="Diária do motorista (R$)" value={form.driver_daily} onChange={(e) => setForm({ ...form, driver_daily: e.target.value })} />
-          <button className="btn btn-primary">{editing ? "Salvar" : "Adicionar"}</button>
+          <div className="md:col-span-4 flex gap-4">
+             <button type="submit" className="btn btn-primary">{editing ? "Salvar" : "Adicionar"}</button>
+             {editing && <button type="button" className="btn bg-gray-500 hover:bg-gray-600 text-white" onClick={() => { setEditing(null); setShowValidation(false); setForm({ date: "", end_date: "", requester: "", driver_id: "", truck_id: "", prancha_id: "", destination: "", service_type: "", status: "", description: "", start_time: "", end_time: "", km_start: "", km_end: "", km_trip: "", km_per_liter: "", noKmStart: false, noKmEnd: false, fuel_liters: "", fuel_price: "", other_costs: "", maintenance_cost: "", driver_daily: "" }); }}>Cancelar</button>}
+          </div>
         </form>
       </div>
       <div className="card p-6 animate-fade overflow-x-auto hidden md:block">

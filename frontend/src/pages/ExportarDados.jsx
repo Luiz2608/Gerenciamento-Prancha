@@ -6,6 +6,7 @@ export default function ExportarDados() {
   const [pranchas, setPranchas] = useState([]);
   const [drivers, setDrivers] = useState([]);
   const [sel, setSel] = useState({ truckId: "", pranchaId: "", driverId: "" });
+  const [copyMsg, setCopyMsg] = useState("");
 
   useEffect(() => {
     getCaminhoes().then(setTrucks);
@@ -18,6 +19,43 @@ export default function ExportarDados() {
   const truckInfo = useMemo(() => trucks.find((t) => String(t.id) === String(sel.truckId)) || null, [trucks, sel.truckId]);
   const pranchaInfo = useMemo(() => pranchas.find((p) => String(p.id) === String(sel.pranchaId) || String(p.asset_number) === String(sel.pranchaId)) || null, [pranchas, sel.pranchaId]);
   const driverInfo = useMemo(() => drivers.find((d) => String(d.id) === String(sel.driverId)) || null, [drivers, sel.driverId]);
+
+  const formatted = useMemo(() => {
+    const parts = [];
+    if (truckInfo) {
+      parts.push(
+        `Caminhão: Frota ${truckInfo.fleet || "-"}, Placa ${truckInfo.plate || "-"}, Modelo ${truckInfo.model || "-"}, Ano ${truckInfo.year ?? "-"}, Status ${truckInfo.status || "-"}, KM atual ${truckInfo.km_current ?? "-"}`
+      );
+    }
+    if (pranchaInfo) {
+      parts.push(
+        `Prancha: Frota ${pranchaInfo.asset_number || "-"}, Tipo ${pranchaInfo.type || "-"}, Capacidade ${pranchaInfo.capacity ?? "-"}, Ano ${pranchaInfo.year ?? "-"}, Placa ${pranchaInfo.plate || "-"}, Chassi ${pranchaInfo.chassis || "-"}, Status ${pranchaInfo.status || "-"}`
+      );
+    }
+    if (driverInfo) {
+      parts.push(
+        `Motorista: Nome ${driverInfo.name || "-"}, CPF ${driverInfo.cpf || "-"}, CNH ${driverInfo.cnh_category || "-"}, Status ${driverInfo.status || "-"}`
+      );
+    }
+    return parts.join("\n");
+  }, [truckInfo, pranchaInfo, driverInfo]);
+  const copy = async () => {
+    const text = formatted.trim();
+    if (!text) { setCopyMsg("Nada para copiar"); setTimeout(() => setCopyMsg(""), 2000); return; }
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopyMsg("Copiado");
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      setCopyMsg("Copiado");
+    }
+    setTimeout(() => setCopyMsg(""), 2000);
+  };
 
   const InfoCard = ({ title, children }) => (
     <div className="card p-6">
@@ -45,6 +83,10 @@ export default function ExportarDados() {
             {drivers.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
         </div>
+        <div className="mt-4 flex items-center gap-3">
+          <button className="btn btn-primary" onClick={copy}>Copiar dados formatados</button>
+          {copyMsg && <div className="text-sm">{copyMsg}</div>}
+        </div>
       </div>
 
       {truckInfo && (
@@ -65,6 +107,8 @@ export default function ExportarDados() {
           <div>Tipo: {pranchaInfo.type || '-'}</div>
           <div>Capacidade: {pranchaInfo.capacity || '-'}</div>
           <div>Ano: {pranchaInfo.year || '-'}</div>
+          <div>Placa: {pranchaInfo.plate || '-'}</div>
+          <div>Chassi: {pranchaInfo.chassis || '-'}</div>
           <div>Status: {pranchaInfo.status || '-'}</div>
         </InfoCard>
       )}
