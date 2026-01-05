@@ -393,9 +393,10 @@ export async function deleteMotorista(id) { await initLoad(); if (API_URL) { awa
 
 export async function getViagens(opts = {}) {
   await initLoad();
-  const { startDate, endDate, driverId, destination, status, search, truckId, pranchaId, vehicleType, plate, page = 1, pageSize = 10 } = opts;
+  const { startDate, endDate, driverId, destination, status, search, truckId, pranchaId, vehicleType, plate, id, page = 1, pageSize = 10 } = opts;
   if (API_URL) {
     const params = new URLSearchParams();
+    if (id) params.set("id", id);
     if (startDate) params.set("startDate", startDate);
     if (endDate) params.set("endDate", endDate);
     if (driverId) params.set("driverId", String(driverId));
@@ -420,6 +421,7 @@ export async function getViagens(opts = {}) {
     if (pranchaId) query = query.eq("prancha_id", Number(pranchaId));
     const { data: rows0 } = await query;
     let rows = Array.isArray(rows0) ? rows0.slice().reverse() : [];
+    if (id) rows = rows.filter((t) => String(t.id).includes(String(id)));
     if (destination) rows = rows.filter((t) => String(t.destination || "").toLowerCase().includes(destination.toLowerCase()));
     if (search) rows = rows.filter((t) => (t.description || "").toLowerCase().includes(search.toLowerCase()) || (t.service_type || "").toLowerCase().includes(search.toLowerCase()));
     if (vehicleType === "truck") rows = rows.filter((t) => t.truck_id != null);
@@ -439,6 +441,7 @@ export async function getViagens(opts = {}) {
   }
   const db = getDB();
   let rows = db.viagens.slice().reverse();
+  if (id) rows = rows.filter((t) => String(t.id).includes(String(id)));
   if (startDate) rows = rows.filter((t) => t.date >= startDate);
   if (endDate) rows = rows.filter((t) => t.date <= endDate);
   if (driverId) rows = rows.filter((t) => t.driver_id === Number(driverId));

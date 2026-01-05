@@ -18,10 +18,39 @@ export default function Trips() {
   const [showValidation, setShowValidation] = useState(false);
   const formRef = useRef(null);
 
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+
   const loadDrivers = () => getMotoristas().then((r) => setDrivers(r));
   const loadTrucks = () => getCaminhoes().then((r) => setTrucks(r.filter((x) => x.status === "Ativo")));
   const loadPranchas = () => getPranchas().then((r) => setPranchas(r.filter((x) => x.status === "Ativo")));
-  const loadTrips = () => getViagens({ page: 1, pageSize: 20 }).then((r) => setItems(r.data));
+  
+  const loadTrips = () => {
+    getViagens({ page: 1, pageSize: 20 }).then((r) => setItems(r.data));
+  };
+  
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const sortedItems = [...items].sort((a, b) => {
+    if (!sortConfig.key) return 0;
+    
+    let valA = a[sortConfig.key];
+    let valB = b[sortConfig.key];
+    
+    if (sortConfig.key === 'id') {
+        return sortConfig.direction === 'asc' ? Number(valA) - Number(valB) : Number(valB) - Number(valA);
+    }
+    
+    if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+    if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
+    return 0;
+  });
+
   useEffect(() => {
     loadDrivers();
     loadTrucks();
@@ -170,7 +199,6 @@ export default function Trips() {
     const errs = getErrors();
     if (Object.keys(errs).length > 0) {
         toast?.show("Verifique os campos obrigatórios", "error");
-        // Scroll to the first error? formRef is on the form.
         if (formRef.current) formRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
         return;
     }
@@ -443,12 +471,17 @@ export default function Trips() {
           </div>
         </form>
       </div>
+      
       <div className="card p-6 animate-fade overflow-x-auto hidden md:block">
         <table className="table min-w-[1100px]">
           <thead>
             <tr>
-              <th>ID</th>
-              <th>Data</th>
+              <th className="cursor-pointer select-none hover:text-blue-500 transition-colors" onClick={() => handleSort('id')}>
+                ID {sortConfig.key === 'id' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+              </th>
+              <th className="cursor-pointer select-none hover:text-blue-500 transition-colors" onClick={() => handleSort('date')}>
+                Data {sortConfig.key === 'date' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+              </th>
               <th>Motorista</th>
               <th>Caminhão</th>
               <th>Prancha</th>
@@ -462,7 +495,12 @@ export default function Trips() {
             </tr>
           </thead>
           <tbody>
-            {items.map((it, idx) => (
+            {sortedItems.length === 0 && (
+              <tr>
+                <td colSpan="12" className="text-center p-4 text-gray-500">Nenhuma viagem encontrada.</td>
+              </tr>
+            )}
+            {sortedItems.map((it, idx) => (
               <tr key={it.id} className={`${idx % 2 === 0 ? 'bg-slate-50 dark:bg-slate-800' : 'bg-white dark:bg-slate-700'} hover:bg-slate-100 dark:hover:bg-slate-600`}>
                 <td>{it.id}</td>
                 <td>{it.date}{it.end_date ? ` → ${it.end_date}` : ''}</td>
@@ -485,7 +523,10 @@ export default function Trips() {
         </table>
       </div>
       <div className="space-y-3 md:hidden">
-        {items.map((it) => (
+        {sortedItems.length === 0 && (
+          <div className="text-center p-4 text-gray-500 card">Nenhuma viagem encontrada.</div>
+        )}
+        {sortedItems.map((it) => (
           <div key={it.id} className="card p-4">
             <div className="flex justify-between items-center">
               <div className="font-semibold">#{it.id} • {it.date}{it.end_date ? ` → ${it.end_date}` : ''}</div>
