@@ -245,7 +245,7 @@ export default function Trips() {
 
   const edit = (it) => {
     setEditing(it);
-    setShowValidation(false);
+    setShowValidation(true);
     setForm({
       date: it.date ? fromIsoDate(it.date) : "",
       end_date: it.end_date ? fromIsoDate(it.end_date) : "",
@@ -281,16 +281,16 @@ export default function Trips() {
         <div className="font-semibold mb-4 text-secondary text-xl">Cadastro de Viagens</div>
         <form ref={formRef} onSubmit={submit} onKeyDown={handleFormKeyDown} className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="flex flex-col">
-            <input className={`input ${validationErrors.date ? 'ring-red-500 border-red-500' : ''}`} placeholder="Data (DD/MM/YY)" value={form.date} onChange={(e) => setForm({ ...form, date: maskDate(e.target.value) })} />
+            <input className={`input ${validationErrors.date ? 'ring-red-500 border-red-500' : ''}`} placeholder="Data (DD/MM/YY) *" value={form.date} onChange={(e) => setForm({ ...form, date: maskDate(e.target.value) })} />
             {validationErrors.date && <span className="text-red-500 text-xs mt-1">{validationErrors.date}</span>}
           </div>
           <div className="flex flex-col">
-            <input className={`input ${validationErrors.requester ? 'ring-red-500 border-red-500' : ''}`} placeholder="Solicitante" value={form.requester} onChange={(e) => setForm({ ...form, requester: e.target.value })} />
+            <input className={`input ${validationErrors.requester ? 'ring-red-500 border-red-500' : ''}`} placeholder="Solicitante *" value={form.requester} onChange={(e) => setForm({ ...form, requester: e.target.value })} />
             {validationErrors.requester && <span className="text-red-500 text-xs mt-1">{validationErrors.requester}</span>}
           </div>
           <div className="flex flex-col">
             <select className={`select ${validationErrors.driver_id ? 'ring-red-500 border-red-500' : ''}`} value={form.driver_id} onChange={(e) => setForm({ ...form, driver_id: e.target.value })}>
-              <option value="" disabled>Motorista</option>
+              <option value="" disabled>Motorista *</option>
               {drivers.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select>
             {validationErrors.driver_id && <span className="text-red-500 text-xs mt-1">{validationErrors.driver_id}</span>}
@@ -301,32 +301,32 @@ export default function Trips() {
               const tr = trucks.find((t) => t.id === Number(val));
               setForm({ ...form, truck_id: val, km_start: tr && tr.km_current != null ? String(tr.km_current).slice(0, 10) : form.km_start });
             }}>
-              <option value="" disabled>Caminhão (Frota)</option>
+              <option value="" disabled>Caminhão (Frota) *</option>
               {trucks.map((t) => <option key={t.id} value={t.id}>{t.fleet || t.plate || t.model || t.id}</option>)}
             </select>
             {validationErrors.truck_id && <span className="text-red-500 text-xs mt-1">{validationErrors.truck_id}</span>}
           </div>
           <div className="flex flex-col">
             <select className={`select ${validationErrors.prancha_id ? 'ring-red-500 border-red-500' : ''}`} value={form.prancha_id} onChange={(e) => setForm({ ...form, prancha_id: e.target.value })}>
-              <option value="" disabled>Prancha</option>
+              <option value="" disabled>Prancha *</option>
               {pranchas.map((p) => <option key={p.id} value={p.asset_number || ''}>{p.asset_number || p.identifier || p.model || p.id}</option>)}
             </select>
             {validationErrors.prancha_id && <span className="text-red-500 text-xs mt-1">{validationErrors.prancha_id}</span>}
           </div>
           <div className="flex flex-col">
-            <input className={`input ${validationErrors.destination ? 'ring-red-500 border-red-500' : ''}`} placeholder="Destino" value={form.destination} onChange={(e) => setForm({ ...form, destination: e.target.value })} />
+            <input className={`input ${validationErrors.destination ? 'ring-red-500 border-red-500' : ''}`} placeholder="Destino *" value={form.destination} onChange={(e) => setForm({ ...form, destination: e.target.value })} />
             {validationErrors.destination && <span className="text-red-500 text-xs mt-1">{validationErrors.destination}</span>}
           </div>
           <div className="flex flex-col">
             <select className={`select ${validationErrors.service_type ? 'ring-red-500 border-red-500' : ''}`} value={form.service_type} onChange={(e) => setForm({ ...form, service_type: e.target.value })}>
-              <option value="" disabled>Tipo</option>
+              <option value="" disabled>Tipo *</option>
               {tipoOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
             </select>
             {validationErrors.service_type && <span className="text-red-500 text-xs mt-1">{validationErrors.service_type}</span>}
           </div>
           <div className="flex flex-col">
             <select className={`select ${validationErrors.status ? 'ring-red-500 border-red-500' : ''}`} value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-              <option value="" disabled>Status</option>
+              <option value="" disabled>Status *</option>
               <option value="Previsto">Previsto</option>
               <option value="Em Andamento">Em Andamento</option>
               <option value="Finalizado">Finalizado</option>
@@ -337,7 +337,7 @@ export default function Trips() {
             <input className="input" placeholder="Descrição" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
           </div>
           <div className="flex flex-col">
-            <input className={`input ${validationErrors.start_time ? 'ring-red-500 border-red-500' : ''}`} placeholder="Hora saída (HH:MM)" value={form.start_time} onChange={(e) => setForm({ ...form, start_time: maskTime(e.target.value), end_date: (!form.end_date && isValidDate(form.date)) ? form.date : form.end_date })} />
+            <input className={`input ${validationErrors.start_time ? 'ring-red-500 border-red-500' : ''}`} placeholder="Hora saída (HH:MM) *" value={form.start_time} onChange={(e) => setForm({ ...form, start_time: maskTime(e.target.value), end_date: (!form.end_date && isValidDate(form.date)) ? form.date : form.end_date })} />
             {validationErrors.start_time && <span className="text-red-500 text-xs mt-1">{validationErrors.start_time}</span>}
           </div>
           <div className="flex flex-col">
@@ -358,7 +358,7 @@ export default function Trips() {
               <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="flex flex-col">
                   <div className="flex items-center gap-2">
-                    <input className={`input flex-1 ${validationErrors.km_start ? 'ring-red-500 border-red-500' : ''}`} placeholder="KM inicial" inputMode="numeric" maxLength={10} value={form.km_start} onChange={(e) => {
+                    <input className={`input flex-1 ${validationErrors.km_start ? 'ring-red-500 border-red-500' : ''}`} placeholder="KM inicial *" inputMode="numeric" maxLength={10} value={form.km_start} onChange={(e) => {
                       const val = e.target.value.replace(/\D/g, '').slice(0, 10);
                       const kmEndNum = Number((form.km_end || '').replace(/\D/g, ''));
                       const kmStartNum = Number(val || '');
