@@ -11,8 +11,8 @@ export default function Trips() {
   const [trucks, setTrucks] = useState([]);
   const [pranchas, setPranchas] = useState([]);
   const [items, setItems] = useState([]);
-  const tipoOptions = ["máquinas agrícolas","máquinas de construção","equipamentos industriais","veículos pesados","veículos leves"];
-  const [form, setForm] = useState({ date: "", end_date: "", requester: "", driver_id: "", truck_id: "", prancha_id: "", destination: "", service_type: "", status: "", description: "", start_time: "", end_time: "", km_start: "", km_end: "", km_trip: "", km_per_liter: "", noKmStart: false, noKmEnd: false, fuel_liters: "", fuel_price: "", other_costs: "", maintenance_cost: "", driver_daily: "" });
+  const tipoOptions = ["Máquinas Agrícolas","Máquinas de Construção","Equipamentos Industriais","Veículos Pesados","Veículos Leves"];
+  const [form, setForm] = useState({ date: "", end_date: "", requester: "", driver_id: "", truck_id: "", prancha_id: "", destination: "", service_type: "", status: "", description: "", start_time: "", end_time: "", km_start: "", km_end: "", km_trip: "", km_per_liter: "", noKmStart: false, noKmEnd: false, fuel_liters: "", noFuelLiters: false, fuel_price: "", noFuelPrice: false, other_costs: "", noOtherCosts: false, maintenance_cost: "", noMaintenanceCost: false, driver_daily: "", noDriverDaily: false });
   const [editing, setEditing] = useState(null);
   const [kmMode, setKmMode] = useState("");
   const [showValidation, setShowValidation] = useState(false);
@@ -227,7 +227,7 @@ export default function Trips() {
     if (editing) await updateViagem(editing.id, payload);
     else await saveViagem(payload);
     toast?.show(editing ? "Viagem atualizada" : "Viagem cadastrada", "success");
-    setForm({ date: "", end_date: "", requester: "", driver_id: "", truck_id: "", prancha_id: "", destination: "", service_type: "", status: "", description: "", start_time: "", end_time: "", km_start: "", km_end: "", km_trip: "", km_per_liter: "", noKmStart: false, noKmEnd: false, fuel_liters: "", fuel_price: "", other_costs: "", maintenance_cost: "", driver_daily: "" });
+    setForm({ date: "", end_date: "", requester: "", driver_id: "", truck_id: "", prancha_id: "", destination: "", service_type: "", status: "", description: "", start_time: "", end_time: "", km_start: "", km_end: "", km_trip: "", km_per_liter: "", noKmStart: false, noKmEnd: false, fuel_liters: "", noFuelLiters: false, fuel_price: "", noFuelPrice: false, other_costs: "", noOtherCosts: false, maintenance_cost: "", noMaintenanceCost: false, driver_daily: "", noDriverDaily: false });
     setEditing(null);
     setShowValidation(false);
     loadTrips();
@@ -265,8 +265,15 @@ export default function Trips() {
       noKmStart: false,
       noKmEnd: false,
       fuel_liters: it.fuel_liters?.toString() || "",
+      noFuelLiters: false,
       fuel_price: it.fuel_price?.toString() || "",
-      other_costs: it.other_costs?.toString() || ""
+      noFuelPrice: false,
+      other_costs: it.other_costs?.toString() || "",
+      noOtherCosts: false,
+      maintenance_cost: it.maintenance_cost?.toString() || "",
+      noMaintenanceCost: false,
+      driver_daily: it.driver_daily?.toString() || "",
+      noDriverDaily: false
     });
     toast?.show("Edição carregada", "info");
     if (formRef.current) formRef.current.scrollIntoView({ behavior: "smooth" });
@@ -358,7 +365,7 @@ export default function Trips() {
               <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="flex flex-col">
                   <div className="flex items-center gap-2">
-                    <input className={`input flex-1 ${validationErrors.km_start ? 'ring-red-500 border-red-500' : ''}`} placeholder="KM inicial *" inputMode="numeric" maxLength={10} value={form.km_start} onChange={(e) => {
+                    <input className={`input flex-1 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-500 ${validationErrors.km_start ? 'ring-red-500 border-red-500' : ''}`} placeholder="KM inicial *" inputMode="numeric" maxLength={10} value={form.km_start} onChange={(e) => {
                       const val = e.target.value.replace(/\D/g, '').slice(0, 10);
                       const kmEndNum = Number((form.km_end || '').replace(/\D/g, ''));
                       const kmStartNum = Number(val || '');
@@ -371,7 +378,7 @@ export default function Trips() {
                 </div>
                 <div className="flex flex-col">
                   <div className="flex items-center gap-2">
-                    <input className={`input flex-1 ${validationErrors.km_end ? 'ring-red-500 border-red-500' : ''}`} placeholder="KM final" inputMode="numeric" maxLength={10} value={form.km_end} onChange={(e) => {
+                    <input className={`input flex-1 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-500 ${validationErrors.km_end ? 'ring-red-500 border-red-500' : ''}`} placeholder="KM final" inputMode="numeric" maxLength={10} value={form.km_end} onChange={(e) => {
                       const val = e.target.value.replace(/\D/g, '').slice(0, 10);
                       const kmStartNum = Number((form.km_start || '').replace(/\D/g, ''));
                       const kmEndNum = Number(val || '');
@@ -409,65 +416,90 @@ export default function Trips() {
               </div>
             )}
           </div>
-          <input className="input" placeholder="Combustível (litros)" value={form.fuel_liters} onChange={(e) => setForm({ ...form, fuel_liters: e.target.value })} />
-          <div className="flex gap-2">
-            <input className="input flex-1" placeholder="Valor combustível (R$/litro)" value={form.fuel_price} onChange={(e) => setForm({ ...form, fuel_price: e.target.value })} />
-            <button type="button" className="btn btn-secondary" onClick={async () => {
-              try {
-                const petroUrl = "https://precos.petrobras.com.br/sele%C3%A7%C3%A3o-de-estados-diesel";
-                const extract = (html) => {
-                  const txt = String(html || "");
-                  const m = txt.match(/Pre\s?ço\s?M[ée]dio\s?do\s?Brasil[^\n]*?R\$\s*([0-9]{1,2}[\.,][0-9]{2})/i);
-                  if (m) return Number(m[1].replace(/\./g, "").replace(",", "."));
-                  const m2 = txt.match(/Diesel\s*S-?10[^\n]*?R\$\s*([0-9]{1,2}[\.,][0-9]{2})/i);
-                  if (m2) return Number(m2[1].replace(/\./g, "").replace(",", "."));
-                  return 0;
-                };
-                let v = 0;
-                try {
-                  const rJina = `https://r.jina.ai/http://${petroUrl.replace(/^https?:\/\//, "")}`;
-                  const r1 = await fetch(rJina);
-                  if (r1.ok) { const t1 = await r1.text(); v = extract(t1) || 0; }
-                } catch {}
-                if (!v) {
-                  try {
-                    const proxyGet = `https://api.allorigins.win/get?url=${encodeURIComponent(petroUrl)}`;
-                    const r2 = await fetch(proxyGet);
-                    if (r2.ok) { const j2 = await r2.json(); v = extract(j2.contents) || 0; }
-                  } catch {}
-                }
-                if (!v) {
-                  try {
-                    const proxyRaw = `https://api.allorigins.win/raw?url=${encodeURIComponent(petroUrl)}`;
-                    const r3 = await fetch(proxyRaw);
-                    if (r3.ok) { const t3 = await r3.text(); v = extract(t3) || 0; }
-                  } catch {}
-                }
-                if (v > 0) { setForm({ ...form, fuel_price: String(v.toFixed(2)) }); toast?.show("Preço obtido do site da Petrobras", "success"); return; }
-                const apiUrl = import.meta?.env?.VITE_FUEL_API_URL;
-                if (apiUrl) {
-                  const resp = await fetch(apiUrl);
-                  const json = await resp.json();
-                  const v2 = Number(json?.diesel ?? json?.gasolina ?? json?.fuel_price ?? 0);
-                  if (v2 > 0) { setForm({ ...form, fuel_price: String(v2.toFixed(2)) }); toast?.show("Preço obtido pela API", "success"); return; }
-                }
-                const custos = await getCustos({ page: 1, pageSize: 200 });
-                const lastCusto = custos.data.find((c) => Number(c.valorLitro || 0) > 0);
-                if (lastCusto) { setForm({ ...form, fuel_price: String(Number(lastCusto.valorLitro).toFixed(2)) }); toast?.show("Preço preenchido com último custo", "info"); return; }
-                const r = await getViagens({ page: 1, pageSize: 1000 });
-                const lastTrip = r.data.find((t) => Number(t.fuel_price || 0) > 0);
-                if (lastTrip) { setForm({ ...form, fuel_price: String(Number(lastTrip.fuel_price).toFixed(2)) }); toast?.show("Preço preenchido com última viagem", "info"); return; }
-                setForm({ ...form, fuel_price: String(Number(6.0).toFixed(2)) });
-                toast?.show("Preço padrão aplicado (R$ 6,00)", "info");
-              } catch { toast?.show("Não foi possível obter preço", "error"); }
-            }}>Buscar preço</button>
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2">
+              <input className="input flex-1 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-500" placeholder="Combustível (litros)" value={form.fuel_liters} onChange={(e) => setForm({ ...form, fuel_liters: e.target.value })} disabled={form.noFuelLiters} />
+              <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={form.noFuelLiters} onChange={(e) => setForm({ ...form, noFuelLiters: e.target.checked, fuel_liters: e.target.checked ? '' : form.fuel_liters })} /> Não registrado</label>
+            </div>
           </div>
-          <input className="input" placeholder="Outros custos (R$)" value={form.other_costs} onChange={(e) => setForm({ ...form, other_costs: e.target.value })} />
-          <input className="input" placeholder="Manutenção (R$)" value={form.maintenance_cost} onChange={(e) => setForm({ ...form, maintenance_cost: e.target.value })} />
-          <input className="input" placeholder="Diária do motorista (R$)" value={form.driver_daily} onChange={(e) => setForm({ ...form, driver_daily: e.target.value })} />
+          <div className="flex flex-col">
+            <div className="flex gap-2">
+              <div className="flex-1 flex items-center gap-2">
+                <input className="input flex-1 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-500" placeholder="Valor combustível (R$/litro)" value={form.fuel_price} onChange={(e) => setForm({ ...form, fuel_price: e.target.value })} disabled={form.noFuelPrice} />
+                <label className="flex items-center gap-1 text-sm whitespace-nowrap"><input type="checkbox" checked={form.noFuelPrice} onChange={(e) => setForm({ ...form, noFuelPrice: e.target.checked, fuel_price: e.target.checked ? '' : form.fuel_price })} /> N/R</label>
+              </div>
+              <button type="button" className="btn btn-secondary" onClick={async () => {
+                try {
+                  const petroUrl = "https://precos.petrobras.com.br/sele%C3%A7%C3%A3o-de-estados-diesel";
+                  const extract = (html) => {
+                    const txt = String(html || "");
+                    const m = txt.match(/Pre\s?ço\s?M[ée]dio\s?do\s?Brasil[^\n]*?R\$\s*([0-9]{1,2}[\.,][0-9]{2})/i);
+                    if (m) return Number(m[1].replace(/\./g, "").replace(",", "."));
+                    const m2 = txt.match(/Diesel\s*S-?10[^\n]*?R\$\s*([0-9]{1,2}[\.,][0-9]{2})/i);
+                    if (m2) return Number(m2[1].replace(/\./g, "").replace(",", "."));
+                    return 0;
+                  };
+                  let v = 0;
+                  try {
+                    const rJina = `https://r.jina.ai/http://${petroUrl.replace(/^https?:\/\//, "")}`;
+                    const r1 = await fetch(rJina);
+                    if (r1.ok) { const t1 = await r1.text(); v = extract(t1) || 0; }
+                  } catch {}
+                  if (!v) {
+                    try {
+                      const proxyGet = `https://api.allorigins.win/get?url=${encodeURIComponent(petroUrl)}`;
+                      const r2 = await fetch(proxyGet);
+                      if (r2.ok) { const j2 = await r2.json(); v = extract(j2.contents) || 0; }
+                    } catch {}
+                  }
+                  if (!v) {
+                    try {
+                      const proxyRaw = `https://api.allorigins.win/raw?url=${encodeURIComponent(petroUrl)}`;
+                      const r3 = await fetch(proxyRaw);
+                      if (r3.ok) { const t3 = await r3.text(); v = extract(t3) || 0; }
+                    } catch {}
+                  }
+                  if (v > 0) { setForm({ ...form, fuel_price: String(v.toFixed(2)) }); toast?.show("Preço obtido do site da Petrobras", "success"); return; }
+                  const apiUrl = import.meta?.env?.VITE_FUEL_API_URL;
+                  if (apiUrl) {
+                    const resp = await fetch(apiUrl);
+                    const json = await resp.json();
+                    const v2 = Number(json?.diesel ?? json?.gasolina ?? json?.fuel_price ?? 0);
+                    if (v2 > 0) { setForm({ ...form, fuel_price: String(v2.toFixed(2)) }); toast?.show("Preço obtido pela API", "success"); return; }
+                  }
+                  const custos = await getCustos({ page: 1, pageSize: 200 });
+                  const lastCusto = custos.data.find((c) => Number(c.valorLitro || 0) > 0);
+                  if (lastCusto) { setForm({ ...form, fuel_price: String(Number(lastCusto.valorLitro).toFixed(2)) }); toast?.show("Preço preenchido com último custo", "info"); return; }
+                  const r = await getViagens({ page: 1, pageSize: 1000 });
+                  const lastTrip = r.data.find((t) => Number(t.fuel_price || 0) > 0);
+                  if (lastTrip) { setForm({ ...form, fuel_price: String(Number(lastTrip.fuel_price).toFixed(2)) }); toast?.show("Preço preenchido com última viagem", "info"); return; }
+                  setForm({ ...form, fuel_price: String(Number(6.0).toFixed(2)) });
+                  toast?.show("Preço padrão aplicado (R$ 6,00)", "info");
+                } catch { toast?.show("Não foi possível obter preço", "error"); }
+              }}>Buscar preço</button>
+            </div>
+          </div>
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2">
+              <input className="input flex-1 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-500" placeholder="Outros custos (R$)" value={form.other_costs} onChange={(e) => setForm({ ...form, other_costs: e.target.value })} disabled={form.noOtherCosts} />
+              <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={form.noOtherCosts} onChange={(e) => setForm({ ...form, noOtherCosts: e.target.checked, other_costs: e.target.checked ? '' : form.other_costs })} /> Não registrado</label>
+            </div>
+          </div>
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2">
+              <input className="input flex-1 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-500" placeholder="Manutenção (R$)" value={form.maintenance_cost} onChange={(e) => setForm({ ...form, maintenance_cost: e.target.value })} disabled={form.noMaintenanceCost} />
+              <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={form.noMaintenanceCost} onChange={(e) => setForm({ ...form, noMaintenanceCost: e.target.checked, maintenance_cost: e.target.checked ? '' : form.maintenance_cost })} /> Não registrado</label>
+            </div>
+          </div>
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2">
+              <input className="input flex-1 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-500" placeholder="Diária do motorista (R$)" value={form.driver_daily} onChange={(e) => setForm({ ...form, driver_daily: e.target.value })} disabled={form.noDriverDaily} />
+              <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={form.noDriverDaily} onChange={(e) => setForm({ ...form, noDriverDaily: e.target.checked, driver_daily: e.target.checked ? '' : form.driver_daily })} /> Não registrado</label>
+            </div>
+          </div>
           <div className="md:col-span-4 flex gap-4">
              <button type="submit" className="btn btn-primary">{editing ? "Salvar" : "Adicionar"}</button>
-             {editing && <button type="button" className="btn bg-gray-500 hover:bg-gray-600 text-white" onClick={() => { setEditing(null); setShowValidation(false); setForm({ date: "", end_date: "", requester: "", driver_id: "", truck_id: "", prancha_id: "", destination: "", service_type: "", status: "", description: "", start_time: "", end_time: "", km_start: "", km_end: "", km_trip: "", km_per_liter: "", noKmStart: false, noKmEnd: false, fuel_liters: "", fuel_price: "", other_costs: "", maintenance_cost: "", driver_daily: "" }); }}>Cancelar</button>}
+             {editing && <button type="button" className="btn bg-gray-500 hover:bg-gray-600 text-white" onClick={() => { setEditing(null); setShowValidation(false); setForm({ date: "", end_date: "", requester: "", driver_id: "", truck_id: "", prancha_id: "", destination: "", service_type: "", status: "", description: "", start_time: "", end_time: "", km_start: "", km_end: "", km_trip: "", km_per_liter: "", noKmStart: false, noKmEnd: false, fuel_liters: "", noFuelLiters: false, fuel_price: "", noFuelPrice: false, other_costs: "", noOtherCosts: false, maintenance_cost: "", noMaintenanceCost: false, driver_daily: "", noDriverDaily: false }); }}>Cancelar</button>}
           </div>
         </form>
       </div>

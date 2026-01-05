@@ -373,11 +373,11 @@ export default function Costs() {
           </select>
           <input className={`input ${form.dataRegistro && !isValidDate(form.dataRegistro) && 'ring-red-500 border-red-500'}`} placeholder="Data registro (DD/MM/YYYY)" value={form.dataRegistro} onChange={(e) => setForm({ ...form, dataRegistro: maskDate(e.target.value) })} />
           <select className="select" value={form.categoria} onChange={(e) => setForm({ ...form, categoria: e.target.value })}>
-            <option>máquinas agrícolas</option>
-            <option>máquinas de construção</option>
-            <option>equipamentos industriais</option>
-            <option>veículos pesados</option>
-            <option>veículos leves</option>
+            <option>Máquinas Agrícolas</option>
+            <option>Máquinas de Construção</option>
+            <option>Equipamentos Industriais</option>
+            <option>Veículos Pesados</option>
+            <option>Veículos Leves</option>
           </select>
           <label className="flex items-center gap-2"><input type="checkbox" checked={form.noFuel} onChange={(e) => setForm({ ...form, noFuel: e.target.checked, consumoLitros: e.target.checked ? 0 : form.consumoLitros, valorLitro: e.target.checked ? 0 : form.valorLitro })} /> <span>Não houve gasto de combustível</span></label>
           <input className="input" disabled={form.noFuel} placeholder="Consumo (litros)" value={form.consumoLitros} onChange={(e) => setForm({ ...form, consumoLitros: e.target.value })} />
