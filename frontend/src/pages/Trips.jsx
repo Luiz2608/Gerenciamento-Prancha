@@ -286,6 +286,14 @@ export default function Trips() {
 
   return (
     <div className="space-y-8 overflow-x-auto overflow-y-auto min-h-screen page" style={{ WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain', overscrollBehaviorY: 'contain', touchAction: 'pan-y' }}>
+      
+      {!showForm && !editing && (
+        <div className="flex justify-end">
+          <button className="btn btn-primary" onClick={() => setShowForm(true)}>Novo</button>
+        </div>
+      )}
+
+      {(showForm || editing) && (
       <div className="card p-6 animate-fade">
         <div className="font-semibold mb-4 text-secondary text-xl">Cadastro de Viagens</div>
         <form ref={formRef} onSubmit={submit} onKeyDown={handleFormKeyDown} className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -501,7 +509,17 @@ export default function Trips() {
           </div>
           <div className="md:col-span-4 flex gap-4">
              <button type="submit" className="btn btn-primary">{editing ? "Salvar" : "Adicionar"}</button>
-             <button type="button" className="btn bg-gray-500 hover:bg-gray-600 text-white" onClick={() => { setEditing(null); setShowForm(false); setShowValidation(false); setForm({ date: "", end_date: "", requester: "", driver_id: "", truck_id: "", prancha_id: "", destination: "", service_type: "", status: "", description: "", start_time: "", end_time: "", km_start: "", km_end: "", km_trip: "", km_per_liter: "", noKmStart: false, noKmEnd: false, fuel_liters: "", noFuelLiters: false, fuel_price: "", noFuelPrice: false, other_costs: "", noOtherCosts: false, maintenance_cost: "", noMaintenanceCost: false, driver_daily: "", noDriverDaily: false }); }}>Cancelar</button>
+             <button type="button" className="btn bg-gray-500 hover:bg-gray-600 text-white" onClick={() => {
+               setEditing(null);
+               setShowForm(false);
+               setShowValidation(false);
+               setForm({
+                 date: "", end_date: "", requester: "", driver_id: "", truck_id: "", prancha_id: "", destination: "", service_type: "", status: "", description: "",
+                 start_time: "", end_time: "", km_start: "", km_end: "", km_trip: "", km_per_liter: "", noKmStart: false, noKmEnd: false,
+                 fuel_liters: "", noFuelLiters: false, fuel_price: "", noFuelPrice: false, other_costs: "", noOtherCosts: false,
+                 maintenance_cost: "", noMaintenanceCost: false, driver_daily: "", noDriverDaily: false
+               });
+             }}>Cancelar</button>
           </div>
         </form>
       </div>
