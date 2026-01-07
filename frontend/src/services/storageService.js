@@ -125,6 +125,13 @@ async function syncPending() {
               delete payload2.plate;
               delete payload2.chassis;
               await processUpdate("pranchas", "id", id, payload2);
+              // Update local DB to ensure plate/chassis are preserved locally even if backend rejected them
+              const db = getDB();
+              const idx = db.pranchas.findIndex((d) => d.id === id);
+              if (idx >= 0) {
+                db.pranchas[idx] = { ...db.pranchas[idx], ...it.payload };
+                setDB(db);
+              }
             }
           } else if (it.op === "delete") {
             const id = mapPranchas[it.localId] || it.remoteId || it.localId;
