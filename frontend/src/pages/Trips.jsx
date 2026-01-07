@@ -375,10 +375,10 @@ export default function Trips() {
               <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="flex flex-col">
                   <div className="flex items-center gap-2">
-                    <input className={`input flex-1 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-500 ${validationErrors.km_start ? 'ring-red-500 border-red-500' : ''}`} placeholder="KM inicial *" inputMode="numeric" maxLength={10} value={form.km_start} onChange={(e) => {
-                      const val = e.target.value.replace(/\D/g, '').slice(0, 10);
-                      const kmEndNum = Number((form.km_end || '').replace(/\D/g, ''));
-                      const kmStartNum = Number(val || '');
+                    <input className={`input flex-1 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-500 ${validationErrors.km_start ? 'ring-red-500 border-red-500' : ''}`} placeholder="KM inicial *" inputMode="decimal" maxLength={10} value={form.km_start} onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9.,]/g, '').slice(0, 10);
+                      const kmEndNum = Number((form.km_end || '').replace(',', '.'));
+                      const kmStartNum = Number(val.replace(',', '.') || '');
                       const autoTrip = (form.km_trip === '' && form.km_end !== '') ? String(Math.max(0, kmEndNum - kmStartNum)) : form.km_trip;
                       setForm({ ...form, km_start: val, km_trip: autoTrip });
                     }} disabled={form.noKmStart} />
