@@ -37,6 +37,7 @@ export default function FleetTrucks() {
       plate: form.plate || null,
       model: form.model || null,
       year: form.year ? Number(form.year) : null,
+      chassis: form.chassis || null,
       asset_number: form.asset_number || null,
       capacity: form.capacity ? Number(form.capacity) : null,
       km_current: form.km_current ? Number(form.km_current) : null,
@@ -104,7 +105,7 @@ export default function FleetTrucks() {
                 <td>{it.plate || ""}</td>
                 <td>{it.model || ""}</td>
                 <td>{it.year ?? ""}</td>
-                <td>{it.chassis || ""}</td>
+                <td title={it.chassis}>{it.chassis || ""}</td>
                 <td>{it.km_current ?? ""}</td>
                 <td>{it.fleet || ""}</td>
                 <td>{it.status}</td>
