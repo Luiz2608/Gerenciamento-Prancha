@@ -502,7 +502,31 @@ export async function deleteTipoServico(id) { await initLoad(); const db = getDB
 export async function getTruck() { await initLoad(); return getDB().config.truck || {}; }
 export async function updateTruck(data) { await initLoad(); const db = getDB(); db.config.truck = { plate: data.plate || null, model: data.model || null, year: data.year != null ? Number(data.year) : null }; setDB(db); return db.config.truck; }
 
-export async function getCaminhoes() { await initLoad(); if (API_URL) { const r = await api("/api/caminhoes"); const j = await r.json(); return Array.isArray(j) ? j : []; } const { supabase: sb } = await import("./supabaseClient.js"); if (sb && isOnline()) { const { data } = await sb.from("caminhoes").select("*").order("id", { ascending: false }); const rows = Array.isArray(data) ? data : []; const db = getDB(); db.caminhoes = rows.slice(); setDB(db); return rows; } return getDB().caminhoes.slice().reverse(); }
+export async function getCaminhoes() { 
+  await initLoad(); 
+  if (API_URL) { 
+    const r = await api("/api/caminhoes"); 
+    const j = await r.json(); 
+    return Array.isArray(j) ? j : []; 
+  } 
+  const { supabase: sb } = await import("./supabaseClient.js"); 
+  if (sb && isOnline()) { 
+    const { data } = await sb.from("caminhoes").select("*").order("id", { ascending: false }); 
+    const rows = Array.isArray(data) ? data : []; 
+    const db = getDB(); 
+    const mergedRows = rows.map(r => {
+      const local = db.caminhoes.find(p => p.id === r.id);
+      if (local) {
+        return { ...r, chassis: local.chassis || r.chassis, plate: local.plate || r.plate, fleet: local.fleet || r.fleet };
+      }
+      return r;
+    });
+    db.caminhoes = mergedRows.slice(); 
+    setDB(db); 
+    return mergedRows; 
+  } 
+  return getDB().caminhoes.slice().reverse(); 
+}
 export async function saveCaminhao(data) { await initLoad(); if (API_URL) { const r = await api("/api/caminhoes", { method: "POST", body: JSON.stringify({ plate: data.plate || null, model: data.model || null, year: data.year != null ? Number(data.year) : null, chassis: data.chassis || null, km_current: data.km_current != null ? Number(data.km_current) : null, fleet: data.fleet || null, status: data.status || "Ativo" }) }); return await r.json(); } const { supabase: sb } = await import("./supabaseClient.js"); const payload = { plate: data.plate || null, model: data.model || null, year: data.year != null ? Number(data.year) : null, chassis: data.chassis || null, km_current: data.km_current != null ? Number(data.km_current) : null, fleet: data.fleet || null, status: data.status || "Ativo" }; if (sb && isOnline()) { const { data: row } = await sb.from("caminhoes").insert([payload]).select().single(); const db = getDB(); const idx = db.caminhoes.findIndex((d) => d.id === row.id); if (idx>=0) db.caminhoes[idx] = row; else db.caminhoes.push(row); setDB(db); return row; } const db = getDB(); const id = db.seq.caminhoes++; const row = { id, ...payload }; db.caminhoes.push(row); setDB(db); enqueue({ table: "caminhoes", op: "insert", payload, localId: id }); return row; }
 export async function updateCaminhao(id, data) { await initLoad(); if (API_URL) { const r = await api(`/api/caminhoes/${id}`, { method: "PUT", body: JSON.stringify({ plate: data.plate || null, model: data.model || null, year: data.year != null ? Number(data.year) : null, chassis: data.chassis || null, km_current: data.km_current != null ? Number(data.km_current) : null, fleet: data.fleet || null, status: data.status || "Ativo" }) }); return await r.json(); } const { supabase: sb } = await import("./supabaseClient.js"); const payload = { plate: data.plate || null, model: data.model || null, year: data.year != null ? Number(data.year) : null, chassis: data.chassis || null, km_current: data.km_current != null ? Number(data.km_current) : null, fleet: data.fleet || null, status: data.status || "Ativo" }; if (sb && isOnline()) { const { data: row } = await sb.from("caminhoes").update(payload).eq("id", id).select().single(); const db = getDB(); const i = db.caminhoes.findIndex((d) => d.id === Number(id)); if (i>=0) db.caminhoes[i] = row; else db.caminhoes.push(row); setDB(db); return row; } const db = getDB(); const i = db.caminhoes.findIndex((d) => d.id === Number(id)); if (i>=0) db.caminhoes[i] = { id: Number(id), ...payload }; else db.caminhoes.push({ id: Number(id), ...payload }); setDB(db); enqueue({ table: "caminhoes", op: "update", payload, localId: Number(id) }); return db.caminhoes[i>=0?i:db.caminhoes.length-1]; }
 export async function deleteCaminhao(id) { await initLoad(); if (API_URL) { await api(`/api/caminhoes/${id}`, { method: "DELETE" }); return { ok: true }; } const { supabase: sb } = await import("./supabaseClient.js"); if (sb && isOnline()) { await sb.from("caminhoes").delete().eq("id", id); const db = getDB(); db.caminhoes = db.caminhoes.filter((d) => d.id !== Number(id)); setDB(db); return { ok: true }; } const db = getDB(); db.caminhoes = db.caminhoes.filter((d) => d.id !== Number(id)); setDB(db); enqueue({ table: "caminhoes", op: "delete", localId: Number(id) }); return { ok: true }; }
