@@ -443,8 +443,9 @@ export default function Costs() {
   );
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 min-h-screen page">
       <div className="flex items-center gap-3">
+        <div className="w-10 h-10 bg-accent rounded-xl flex items-center justify-center text-white">💸</div>
         <button className={`btn ${tab === "lista" ? "btn-primary" : "btn-secondary"}`} onClick={() => setTab("lista")}>Lista</button>
         <button className={`btn ${tab === "novo" ? "btn-primary" : "btn-secondary"}`} onClick={() => { setEditingId(null); setTab("novo"); }}>Novo custo</button>
         <button className={`btn ${tab === "relatorios" ? "btn-primary" : "btn-secondary"}`} onClick={() => setTab("relatorios")}>Relatórios</button>

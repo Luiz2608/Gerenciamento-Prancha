@@ -14,6 +14,7 @@ export default function Trips() {
   const tipoOptions = ["Máquinas Agrícolas","Máquinas de Construção","Equipamentos Industriais","Veículos Pesados","Veículos Leves"];
   const [form, setForm] = useState({ date: "", end_date: "", requester: "", driver_id: "", truck_id: "", prancha_id: "", destination: "", service_type: "", status: "", description: "", start_time: "", end_time: "", km_start: "", km_end: "", km_trip: "", km_per_liter: "", noKmStart: false, noKmEnd: false, fuel_liters: "", noFuelLiters: false, fuel_price: "", noFuelPrice: false, other_costs: "", noOtherCosts: false, maintenance_cost: "", noMaintenanceCost: false, driver_daily: "", noDriverDaily: false });
   const [editing, setEditing] = useState(null);
+  const [showForm, setShowForm] = useState(false);
   const [kmMode, setKmMode] = useState("");
   const [showValidation, setShowValidation] = useState(false);
   const formRef = useRef(null);
@@ -245,6 +246,7 @@ export default function Trips() {
 
   const edit = (it) => {
     setEditing(it);
+    setShowForm(true);
     setShowValidation(true);
     setForm({
       date: it.date ? fromIsoDate(it.date) : "",
@@ -394,10 +396,10 @@ export default function Trips() {
             {kmMode === 'KM da Viagem' && (
               <div className="mt-3 space-y-3">
                 <div className="flex flex-col">
-                  <input className={`input ${validationErrors.km_trip ? 'ring-red-500 border-red-500' : ''}`} placeholder="KM da Viagem" inputMode="numeric" maxLength={10} value={form.km_trip} onChange={(e) => {
-                    const val = e.target.value.replace(/\D/g, '').slice(0, 10);
-                    const kmStartNum = Number((form.km_start || '').replace(/\D/g, ''));
-                    const vNum = Number(val || '');
+                  <input className={`input ${validationErrors.km_trip ? 'ring-red-500 border-red-500' : ''}`} placeholder="KM da Viagem" inputMode="decimal" maxLength={10} value={form.km_trip} onChange={(e) => {
+                    const val = e.target.value.replace(/[^0-9.,]/g, '').slice(0, 10);
+                    const kmStartNum = Number((form.km_start || '').replace(',', '.'));
+                    const vNum = Number(val.replace(',', '.') || '');
                     const newEnd = form.km_start !== '' ? String(kmStartNum + vNum) : form.km_end;
                     const perLNum = Number(String(form.km_per_liter || '').replace(',', '.'));
                     const autoLiters = perLNum > 0 && vNum >= 0 ? String((vNum / perLNum).toFixed(2)) : form.fuel_liters;
@@ -499,10 +501,11 @@ export default function Trips() {
           </div>
           <div className="md:col-span-4 flex gap-4">
              <button type="submit" className="btn btn-primary">{editing ? "Salvar" : "Adicionar"}</button>
-             {editing && <button type="button" className="btn bg-gray-500 hover:bg-gray-600 text-white" onClick={() => { setEditing(null); setShowValidation(false); setForm({ date: "", end_date: "", requester: "", driver_id: "", truck_id: "", prancha_id: "", destination: "", service_type: "", status: "", description: "", start_time: "", end_time: "", km_start: "", km_end: "", km_trip: "", km_per_liter: "", noKmStart: false, noKmEnd: false, fuel_liters: "", noFuelLiters: false, fuel_price: "", noFuelPrice: false, other_costs: "", noOtherCosts: false, maintenance_cost: "", noMaintenanceCost: false, driver_daily: "", noDriverDaily: false }); }}>Cancelar</button>}
+             <button type="button" className="btn bg-gray-500 hover:bg-gray-600 text-white" onClick={() => { setEditing(null); setShowForm(false); setShowValidation(false); setForm({ date: "", end_date: "", requester: "", driver_id: "", truck_id: "", prancha_id: "", destination: "", service_type: "", status: "", description: "", start_time: "", end_time: "", km_start: "", km_end: "", km_trip: "", km_per_liter: "", noKmStart: false, noKmEnd: false, fuel_liters: "", noFuelLiters: false, fuel_price: "", noFuelPrice: false, other_costs: "", noOtherCosts: false, maintenance_cost: "", noMaintenanceCost: false, driver_daily: "", noDriverDaily: false }); }}>Cancelar</button>
           </div>
         </form>
       </div>
+      )}
       
       <div className="card p-6 animate-fade overflow-x-auto hidden md:block">
         <table className="table min-w-[1100px]">
