@@ -128,7 +128,6 @@ export default function FleetPranchas() {
               <option>Reboque 30 metros</option>
               <option>Reboque 26 metros</option>
             </select>
-            <input className="input" placeholder="Frota" value={form.fleet} onChange={(e) => setForm({ ...form, fleet: e.target.value })} />
             <input className="input" placeholder="Conjunto" value={form.conjunto} onChange={(e) => setForm({ ...form, conjunto: e.target.value })} />
             <input className="input" placeholder="Capacidade" value={form.capacity} readOnly />
             <input className="input" placeholder="Ano" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} />
@@ -146,7 +145,7 @@ export default function FleetPranchas() {
 
             <div className="md:col-span-6 grid grid-cols-1 md:grid-cols-3 gap-4 border p-4 rounded bg-slate-50 dark:bg-slate-800">
               <div className="font-semibold md:col-span-3 mb-2">{form.is_set ? "Reboque 1" : "Dados do Reboque"}</div>
-              <input className="input" placeholder="Nº Ativo" value={form.asset_number} onChange={(e) => setForm({ ...form, asset_number: e.target.value })} />
+              <input className="input" placeholder="Frota / Nº Ativo" value={form.asset_number} onChange={(e) => setForm({ ...form, asset_number: e.target.value })} />
               <input className="input" placeholder="Placa" value={form.plate} onChange={(e) => setForm({ ...form, plate: maskPlate(e.target.value) })} />
               <input className="input" placeholder="Chassi" value={form.chassis} onChange={(e) => setForm({ ...form, chassis: maskChassis(e.target.value) })} />
             </div>
@@ -173,7 +172,6 @@ export default function FleetPranchas() {
             <tr>
               <th>ID</th>
               <th>Nº Ativo</th>
-              <th>Frota</th>
               <th>Conjunto</th>
               <th>Tipo</th>
               <th>Ano</th>
@@ -192,7 +190,6 @@ export default function FleetPranchas() {
                   <div>{it.asset_number || ""}</div>
                   {it.is_set && it.asset_number2 && <div className="text-xs text-slate-500 dark:text-slate-400">{it.asset_number2}</div>}
                 </td>
-                <td>{it.fleet || ""}</td>
                 <td>{it.conjunto || ""}</td>
                 <td>{it.type || ""}</td>
                 <td>{it.year ?? ""}</td>
@@ -225,7 +222,6 @@ export default function FleetPranchas() {
               </div>
               <div className="text-sm">{it.status}</div>
             </div>
-            <div className="text-sm text-slate-600 dark:text-slate-300">Frota: {it.fleet || "-"}</div>
             <div className="text-sm text-slate-600 dark:text-slate-300">Conjunto: {it.conjunto || "-"}</div>
             <div className="text-sm text-slate-600 dark:text-slate-300">Tipo: {it.type || ""}</div>
             <div className="text-sm text-slate-600 dark:text-slate-300">Ano: {it.year ?? ""}</div>
