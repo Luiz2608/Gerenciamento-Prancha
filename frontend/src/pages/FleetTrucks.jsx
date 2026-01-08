@@ -1,7 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { getCaminhoes, saveCaminhao, updateCaminhao, deleteCaminhao } from "../services/storageService.js";
 import { useToast } from "../components/ToastProvider.jsx";
-import { supabase } from "../services/supabaseClient.js";
 
 export default function FleetTrucks() {
   const toast = useToast();

@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { dashboard } from "../services/storageService.js";
-import { supabase } from "../services/supabaseClient.js";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, LabelList, Legend, CartesianGrid } from "recharts";
 
 export default function Dashboard() {

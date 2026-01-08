@@ -2,7 +2,6 @@ import { useEffect, useState, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { getMotoristas, getViagens, getViagem, saveViagem, updateViagem, deleteViagem, getCaminhoes, getPranchas, getCustos } from "../services/storageService.js";
 import { useToast } from "../components/ToastProvider.jsx";
-import { supabase } from "../services/supabaseClient.js";
 
 export default function Trips() {
   const toast = useToast();

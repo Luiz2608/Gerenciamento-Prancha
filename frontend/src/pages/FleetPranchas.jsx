@@ -1,7 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { getPranchas, savePrancha, updatePrancha, deletePrancha } from "../services/storageService.js";
 import { useToast } from "../components/ToastProvider.jsx";
-import { supabase } from "../services/supabaseClient.js";
 
 export default function FleetPranchas() {
   const toast = useToast();

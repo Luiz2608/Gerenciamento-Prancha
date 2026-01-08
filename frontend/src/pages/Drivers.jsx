@@ -1,7 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { getMotoristas, saveMotorista, updateMotorista, deleteMotorista } from "../services/storageService.js";
 import { useToast } from "../components/ToastProvider.jsx";
-import { supabase } from "../services/supabaseClient.js";
 
 export default function Drivers() {
   const toast = useToast();
