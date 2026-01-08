@@ -24,17 +24,18 @@ export default function Costs() {
     return saved ? JSON.parse(saved) : { viagemId: "", dataRegistro: "", consumoLitros: "", valorLitro: "", diariaMotorista: "", pedagios: "", manutencao: "", outrosCustos: [], observacoes: "", anexos: [] };
   });
 
+  const [addingOther, setAddingOther] = useState({ descricao: "", valor: "" });
+  const [trips, setTrips] = useState([]);
+  const [viewing, setViewing] = useState(null);
+  const [editingId, setEditingId] = useState(null);
+  const [calc, setCalc] = useState(null);
+
   useEffect(() => {
     if (!editingId) {
       localStorage.setItem("costs_form_draft", JSON.stringify(form));
     }
   }, [form, editingId]);
 
-  const [addingOther, setAddingOther] = useState({ descricao: "", valor: "" });
-  const [trips, setTrips] = useState([]);
-  const [viewing, setViewing] = useState(null);
-  const [editingId, setEditingId] = useState(null);
-  const [calc, setCalc] = useState(null);
 
   const loadRefs = async () => {
     setDrivers(await getMotoristas());
