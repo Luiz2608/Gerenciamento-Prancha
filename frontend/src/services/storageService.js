@@ -1068,7 +1068,7 @@ async function migrateCostsFromTrips(dbInput) {
 
 export async function getCustos(opts = {}) {
   await initLoad();
-  const { sb } = await import("./supabaseClient.js");
+  const { supabase: sb } = await import("./supabaseClient.js");
   const { startDate, endDate, caminhaoId, pranchaId, driverId, aprovado, search, minCusto, maxCusto, page = 1, pageSize = 10 } = opts;
   if (sb && isOnline()) {
     let query = sb.from("custos").select("*");
