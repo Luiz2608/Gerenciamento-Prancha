@@ -11,15 +11,15 @@ export default function Drivers() {
     return saved ? JSON.parse(saved) : { name: "", cpf: "", cnh_category: "", status: "Ativo" };
   });
 
+  const [editing, setEditing] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const formRef = useRef(null);
+
   useEffect(() => {
     if (!editing) {
       localStorage.setItem("drivers_form_draft", JSON.stringify(form));
     }
   }, [form, editing]);
-
-  const [editing, setEditing] = useState(null);
-  const [showForm, setShowForm] = useState(false);
-  const formRef = useRef(null);
 
   const load = () => getMotoristas().then((r) => setItems(r));
   useEffect(() => {

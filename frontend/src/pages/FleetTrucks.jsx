@@ -10,15 +10,15 @@ export default function FleetTrucks() {
     return saved ? JSON.parse(saved) : { plate: "", model: "", year: "", chassis: "", km_current: "", fleet: "", status: "Ativo" };
   });
   
+  const [editing, setEditing] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const formRef = useRef(null);
+
   useEffect(() => {
     if (!editing) {
       localStorage.setItem("trucks_form_draft", JSON.stringify(form));
     }
   }, [form, editing]);
-
-  const [editing, setEditing] = useState(null);
-  const [showForm, setShowForm] = useState(false);
-  const formRef = useRef(null);
   const maskPlate = (v) => {
     const s = String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0,7);
     return s;

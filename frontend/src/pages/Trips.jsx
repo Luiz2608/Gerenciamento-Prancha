@@ -16,17 +16,17 @@ export default function Trips() {
     return saved ? JSON.parse(saved) : { date: "", end_date: "", requester: "", driver_id: "", truck_id: "", prancha_id: "", destination: "", service_type: "", status: "", description: "", start_time: "", end_time: "", km_start: "", km_end: "", km_trip: "", km_per_liter: "", noKmStart: false, noKmEnd: false, fuel_liters: "", noFuelLiters: false, fuel_price: "", noFuelPrice: false, other_costs: "", noOtherCosts: false, maintenance_cost: "", noMaintenanceCost: false, driver_daily: "", noDriverDaily: false };
   });
   
-  useEffect(() => {
-    if (!editing) {
-      localStorage.setItem("trips_form_draft", JSON.stringify(form));
-    }
-  }, [form, editing]);
-
   const [editing, setEditing] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [kmMode, setKmMode] = useState("");
   const [showValidation, setShowValidation] = useState(false);
   const formRef = useRef(null);
+
+  useEffect(() => {
+    if (!editing) {
+      localStorage.setItem("trips_form_draft", JSON.stringify(form));
+    }
+  }, [form, editing]);
 
   const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'desc' });
   const [statusFilter, setStatusFilter] = useState("");
