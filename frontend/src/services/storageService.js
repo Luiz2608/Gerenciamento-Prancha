@@ -623,14 +623,24 @@ export async function dashboard(opts = {}) {
     hoursByMonth.push({ month: m2, hours: hrs });
   }
   const tripsByDriver = motoristas.map((d) => ({ name: d.name, value: monthTrips.filter((t) => t.driver_id === d.id).length }));
-  const monthCosts = custos.filter((c) => (c.dataRegistro || "").slice(0,10) >= start && (c.dataRegistro || "").slice(0,10) <= end);
-  const totalCostsMonth = monthCosts.reduce((a, c) => a + Number(c.custoTotal || 0), 0);
+  
+  const calcCost = (t) => Number(t.fuel_liters || 0) * Number(t.fuel_price || 0) + Number(t.other_costs || 0) + Number(t.maintenance_cost || 0) + Number(t.driver_daily || 0);
+  const totalCostsMonth = monthTrips.reduce((a, t) => a + calcCost(t), 0);
+  
   const totalCompleted = monthTrips.filter((t) => t.status === "Finalizado").length;
   const totalDrivers = motoristas.length;
   const totalTrucks = caminhoes.length;
   const totalPranchas = pranchas.length;
   const totalCustos = custos.length;
-  const costsByCategory = ["máquinas agrícolas","máquinas de construção","equipamentos industriais","veículos pesados","veículos leves"].map((name) => ({ name, value: custos.filter((c) => (c.categoria || "veículos pesados") === name).reduce((a, c) => a + Number(c.custoTotal || 0), 0) }));
+  
+  const categories = ["Máquinas Agrícolas","Máquinas de Construção","Equipamentos Industriais","Veículos Pesados","Veículos Leves"];
+  const costsByCategory = categories.map((name) => ({ 
+    name, 
+    value: monthTrips
+      .filter((t) => (t.service_type || "").toLowerCase() === name.toLowerCase())
+      .reduce((a, t) => a + calcCost(t), 0) 
+  }));
+  
   const costsByMonth = [];
   for (let i = 0; i < 12; i++) {
     const d = new Date(year, i, 1);
@@ -639,8 +649,8 @@ export async function dashboard(opts = {}) {
     const s = `${y2}-${m2}-01`;
     const eDate = new Date(y2, i + 1, 0);
     const e = `${y2}-${m2}-${String(eDate.getDate()).padStart(2, "0")}`;
-    const rows = custos.filter((c) => (c.dataRegistro || "").slice(0,10) >= s && (c.dataRegistro || "").slice(0,10) <= e);
-    const total = rows.reduce((a, c) => a + Number(c.custoTotal || 0), 0);
+    const rows = viagens.filter((t) => t.date >= s && t.date <= e);
+    const total = rows.reduce((a, t) => a + calcCost(t), 0);
     costsByMonth.push({ month: m2, total });
   }
   return { totalTrips, totalKm, totalHours, totalCompleted, topDriver, topDestination, kmByMonth, hoursByMonth, tripsByDriver, totalCostsMonth, totalDrivers, totalTrucks, totalPranchas, totalCustos, costsByCategory, costsByMonth };
