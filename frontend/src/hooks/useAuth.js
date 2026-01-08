@@ -18,26 +18,33 @@ export default function useAuth() {
   }, [user]);
 
   useEffect(() => {
+    let sub = null;
     const init = async () => {
+      const { supabase: sb } = await import("../services/supabaseClient.js");
       if (!sb) return;
+
       const { data } = await sb.auth.getSession();
       const session = data?.session || null;
       const userObj = session?.user || null;
       if (session) setToken(session.access_token || "supabase-token");
       if (userObj) setUser({ id: userObj.id, username: userObj.email, role: "user" });
+
+      const { data: subscription } = sb.auth.onAuthStateChange((_event, session) => {
+        const userObj = session?.user || null;
+        setToken(session ? (session.access_token || "supabase-token") : null);
+        setUser(userObj ? { id: userObj.id, username: userObj.email, role: "user" } : null);
+      });
+      sub = subscription;
     };
     init();
-    if (!sb) return;
-    const { data: sub } = sb.auth.onAuthStateChange((_event, session) => {
-      const userObj = session?.user || null;
-      setToken(session ? (session.access_token || "supabase-token") : null);
-      setUser(userObj ? { id: userObj.id, username: userObj.email, role: "user" } : null);
-    });
     return () => { sub?.subscription?.unsubscribe?.(); };
   }, []);
 
   const logout = async () => {
-    try { if (sb) await sb.auth.signOut(); } catch {}
+    try { 
+      const { supabase: sb } = await import("../services/supabaseClient.js");
+      if (sb) await sb.auth.signOut(); 
+    } catch {}
     setToken(null);
     setUser(null);
   };
