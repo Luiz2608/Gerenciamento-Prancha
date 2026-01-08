@@ -19,14 +19,18 @@ export default function Trips() {
   const [showValidation, setShowValidation] = useState(false);
   const formRef = useRef(null);
 
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'desc' });
+  const [statusFilter, setStatusFilter] = useState("");
+  const statusFilterRef = useRef(statusFilter);
 
   const loadDrivers = () => getMotoristas().then((r) => setDrivers(r));
   const loadTrucks = () => getCaminhoes().then((r) => setTrucks(r.filter((x) => x.status === "Ativo")));
   const loadPranchas = () => getPranchas().then((r) => setPranchas(r.filter((x) => x.status === "Ativo")));
-  
+
   const loadTrips = () => {
-    getViagens({ page: 1, pageSize: 20 }).then((r) => setItems(r.data));
+    const opts = { page: 1, pageSize: 20 };
+    if (statusFilterRef.current) opts.status = statusFilterRef.current;
+    getViagens(opts).then((r) => setItems(r.data));
   };
   
   const handleSort = (key) => {
@@ -51,6 +55,11 @@ export default function Trips() {
     if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
     return 0;
   });
+
+  useEffect(() => {
+    statusFilterRef.current = statusFilter;
+    loadTrips();
+  }, [statusFilter]);
 
   useEffect(() => {
     loadDrivers();
@@ -288,8 +297,20 @@ export default function Trips() {
     <div className="space-y-8 overflow-x-auto overflow-y-auto min-h-screen page" style={{ WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain', overscrollBehaviorY: 'contain', touchAction: 'pan-y' }}>
       
       {!showForm && !editing && (
-        <div className="flex justify-end">
-          <button className="btn btn-primary" onClick={() => setShowForm(true)}>Novo</button>
+        <div className="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
+          <div className="flex items-center gap-2 w-full md:w-auto">
+             <select 
+               className="select w-full md:w-48" 
+               value={statusFilter} 
+               onChange={(e) => setStatusFilter(e.target.value)}
+             >
+               <option value="">Todos os Status</option>
+               <option value="Em Andamento">Em Andamento</option>
+               <option value="Finalizado">Finalizado</option>
+               <option value="Previsto">Previsto</option>
+             </select>
+          </div>
+          <button className="btn btn-primary w-full md:w-auto" onClick={() => setShowForm(true)}>Novo</button>
         </div>
       )}
 
@@ -576,6 +597,17 @@ export default function Trips() {
         </table>
       </div>
       <div className="space-y-3 md:hidden">
+        <div className="flex justify-between items-center px-1">
+          <span className="text-sm font-semibold text-gray-600 dark:text-gray-300">Ordenar por:</span>
+          <div className="flex gap-2">
+            <button className={`px-3 py-1 rounded text-sm border ${sortConfig.key === 'id' ? 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900 dark:text-blue-100 dark:border-blue-700 font-bold' : 'bg-white text-gray-600 border-gray-200 dark:bg-slate-700 dark:text-gray-300 dark:border-slate-600'}`} onClick={() => handleSort('id')}>
+              ID {sortConfig.key === 'id' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+            </button>
+            <button className={`px-3 py-1 rounded text-sm border ${sortConfig.key === 'date' ? 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900 dark:text-blue-100 dark:border-blue-700 font-bold' : 'bg-white text-gray-600 border-gray-200 dark:bg-slate-700 dark:text-gray-300 dark:border-slate-600'}`} onClick={() => handleSort('date')}>
+              Data {sortConfig.key === 'date' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+            </button>
+          </div>
+        </div>
         {sortedItems.length === 0 && (
           <div className="text-center p-4 text-gray-500 card">Nenhuma viagem encontrada.</div>
         )}

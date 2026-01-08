@@ -420,7 +420,7 @@ export async function getViagens(opts = {}) {
     const data = rows.slice(offset, offset + Number(pageSize));
     return { data, total, page: Number(page), pageSize: Number(pageSize) };
   } else if (sb && isOnline()) {
-    let query = sb.from("viagens").select("*");
+    let query = sb.from("viagens").select("*").order("date", { ascending: false }).order("id", { ascending: false });
     if (startDate) query = query.gte("date", startDate);
     if (endDate) query = query.lte("date", endDate);
     if (driverId) query = query.eq("driver_id", Number(driverId));
@@ -428,7 +428,7 @@ export async function getViagens(opts = {}) {
     if (truckId) query = query.eq("truck_id", Number(truckId));
     if (pranchaId) query = query.eq("prancha_id", Number(pranchaId));
     const { data: rows0 } = await query;
-    let rows = Array.isArray(rows0) ? rows0.slice().reverse() : [];
+    let rows = Array.isArray(rows0) ? rows0.slice() : [];
     if (id) rows = rows.filter((t) => String(t.id).includes(String(id)));
     if (destination) rows = rows.filter((t) => String(t.destination || "").toLowerCase().includes(destination.toLowerCase()));
     if (search) rows = rows.filter((t) => (t.description || "").toLowerCase().includes(search.toLowerCase()) || (t.service_type || "").toLowerCase().includes(search.toLowerCase()));

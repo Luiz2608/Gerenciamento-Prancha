@@ -6,6 +6,7 @@ import { supabase } from "../services/supabaseClient.js";
 export default function Drivers() {
   const toast = useToast();
   const [items, setItems] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const [form, setForm] = useState({ name: "", cpf: "", cnh_category: "", status: "Ativo" });
   const [editing, setEditing] = useState(null);
 
@@ -62,6 +63,11 @@ export default function Drivers() {
   const del = async (id) => { await deleteMotorista(id); toast?.show("Motorista excluído", "success"); load(); };
   const delConfirm = async (id) => { if (!window.confirm("Confirma excluir este motorista?")) return; await del(id); };
 
+  const filteredItems = items.filter((it) => 
+    it.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (it.cpf && it.cpf.includes(searchTerm))
+  );
+
   return (
     <div className="space-y-8 overflow-x-auto overflow-y-auto min-h-screen page" style={{ WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain', overscrollBehaviorY: 'contain', touchAction: 'pan-y' }}>
       <div className="card p-6 animate-fade">
@@ -77,6 +83,19 @@ export default function Drivers() {
           <button className="btn btn-primary">{editing ? "Salvar" : "Adicionar"}</button>
         </form>
       </div>
+
+      <div className="card p-4 animate-fade flex items-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+        <input 
+          className="input w-full" 
+          placeholder="Buscar motorista por nome ou CPF..." 
+          value={searchTerm} 
+          onChange={(e) => setSearchTerm(e.target.value)} 
+        />
+      </div>
+
       <div className="card p-6 animate-fade overflow-x-auto hidden md:block">
         <table className="table min-w-[700px]">
           <thead>
@@ -90,7 +109,7 @@ export default function Drivers() {
             </tr>
           </thead>
           <tbody>
-            {items.map((it, idx) => (
+            {filteredItems.map((it, idx) => (
               <tr key={it.id} className={`${idx % 2 === 0 ? 'bg-slate-50 dark:bg-slate-800' : 'bg-white dark:bg-slate-700'} hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-900 dark:text-slate-100`}>
                 <td>{it.id}</td>
                 <td>{it.name}</td>
@@ -107,7 +126,7 @@ export default function Drivers() {
         </table>
       </div>
       <div className="space-y-3 md:hidden">
-        {items.map((it) => (
+        {filteredItems.map((it) => (
           <div key={it.id} className="card p-4">
             <div className="flex justify-between items-center">
               <div className="font-semibold">{it.name}</div>
