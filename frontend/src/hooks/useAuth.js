@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { supabase as sb } from "../services/supabaseClient.js";
 
 export default function useAuth() {
   const [token, setToken] = useState(localStorage.getItem("token"));

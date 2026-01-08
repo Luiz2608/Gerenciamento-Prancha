@@ -30,14 +30,27 @@ export default function FleetTrucks() {
   useEffect(() => {
     load();
     const interval = setInterval(load, 10000);
-    let ch;
-    if (supabase) {
-      ch = supabase
-        .channel("public:caminhoes")
-        .on("postgres_changes", { event: "*", schema: "public", table: "caminhoes" }, () => { load(); })
-        .subscribe();
-    }
-    return () => { if (ch) supabase.removeChannel(ch); clearInterval(interval); };
+    
+    let channel = null;
+    const initRealtime = async () => {
+      const { supabase } = await import("../services/supabaseClient.js");
+      if (supabase) {
+        channel = supabase
+          .channel("public:caminhoes")
+          .on("postgres_changes", { event: "*", schema: "public", table: "caminhoes" }, () => { load(); })
+          .subscribe();
+      }
+    };
+    initRealtime();
+
+    return () => { 
+      if (channel) {
+         import("../services/supabaseClient.js").then(({ supabase }) => {
+            if(supabase) supabase.removeChannel(channel);
+         });
+      }
+      clearInterval(interval); 
+    };
   }, []);
   const submit = async (e) => {
     e.preventDefault();

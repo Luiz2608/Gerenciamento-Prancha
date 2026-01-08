@@ -26,14 +26,27 @@ export default function Drivers() {
   useEffect(() => {
     load();
     const interval = setInterval(load, 10000);
-    let ch;
-    if (supabase) {
-      ch = supabase
-        .channel("public:motoristas")
-        .on("postgres_changes", { event: "*", schema: "public", table: "motoristas" }, () => { load(); })
-        .subscribe();
-    }
-    return () => { if (ch) supabase.removeChannel(ch); clearInterval(interval); };
+    
+    let channel = null;
+    const initRealtime = async () => {
+      const { supabase } = await import("../services/supabaseClient.js");
+      if (supabase) {
+        channel = supabase
+          .channel("public:motoristas")
+          .on("postgres_changes", { event: "*", schema: "public", table: "motoristas" }, () => { load(); })
+          .subscribe();
+      }
+    };
+    initRealtime();
+
+    return () => { 
+      if (channel) {
+         import("../services/supabaseClient.js").then(({ supabase }) => {
+            if(supabase) supabase.removeChannel(channel);
+         });
+      }
+      clearInterval(interval); 
+    };
   }, []);
 
   const submit = async (e) => {

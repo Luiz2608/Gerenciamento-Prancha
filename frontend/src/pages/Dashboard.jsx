@@ -31,16 +31,26 @@ export default function Dashboard() {
   useEffect(() => { refresh(period); }, []);
 
   useEffect(() => {
-    let ch1, ch2, ch3, ch4;
-    if (supabase) {
-      ch1 = supabase.channel("public:viagens").on("postgres_changes", { event: "*", schema: "public", table: "viagens" }, () => { refresh(); }).subscribe();
-      ch2 = supabase.channel("public:motoristas").on("postgres_changes", { event: "*", schema: "public", table: "motoristas" }, () => { refresh(); }).subscribe();
-      ch3 = supabase.channel("public:caminhoes").on("postgres_changes", { event: "*", schema: "public", table: "caminhoes" }, () => { refresh(); }).subscribe();
-      ch4 = supabase.channel("public:pranchas").on("postgres_changes", { event: "*", schema: "public", table: "pranchas" }, () => { refresh(); }).subscribe();
-    }
+    let channels = [];
+    const initRealtime = async () => {
+      const { supabase } = await import("../services/supabaseClient.js");
+      if (supabase) {
+        const ch1 = supabase.channel("public:viagens").on("postgres_changes", { event: "*", schema: "public", table: "viagens" }, () => { refresh(); }).subscribe();
+        const ch2 = supabase.channel("public:motoristas").on("postgres_changes", { event: "*", schema: "public", table: "motoristas" }, () => { refresh(); }).subscribe();
+        const ch3 = supabase.channel("public:caminhoes").on("postgres_changes", { event: "*", schema: "public", table: "caminhoes" }, () => { refresh(); }).subscribe();
+        const ch4 = supabase.channel("public:pranchas").on("postgres_changes", { event: "*", schema: "public", table: "pranchas" }, () => { refresh(); }).subscribe();
+        channels = [ch1, ch2, ch3, ch4];
+      }
+    };
+    initRealtime();
+
     const interval = setInterval(() => { refresh(); }, 10000);
     return () => {
-      if (supabase) { supabase.removeChannel(ch1); supabase.removeChannel(ch2); supabase.removeChannel(ch3); supabase.removeChannel(ch4); }
+      if (channels.length > 0) {
+        import("../services/supabaseClient.js").then(({ supabase }) => {
+           if(supabase) channels.forEach(ch => supabase.removeChannel(ch));
+        });
+      }
       clearInterval(interval);
     };
   }, []);

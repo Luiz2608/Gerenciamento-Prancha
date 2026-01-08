@@ -25,14 +25,27 @@ export default function FleetPranchas() {
   useEffect(() => {
     load();
     const interval = setInterval(load, 10000);
-    let ch;
-    if (supabase) {
-      ch = supabase
-        .channel("public:pranchas")
-        .on("postgres_changes", { event: "*", schema: "public", table: "pranchas" }, () => { load(); })
-        .subscribe();
-    }
-    return () => { if (ch) supabase.removeChannel(ch); clearInterval(interval); };
+    
+    let channel = null;
+    const initRealtime = async () => {
+      const { supabase } = await import("../services/supabaseClient.js");
+      if (supabase) {
+        channel = supabase
+          .channel("public:pranchas")
+          .on("postgres_changes", { event: "*", schema: "public", table: "pranchas" }, () => { load(); })
+          .subscribe();
+      }
+    };
+    initRealtime();
+
+    return () => { 
+      if (channel) {
+         import("../services/supabaseClient.js").then(({ supabase }) => {
+            if(supabase) supabase.removeChannel(channel);
+         });
+      }
+      clearInterval(interval); 
+    };
   }, []);
   const maskPlate = (v) => String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0,7);
   const maskChassis = (v) => String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0,17);
