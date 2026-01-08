@@ -573,6 +573,15 @@ export async function dashboard(opts = {}) {
   const start = String(opts.startDate || `${year}-${month}-01`);
   const endDate0 = opts.endDate ? (() => { const [y2, m2, d2] = String(opts.endDate).split("-").map(Number); return new Date(y2, (m2 - 1), d2); })() : new Date(year, (Number(month) - 1) + 1, 0);
   const end = String(opts.endDate || `${year}-${month}-${String(endDate0.getDate()).padStart(2, "0")}`);
+
+  // Previous month calculation
+  const prevDate = new Date(year, monthNum - 2, 1);
+  const prevYear = prevDate.getFullYear();
+  const prevMonth = String(prevDate.getMonth() + 1).padStart(2, "0");
+  const prevStart = `${prevYear}-${prevMonth}-01`;
+  const prevEnd0 = new Date(prevYear, prevDate.getMonth() + 1, 0);
+  const prevEnd = `${prevYear}-${prevMonth}-${String(prevEnd0.getDate()).padStart(2, "0")}`;
+
   let viagens = [];
   let motoristas = [];
   let caminhoes = [];
@@ -597,10 +606,38 @@ export async function dashboard(opts = {}) {
     pranchas = db.pranchas;
     custos = db.custos;
   }
+
+  // Pending Trips & Truck Status
+  const pendingTrips = viagens.filter(t => t.status !== "Finalizado").length;
+  const busyTruckIds = new Set(viagens.filter(t => t.status !== "Finalizado" && t.truck_id).map(t => String(t.truck_id)));
+  const trucksInTrip = caminhoes.filter(c => busyTruckIds.has(String(c.id))).length;
+  const trucksAvailable = caminhoes.length - trucksInTrip;
+
+  // Current Month Stats
   const monthTrips = viagens.filter((t) => t.date >= start && t.date <= end);
   const totalTrips = monthTrips.length;
   const totalKm = monthTrips.reduce((a, t) => a + computeKm(t.km_start, t.km_end), 0);
   const totalHours = monthTrips.reduce((a, t) => a + computeHours(t.date, t.start_time, t.end_time, t.end_date), 0);
+  
+  const calcCost = (t) => Number(t.fuel_liters || 0) * Number(t.fuel_price || 0) + Number(t.other_costs || 0) + Number(t.maintenance_cost || 0) + Number(t.driver_daily || 0);
+  const totalCostsMonth = monthTrips.reduce((a, t) => a + calcCost(t), 0);
+
+  // Previous Month Stats for Trends
+  const prevTrips = viagens.filter((t) => t.date >= prevStart && t.date <= prevEnd);
+  const prevTotalTrips = prevTrips.length;
+  const prevTotalKm = prevTrips.reduce((a, t) => a + computeKm(t.km_start, t.km_end), 0);
+  const prevTotalCosts = prevTrips.reduce((a, t) => a + calcCost(t), 0);
+
+  const calcTrend = (curr, prev) => {
+    if (prev === 0) return curr > 0 ? 100 : 0;
+    return ((curr - prev) / prev) * 100;
+  };
+  const trends = {
+    trips: calcTrend(totalTrips, prevTotalTrips),
+    km: calcTrend(totalKm, prevTotalKm),
+    costs: calcTrend(totalCostsMonth, prevTotalCosts)
+  };
+
   const driverCounts = {};
   const destinationCounts = {};
   monthTrips.forEach((t) => { driverCounts[t.driver_id] = (driverCounts[t.driver_id] || 0) + 1; if (t.destination) destinationCounts[t.destination] = (destinationCounts[t.destination] || 0) + 1; });
@@ -623,9 +660,6 @@ export async function dashboard(opts = {}) {
     hoursByMonth.push({ month: m2, hours: hrs });
   }
   const tripsByDriver = motoristas.map((d) => ({ name: d.name, value: monthTrips.filter((t) => t.driver_id === d.id).length }));
-  
-  const calcCost = (t) => Number(t.fuel_liters || 0) * Number(t.fuel_price || 0) + Number(t.other_costs || 0) + Number(t.maintenance_cost || 0) + Number(t.driver_daily || 0);
-  const totalCostsMonth = monthTrips.reduce((a, t) => a + calcCost(t), 0);
   
   const totalCompleted = monthTrips.filter((t) => t.status === "Finalizado").length;
   const totalDrivers = motoristas.length;
@@ -653,7 +687,7 @@ export async function dashboard(opts = {}) {
     const total = rows.reduce((a, t) => a + calcCost(t), 0);
     costsByMonth.push({ month: m2, total });
   }
-  return { totalTrips, totalKm, totalHours, totalCompleted, topDriver, topDestination, kmByMonth, hoursByMonth, tripsByDriver, totalCostsMonth, totalDrivers, totalTrucks, totalPranchas, totalCustos, costsByCategory, costsByMonth };
+  return { totalTrips, totalKm, totalHours, totalCompleted, topDriver, topDestination, kmByMonth, hoursByMonth, tripsByDriver, totalCostsMonth, totalDrivers, totalTrucks, totalPranchas, totalCustos, costsByCategory, costsByMonth, pendingTrips, trucksAvailable, trucksInTrip, trends };
 }
 
 export async function exportCsv(filters = {}) {
