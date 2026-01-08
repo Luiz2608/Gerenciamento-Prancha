@@ -129,7 +129,25 @@ export default function FleetPranchas() {
               <option>Reboque 26 metros</option>
             </select>
             {(form.type === "Reboque 30 metros" || form.type === "Reboque 26 metros") && (
-              <input className="input" placeholder="Conjunto" value={form.conjunto} onChange={(e) => setForm({ ...form, conjunto: e.target.value })} />
+              <div className="md:col-span-2 flex items-center gap-2">
+                <input 
+                  className={`input w-full ${form.conjunto === "N/A" ? "bg-slate-200 dark:bg-slate-700 text-slate-500" : ""}`} 
+                  placeholder="Conjunto" 
+                  value={form.conjunto} 
+                  onChange={(e) => setForm({ ...form, conjunto: e.target.value })} 
+                  disabled={form.conjunto === "N/A"} 
+                />
+                <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-700 p-2 rounded whitespace-nowrap">
+                  <input 
+                    type="checkbox" 
+                    id="conjunto_na" 
+                    className="w-5 h-5" 
+                    checked={form.conjunto === "N/A"} 
+                    onChange={(e) => setForm({ ...form, conjunto: e.target.checked ? "N/A" : "" })} 
+                  />
+                  <label htmlFor="conjunto_na" className="cursor-pointer text-sm font-semibold">Não se aplica</label>
+                </div>
+              </div>
             )}
             <input className="input" placeholder="Capacidade" value={form.capacity} readOnly />
             <input className="input" placeholder="Ano" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} />
