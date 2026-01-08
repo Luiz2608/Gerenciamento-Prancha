@@ -38,10 +38,10 @@ export default function HistoryUnified() {
     const userName = user?.username || "Usuário do Sistema";
     
     const printWindow = window.open("", "_blank");
-    printWindow.document.write(\`
+    printWindow.document.write(`
       <html>
         <head>
-          <title>Relatório de Viagem #\${trip.id}</title>
+          <title>Relatório de Viagem #${trip.id}</title>
           <style>
             body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; max-width: 210mm; margin: 0 auto; color: #333; }
             h1, h2, h3 { margin: 0 0 10px 0; }
@@ -68,50 +68,50 @@ export default function HistoryUnified() {
         <body>
           <div class="header">
             <h1>Gerenciamento de Prancha</h1>
-            <h2>Relatório de Viagem #\${trip.id}</h2>
-            <div>Status: <strong>\${trip.status}</strong> | Emissão: \${new Date().toLocaleString()}</div>
+            <h2>Relatório de Viagem #${trip.id}</h2>
+            <div>Status: <strong>${trip.status}</strong> | Emissão: ${new Date().toLocaleString()}</div>
           </div>
 
           <div class="section">
             <div class="section-title">🚚 Dados da Viagem</div>
             <div class="grid">
-              <div class="field"><span class="label">Data Início:</span> <span class="value">\${trip.date}</span></div>
-              <div class="field"><span class="label">Data Término:</span> <span class="value">\${trip.end_date || "-"}</span></div>
-              <div class="field"><span class="label">Destino:</span> <span class="value">\${trip.destination || "-"}</span></div>
-              <div class="field"><span class="label">Tipo de Carga/Serviço:</span> <span class="value">\${trip.service_type || "-"}</span></div>
-              <div class="field" style="grid-column: span 2"><span class="label">Observações:</span> <span class="value">\${trip.description || "-"}</span></div>
+              <div class="field"><span class="label">Data Início:</span> <span class="value">${trip.date}</span></div>
+              <div class="field"><span class="label">Data Término:</span> <span class="value">${trip.end_date || "-"}</span></div>
+              <div class="field"><span class="label">Destino:</span> <span class="value">${trip.destination || "-"}</span></div>
+              <div class="field"><span class="label">Tipo de Carga/Serviço:</span> <span class="value">${trip.service_type || "-"}</span></div>
+              <div class="field" style="grid-column: span 2"><span class="label">Observações:</span> <span class="value">${trip.description || "-"}</span></div>
             </div>
           </div>
 
           <div class="section">
             <div class="section-title">🚛 Dados do Veículo</div>
             <div class="grid">
-              <div class="field"><span class="label">Caminhão:</span> <span class="value">\${truck.plate || trip.truck_id || "-"}</span></div>
-              <div class="field"><span class="label">Modelo:</span> <span class="value">\${truck.model || "-"}</span></div>
-              <div class="field"><span class="label">Frota:</span> <span class="value">\${truck.fleet || "-"}</span></div>
-              <div class="field"><span class="label">Prancha:</span> <span class="value">\${prancha.asset_number || trip.prancha_id || "-"}</span></div>
+              <div class="field"><span class="label">Caminhão:</span> <span class="value">${truck.plate || trip.truck_id || "-"}</span></div>
+              <div class="field"><span class="label">Modelo:</span> <span class="value">${truck.model || "-"}</span></div>
+              <div class="field"><span class="label">Frota:</span> <span class="value">${truck.fleet || "-"}</span></div>
+              <div class="field"><span class="label">Prancha:</span> <span class="value">${prancha.asset_number || trip.prancha_id || "-"}</span></div>
             </div>
           </div>
 
           <div class="section">
             <div class="section-title">👨‍✈️ Dados do Motorista</div>
             <div class="grid">
-              <div class="field"><span class="label">Nome:</span> <span class="value">\${driver.name || trip.driver_id || "-"}</span></div>
-              <div class="field"><span class="label">CPF:</span> <span class="value">\${driver.cpf || "-"}</span></div>
-              <div class="field"><span class="label">CNH:</span> <span class="value">\${driver.cnh_category || "-"}</span></div>
-              <div class="field"><span class="label">Contato:</span> <span class="value">\${driver.contact || "-"}</span></div>
+              <div class="field"><span class="label">Nome:</span> <span class="value">${driver.name || trip.driver_id || "-"}</span></div>
+              <div class="field"><span class="label">CPF:</span> <span class="value">${driver.cpf || "-"}</span></div>
+              <div class="field"><span class="label">CNH:</span> <span class="value">${driver.cnh_category || "-"}</span></div>
+              <div class="field"><span class="label">Contato:</span> <span class="value">${driver.contact || "-"}</span></div>
             </div>
           </div>
 
           <div class="section">
             <div class="section-title">⏱️ Informações Operacionais</div>
             <div class="grid">
-              <div class="field"><span class="label">Hora Saída:</span> <span class="value">\${trip.start_time || "-"}</span></div>
-              <div class="field"><span class="label">Hora Chegada:</span> <span class="value">\${trip.end_time || "-"}</span></div>
-              <div class="field"><span class="label">KM Inicial:</span> <span class="value">\${trip.km_start || "-"}</span></div>
-              <div class="field"><span class="label">KM Final:</span> <span class="value">\${trip.km_end || "-"}</span></div>
-              <div class="field"><span class="label">KM Total:</span> <span class="value">\${trip.km_rodado || "0"} km</span></div>
-              <div class="field"><span class="label">Horas Totais:</span> <span class="value">\${trip.horas || "0"} h</span></div>
+              <div class="field"><span class="label">Hora Saída:</span> <span class="value">${trip.start_time || "-"}</span></div>
+              <div class="field"><span class="label">Hora Chegada:</span> <span class="value">${trip.end_time || "-"}</span></div>
+              <div class="field"><span class="label">KM Inicial:</span> <span class="value">${trip.km_start || "-"}</span></div>
+              <div class="field"><span class="label">KM Final:</span> <span class="value">${trip.km_end || "-"}</span></div>
+              <div class="field"><span class="label">KM Total:</span> <span class="value">${trip.km_rodado || "0"} km</span></div>
+              <div class="field"><span class="label">Horas Totais:</span> <span class="value">${trip.horas || "0"} h</span></div>
             </div>
           </div>
 
@@ -127,28 +127,28 @@ export default function HistoryUnified() {
               </thead>
               <tbody>
                 <tr>
-                  <td>Combustível (\${trip.fuel_liters || 0} L)</td>
-                  <td>R$ \${Number(trip.fuel_price || 0).toFixed(2)} / L</td>
-                  <td>R$ \${(Number(trip.fuel_liters || 0) * Number(trip.fuel_price || 0)).toFixed(2)}</td>
+                  <td>Combustível (${trip.fuel_liters || 0} L)</td>
+                  <td>R$ ${Number(trip.fuel_price || 0).toFixed(2)} / L</td>
+                  <td>R$ ${(Number(trip.fuel_liters || 0) * Number(trip.fuel_price || 0)).toFixed(2)}</td>
                 </tr>
                 <tr>
                   <td>Manutenção</td>
                   <td>-</td>
-                  <td>R$ \${Number(trip.maintenance_cost || 0).toFixed(2)}</td>
+                  <td>R$ ${Number(trip.maintenance_cost || 0).toFixed(2)}</td>
                 </tr>
                 <tr>
                   <td>Diária Motorista</td>
                   <td>-</td>
-                  <td>R$ \${Number(trip.driver_daily || 0).toFixed(2)}</td>
+                  <td>R$ ${Number(trip.driver_daily || 0).toFixed(2)}</td>
                 </tr>
                 <tr>
                   <td>Outros Custos</td>
                   <td>-</td>
-                  <td>R$ \${Number(trip.other_costs || 0).toFixed(2)}</td>
+                  <td>R$ ${Number(trip.other_costs || 0).toFixed(2)}</td>
                 </tr>
                 <tr style="font-weight: bold; background-color: #eee;">
                   <td colspan="2">Custo Total</td>
-                  <td>R$ \${(trip.total_cost || 0).toFixed(2)}</td>
+                  <td>R$ ${(trip.total_cost || 0).toFixed(2)}</td>
                 </tr>
               </tbody>
             </table>
@@ -157,7 +157,7 @@ export default function HistoryUnified() {
           <div class="section">
              <div class="section-title">📌 Histórico e Registros</div>
              <div class="grid">
-               <div class="field"><span class="label">Solicitante:</span> <span class="value">\${trip.requester || "-"}</span></div>
+               <div class="field"><span class="label">Solicitante:</span> <span class="value">${trip.requester || "-"}</span></div>
                <div class="field"><span class="label">Responsável:</span> <span class="value">Sistema</span></div>
              </div>
           </div>
@@ -168,7 +168,7 @@ export default function HistoryUnified() {
           </div>
 
           <div class="footer">
-            <p>Relatório gerado em \${new Date().toLocaleString()} por \${userName}</p>
+            <p>Relatório gerado em ${new Date().toLocaleString()} por ${userName}</p>
             <p>Gerenciamento de Prancha - Página 1 de 1</p>
           </div>
           <script>
@@ -176,7 +176,7 @@ export default function HistoryUnified() {
           </script>
         </body>
       </html>
-    \`);
+    `);
     printWindow.document.close();
   };
   return (
