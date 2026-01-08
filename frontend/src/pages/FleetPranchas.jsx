@@ -145,7 +145,7 @@ export default function FleetPranchas() {
 
             <div className="md:col-span-6 grid grid-cols-1 md:grid-cols-3 gap-4 border p-4 rounded bg-slate-50 dark:bg-slate-800">
               <div className="font-semibold md:col-span-3 mb-2">{form.is_set ? "Reboque 1" : "Dados do Reboque"}</div>
-              <input className="input" placeholder="Frota / Nº Ativo" value={form.asset_number} onChange={(e) => setForm({ ...form, asset_number: e.target.value })} />
+              <input className="input" placeholder="Frota" value={form.asset_number} onChange={(e) => setForm({ ...form, asset_number: e.target.value })} />
               <input className="input" placeholder="Placa" value={form.plate} onChange={(e) => setForm({ ...form, plate: maskPlate(e.target.value) })} />
               <input className="input" placeholder="Chassi" value={form.chassis} onChange={(e) => setForm({ ...form, chassis: maskChassis(e.target.value) })} />
             </div>
@@ -153,7 +153,7 @@ export default function FleetPranchas() {
             {form.is_set && (
               <div className="md:col-span-6 grid grid-cols-1 md:grid-cols-3 gap-4 border p-4 rounded bg-slate-50 dark:bg-slate-800 mt-2">
                 <div className="font-semibold md:col-span-3 mb-2">Reboque 2</div>
-                <input className="input" placeholder="Nº Ativo 2" value={form.asset_number2} onChange={(e) => setForm({ ...form, asset_number2: e.target.value })} />
+                <input className="input" placeholder="Frota 2" value={form.asset_number2} onChange={(e) => setForm({ ...form, asset_number2: e.target.value })} />
                 <input className="input" placeholder="Placa 2" value={form.plate2} onChange={(e) => setForm({ ...form, plate2: maskPlate(e.target.value) })} />
                 <input className="input" placeholder="Chassi 2" value={form.chassis2} onChange={(e) => setForm({ ...form, chassis2: maskChassis(e.target.value) })} />
               </div>
@@ -171,7 +171,7 @@ export default function FleetPranchas() {
           <thead>
             <tr>
               <th>ID</th>
-              <th>Nº Ativo</th>
+              <th>Frota</th>
               <th>Conjunto</th>
               <th>Tipo</th>
               <th>Ano</th>
@@ -187,19 +187,19 @@ export default function FleetPranchas() {
               <tr key={it.id} className={`${idx % 2 === 0 ? 'bg-slate-50 dark:bg-slate-800' : 'bg-white dark:bg-slate-700'} hover:bg-slate-100 dark:hover:bg-slate-600`}>
                 <td>{it.id}</td>
                 <td>
-                  <div>{it.asset_number || ""}</div>
+                  <div>{it.asset_number || "-"}</div>
                   {it.is_set && it.asset_number2 && <div className="text-xs text-slate-500 dark:text-slate-400">{it.asset_number2}</div>}
                 </td>
-                <td>{it.conjunto || ""}</td>
-                <td>{it.type || ""}</td>
-                <td>{it.year ?? ""}</td>
-                <td>{it.capacity ?? ""}</td>
+                <td>{it.conjunto || "-"}</td>
+                <td>{it.type || "-"}</td>
+                <td>{it.year ?? "-"}</td>
+                <td>{it.capacity ?? "-"}</td>
                 <td>
-                  <div>{it.plate || ""}</div>
+                  <div>{it.plate || "-"}</div>
                   {it.is_set && it.plate2 && <div className="text-xs text-slate-500 dark:text-slate-400">{it.plate2}</div>}
                 </td>
                 <td>
-                  <div>{it.chassis || ""}</div>
+                  <div>{it.chassis || "-"}</div>
                   {it.is_set && it.chassis2 && <div className="text-xs text-slate-500 dark:text-slate-400">{it.chassis2}</div>}
                 </td>
                 <td>{it.status}</td>
@@ -223,14 +223,14 @@ export default function FleetPranchas() {
               <div className="text-sm">{it.status}</div>
             </div>
             <div className="text-sm text-slate-600 dark:text-slate-300">Conjunto: {it.conjunto || "-"}</div>
-            <div className="text-sm text-slate-600 dark:text-slate-300">Tipo: {it.type || ""}</div>
-            <div className="text-sm text-slate-600 dark:text-slate-300">Ano: {it.year ?? ""}</div>
-            <div className="text-sm text-slate-600 dark:text-slate-300">Capacidade: {it.capacity ?? ""}</div>
+            <div className="text-sm text-slate-600 dark:text-slate-300">Tipo: {it.type || "-"}</div>
+            <div className="text-sm text-slate-600 dark:text-slate-300">Ano: {it.year ?? "-"}</div>
+            <div className="text-sm text-slate-600 dark:text-slate-300">Capacidade: {it.capacity ?? "-"}</div>
             <div className="text-sm text-slate-600 dark:text-slate-300">
-              Placa: {it.plate || ""} {it.is_set && it.plate2 ? ` / ${it.plate2}` : ""}
+              Placa: {it.plate || "-"} {it.is_set && it.plate2 ? ` / ${it.plate2}` : ""}
             </div>
             <div className="text-sm text-slate-600 dark:text-slate-300">
-              Chassi: {it.chassis || ""} {it.is_set && it.chassis2 ? ` / ${it.chassis2}` : ""}
+              Chassi: {it.chassis || "-"} {it.is_set && it.chassis2 ? ` / ${it.chassis2}` : ""}
             </div>
             <div className="mt-2 flex flex-wrap gap-2">
               <button className="btn bg-yellow-500 hover:bg-yellow-600 text-white" onClick={() => edit(it)}>Editar</button>
