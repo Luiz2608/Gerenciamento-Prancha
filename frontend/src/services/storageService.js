@@ -1067,6 +1067,7 @@ async function migrateCostsFromTrips(dbInput) {
 
 export async function getCustos(opts = {}) {
   await initLoad();
+  const { sb } = await import("./supabaseClient.js");
   const { startDate, endDate, caminhaoId, pranchaId, driverId, aprovado, search, minCusto, maxCusto, page = 1, pageSize = 10 } = opts;
   if (sb && isOnline()) {
     let query = sb.from("custos").select("*");
@@ -1116,10 +1117,20 @@ export async function getCustos(opts = {}) {
   return { data, total, page: Number(page), pageSize: Number(pageSize) };
 }
 
-export async function getCustoById(id) { await initLoad(); if (sb && isOnline()) { const { data } = await sb.from("custos").select("*").eq("id", String(id)).single(); return data || null; } const db = getDB(); return db.custos.find((c) => String(c.id) === String(id)) || null; }
+export async function getCustoById(id) {
+  await initLoad();
+  const { sb } = await import("./supabaseClient.js");
+  if (sb && isOnline()) {
+    const { data } = await sb.from("custos").select("*").eq("id", String(id)).single();
+    return data || null;
+  }
+  const db = getDB();
+  return db.custos.find((c) => String(c.id) === String(id)) || null;
+}
 
 export async function saveCusto(raw) {
   await initLoad();
+  const { sb } = await import("./supabaseClient.js");
   const db = getDB();
   const viagem = raw.viagemId ? (sb ? null : db.viagens.find((v) => String(v.id) === String(raw.viagemId))) : null;
   const base = {
@@ -1161,6 +1172,7 @@ export async function saveCusto(raw) {
 
 export async function updateCusto(id, patch) {
   await initLoad();
+  const { sb } = await import("./supabaseClient.js");
   if (sb && isOnline()) {
     const { data: before } = await sb.from("custos").select("*").eq("id", String(id)).single();
     if (!before) return null;
@@ -1193,6 +1205,7 @@ export async function deleteCusto(id) { await initLoad(); if (sb && isOnline()) 
 
 export async function attachFileToCusto(id, fileMeta, fileContentBase64) {
   await initLoad();
+  const { sb } = await import("./supabaseClient.js");
   if (sb && isOnline()) {
     const { data: before } = await sb.from("custos").select("*").eq("id", String(id)).single();
     if (!before) return null;
