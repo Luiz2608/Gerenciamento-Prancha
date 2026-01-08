@@ -234,8 +234,29 @@ export default function Trips() {
     
     payload.requester = form.requester;
     payload.status = form.status;
-    if (editing) await updateViagem(editing.id, payload);
-    else await saveViagem(payload);
+    if (editing) {
+      await updateViagem(editing.id, payload);
+    } else {
+      if (payload.truck_id && payload.km_start) {
+        const { data: activeTrips } = await getViagens({ truckId: payload.truck_id, status: "Em Andamento" });
+        if (activeTrips && activeTrips.length > 0) {
+          const lastTrip = activeTrips[0];
+          const lastKmStart = lastTrip.km_start != null ? Number(lastTrip.km_start) : 0;
+          if (lastTrip.km_start != null && payload.km_start < lastKmStart) {
+            toast?.show(`KM inicial (${payload.km_start}) não pode ser menor que o KM inicial da viagem pendente (${lastKmStart})`, "error");
+            return;
+          }
+          await updateViagem(lastTrip.id, {
+            ...lastTrip,
+            km_end: payload.km_start,
+            status: "Finalizado",
+            end_date: payload.date
+          });
+          toast?.show("Viagem anterior finalizada e KM atualizado", "info");
+        }
+      }
+      await saveViagem(payload);
+    }
     toast?.show(editing ? "Viagem atualizada" : "Viagem cadastrada", "success");
     setForm({ date: "", end_date: "", requester: "", driver_id: "", truck_id: "", prancha_id: "", destination: "", service_type: "", status: "", description: "", start_time: "", end_time: "", km_start: "", km_end: "", km_trip: "", km_per_liter: "", noKmStart: false, noKmEnd: false, fuel_liters: "", noFuelLiters: false, fuel_price: "", noFuelPrice: false, other_costs: "", noOtherCosts: false, maintenance_cost: "", noMaintenanceCost: false, driver_daily: "", noDriverDaily: false });
     setEditing(null);
