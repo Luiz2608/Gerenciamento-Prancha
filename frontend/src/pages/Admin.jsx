@@ -4,22 +4,33 @@ import { getDestinos, saveDestino, deleteDestino, getTiposServico, saveTipoServi
 export default function Admin() {
   const [dest, setDest] = useState([]);
   const [svc, setSvc] = useState([]);
-  const [truck, setTruck] = useState({ plate: "", model: "", year: "" });
-  const [dname, setDname] = useState("");
-  const [sname, setSname] = useState("");
+  const [truck, setTruck] = useState(() => {
+    const saved = localStorage.getItem("admin_truck_draft");
+    return saved ? JSON.parse(saved) : { plate: "", model: "", year: "" };
+  });
+  const [dname, setDname] = useState(() => localStorage.getItem("admin_dname_draft") || "");
+  const [sname, setSname] = useState(() => localStorage.getItem("admin_sname_draft") || "");
 
   const load = () => {
     getDestinos().then((r) => setDest(r));
     getTiposServico().then((r) => setSvc(r));
-    getTruck().then((r) => setTruck({ plate: r?.plate || "", model: r?.model || "", year: r?.year?.toString() || "" }));
+    getTruck().then((r) => {
+      if (!localStorage.getItem("admin_truck_draft")) {
+        setTruck({ plate: r?.plate || "", model: r?.model || "", year: r?.year?.toString() || "" });
+      }
+    });
   };
   useEffect(() => { load(); }, []);
 
-  const addDest = async () => { if (!dname) return; await saveDestino(dname); setDname(""); load(); };
+  useEffect(() => { localStorage.setItem("admin_truck_draft", JSON.stringify(truck)); }, [truck]);
+  useEffect(() => { localStorage.setItem("admin_dname_draft", dname); }, [dname]);
+  useEffect(() => { localStorage.setItem("admin_sname_draft", sname); }, [sname]);
+
+  const addDest = async () => { if (!dname) return; await saveDestino(dname); localStorage.removeItem("admin_dname_draft"); setDname(""); load(); };
   const delDest = async (id) => { await deleteDestino(id); load(); };
-  const addSvc = async () => { if (!sname) return; await saveTipoServico(sname); setSname(""); load(); };
+  const addSvc = async () => { if (!sname) return; await saveTipoServico(sname); localStorage.removeItem("admin_sname_draft"); setSname(""); load(); };
   const delSvc = async (id) => { await deleteTipoServico(id); load(); };
-  const saveTruck = async () => { await updateTruck({ ...truck, year: truck.year ? Number(truck.year) : null }); load(); };
+  const saveTruck = async () => { await updateTruck({ ...truck, year: truck.year ? Number(truck.year) : null }); localStorage.removeItem("admin_truck_draft"); load(); };
   const backup = async () => {
     const blob = await backupBlob();
     const url = URL.createObjectURL(blob);

@@ -9,7 +9,15 @@ export default function HistoryTruck() {
   const [totalKm, setTotalKm] = useState(0);
   const [totalHours, setTotalHours] = useState(0);
   const [count, setCount] = useState(0);
-  const [filters, setFilters] = useState({ truckId: "", startDate: "", endDate: "", driverId: "", destination: "", status: "" });
+  const [filters, setFilters] = useState(() => {
+    const saved = localStorage.getItem("history_truck_filters");
+    return saved ? JSON.parse(saved) : { truckId: "", startDate: "", endDate: "", driverId: "", destination: "", status: "" };
+  });
+
+  useEffect(() => {
+    localStorage.setItem("history_truck_filters", JSON.stringify(filters));
+  }, [filters]);
+
   const load = async () => {
     const d = await getMotoristas();
     const t = await getCaminhoes();

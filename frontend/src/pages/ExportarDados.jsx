@@ -5,8 +5,15 @@ export default function ExportarDados() {
   const [trucks, setTrucks] = useState([]);
   const [pranchas, setPranchas] = useState([]);
   const [drivers, setDrivers] = useState([]);
-  const [sel, setSel] = useState({ truckId: "", pranchaId: "", driverId: "" });
+  const [sel, setSel] = useState(() => {
+    const saved = localStorage.getItem("export_sel_draft");
+    return saved ? JSON.parse(saved) : { truckId: "", pranchaId: "", driverId: "" };
+  });
   const [copyMsg, setCopyMsg] = useState("");
+
+  useEffect(() => {
+    localStorage.setItem("export_sel_draft", JSON.stringify(sel));
+  }, [sel]);
 
   useEffect(() => {
     getCaminhoes().then(setTrucks);

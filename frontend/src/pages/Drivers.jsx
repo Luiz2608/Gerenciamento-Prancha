@@ -7,7 +7,17 @@ export default function Drivers() {
   const toast = useToast();
   const [items, setItems] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [form, setForm] = useState({ name: "", cpf: "", cnh_category: "", status: "Ativo" });
+  const [form, setForm] = useState(() => {
+    const saved = localStorage.getItem("drivers_form_draft");
+    return saved ? JSON.parse(saved) : { name: "", cpf: "", cnh_category: "", status: "Ativo" };
+  });
+
+  useEffect(() => {
+    if (!editing) {
+      localStorage.setItem("drivers_form_draft", JSON.stringify(form));
+    }
+  }, [form, editing]);
+
   const [editing, setEditing] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const formRef = useRef(null);
@@ -31,6 +41,7 @@ export default function Drivers() {
     if (!form.name) { toast?.show("Erro → Aba Motoristas → Campo Nome obrigatório", "error"); return; }
     if (editing) { await updateMotorista(editing.id, form); toast?.show("Motorista atualizado", "success"); }
     else { await saveMotorista(form); toast?.show("Motorista cadastrado", "success"); }
+    localStorage.removeItem("drivers_form_draft");
     setForm({ name: "", cpf: "", cnh_category: "", status: "Ativo" });
     setEditing(null);
     setShowForm(false);
@@ -98,7 +109,7 @@ export default function Drivers() {
             </select>
             <div className="flex gap-2">
               <button className="btn btn-primary flex-1">{editing ? "Salvar" : "Adicionar"}</button>
-              <button type="button" className="btn bg-gray-500 hover:bg-gray-600 text-white" onClick={() => { setShowForm(false); setEditing(null); setForm({ name: "", cpf: "", cnh_category: "", status: "Ativo" }); }}>Cancelar</button>
+              <button type="button" className="btn bg-gray-500 hover:bg-gray-600 text-white" onClick={() => { setShowForm(false); setEditing(null); localStorage.removeItem("drivers_form_draft"); setForm({ name: "", cpf: "", cnh_category: "", status: "Ativo" }); }}>Cancelar</button>
             </div>
           </form>
         </div>

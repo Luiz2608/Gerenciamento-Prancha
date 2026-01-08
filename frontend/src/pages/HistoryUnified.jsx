@@ -14,7 +14,15 @@ export default function HistoryUnified() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [totalCount, setTotalCount] = useState(0);
-  const [filters, setFilters] = useState({ startDate: "", endDate: "", vehicleType: "both", plate: "", driverId: "", destination: "", status: "" });
+  const [filters, setFilters] = useState(() => {
+    const saved = localStorage.getItem("history_unified_filters");
+    return saved ? JSON.parse(saved) : { startDate: "", endDate: "", vehicleType: "both", plate: "", driverId: "", destination: "", status: "" };
+  });
+
+  useEffect(() => {
+    localStorage.setItem("history_unified_filters", JSON.stringify(filters));
+  }, [filters]);
+
   const loadRefs = async () => {
     setDrivers(await getMotoristas());
     setTrucks((await getCaminhoes()).filter((x) => x.status !== "Inativo"));

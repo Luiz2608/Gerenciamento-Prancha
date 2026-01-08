@@ -9,7 +9,15 @@ export default function HistoryPrancha() {
   const [totalKm, setTotalKm] = useState(0);
   const [totalHours, setTotalHours] = useState(0);
   const [count, setCount] = useState(0);
-  const [filters, setFilters] = useState({ pranchaId: "", startDate: "", endDate: "", driverId: "", destination: "", status: "" });
+  const [filters, setFilters] = useState(() => {
+    const saved = localStorage.getItem("history_prancha_filters");
+    return saved ? JSON.parse(saved) : { pranchaId: "", startDate: "", endDate: "", driverId: "", destination: "", status: "" };
+  });
+
+  useEffect(() => {
+    localStorage.setItem("history_prancha_filters", JSON.stringify(filters));
+  }, [filters]);
+
   const load = async () => {
     const d = await getMotoristas();
     const p = await getPranchas();
@@ -32,7 +40,7 @@ export default function HistoryPrancha() {
       <div className="card p-6 grid grid-cols-1 md:grid-cols-6 gap-4">
         <select className="select" value={filters.pranchaId} onChange={(e) => setFilters({ ...filters, pranchaId: e.target.value })}>
           <option value="" disabled>Prancha</option>
-          {pranchas.map((p) => <option key={p.id} value={p.id}>{p.identifier || p.model || p.id}</option>)}
+          {pranchas.map((p) => <option key={p.id} value={p.id}>{p.asset_number || "Reboque"} {p.is_set && p.asset_number2 ? `/ ${p.asset_number2}` : ""}</option>)}
         </select>
         <input className="input" placeholder="Início" value={filters.startDate} onChange={(e) => setFilters({ ...filters, startDate: e.target.value })} />
         <input className="input" placeholder="Fim" value={filters.endDate} onChange={(e) => setFilters({ ...filters, endDate: e.target.value })} />

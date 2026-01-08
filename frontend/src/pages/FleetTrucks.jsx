@@ -6,7 +6,17 @@ import { supabase } from "../services/supabaseClient.js";
 export default function FleetTrucks() {
   const toast = useToast();
   const [items, setItems] = useState([]);
-  const [form, setForm] = useState({ plate: "", model: "", year: "", chassis: "", km_current: "", fleet: "", status: "Ativo" });
+  const [form, setForm] = useState(() => {
+    const saved = localStorage.getItem("trucks_form_draft");
+    return saved ? JSON.parse(saved) : { plate: "", model: "", year: "", chassis: "", km_current: "", fleet: "", status: "Ativo" };
+  });
+  
+  useEffect(() => {
+    if (!editing) {
+      localStorage.setItem("trucks_form_draft", JSON.stringify(form));
+    }
+  }, [form, editing]);
+
   const [editing, setEditing] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const formRef = useRef(null);
@@ -49,6 +59,7 @@ export default function FleetTrucks() {
     if (!payload.plate || !payload.model || !payload.year) { const field = !payload.plate ? "Placa" : (!payload.model ? "Modelo" : "Ano"); toast?.show(`Erro → Aba Caminhão → Campo ${field} obrigatório`, "error"); return; }
     if (editing) await updateCaminhao(editing.id, payload);
     else await saveCaminhao(payload);
+    localStorage.removeItem("trucks_form_draft");
     toast?.show(editing ? "Caminhão atualizado" : "Caminhão cadastrado", "success");
     setForm({ plate: "", model: "", year: "", asset_number: "", capacity: "", km_current: "", fleet: "", status: "Ativo" });
     setEditing(null);
@@ -100,9 +111,9 @@ export default function FleetTrucks() {
               <option>Ativo</option>
               <option>Manutenção</option>
             </select>
-            <div className="flex gap-2">
+            <div className="flex gap-2 md:col-span-6">
               <button className="btn btn-primary flex-1">{editing ? "Salvar" : "Adicionar"}</button>
-              <button type="button" className="btn bg-gray-500 hover:bg-gray-600 text-white" onClick={() => { setShowForm(false); setEditing(null); setForm({ plate: "", model: "", year: "", asset_number: "", capacity: "", km_current: "", fleet: "", status: "Ativo" }); }}>Cancelar</button>
+              <button type="button" className="btn bg-gray-500 hover:bg-gray-600 text-white" onClick={() => { setShowForm(false); setEditing(null); localStorage.removeItem("trucks_form_draft"); setForm({ plate: "", model: "", year: "", asset_number: "", capacity: "", km_current: "", fleet: "", status: "Ativo" }); }}>Cancelar</button>
             </div>
           </form>
         </div>

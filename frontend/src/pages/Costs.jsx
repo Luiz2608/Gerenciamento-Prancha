@@ -19,7 +19,17 @@ export default function Costs() {
   const [total, setTotal] = useState(0);
   const [avgKm, setAvgKm] = useState(0);
   const [avgHour, setAvgHour] = useState(0);
-  const [form, setForm] = useState({ viagemId: "", dataRegistro: "", consumoLitros: "", valorLitro: "", diariaMotorista: "", pedagios: "", manutencao: "", outrosCustos: [], observacoes: "", anexos: [] });
+  const [form, setForm] = useState(() => {
+    const saved = localStorage.getItem("costs_form_draft");
+    return saved ? JSON.parse(saved) : { viagemId: "", dataRegistro: "", consumoLitros: "", valorLitro: "", diariaMotorista: "", pedagios: "", manutencao: "", outrosCustos: [], observacoes: "", anexos: [] };
+  });
+
+  useEffect(() => {
+    if (!editingId) {
+      localStorage.setItem("costs_form_draft", JSON.stringify(form));
+    }
+  }, [form, editingId]);
+
   const [addingOther, setAddingOther] = useState({ descricao: "", valor: "" });
   const [trips, setTrips] = useState([]);
   const [viewing, setViewing] = useState(null);
@@ -142,6 +152,7 @@ export default function Costs() {
         await saveCusto({ ...payload, anexos: form.anexos || [] });
         toast?.show("Custo salvo", "success");
       }
+      localStorage.removeItem("costs_form_draft");
       setForm({ viagemId: "", dataRegistro: "", consumoLitros: "", valorLitro: "", diariaMotorista: "", pedagios: "", manutencao: "", outrosCustos: [], observacoes: "", anexos: [] });
       setEditingId(null);
       setTab("lista");
@@ -427,6 +438,7 @@ export default function Costs() {
               toast?.show("Cálculo atualizado", "success");
             }}>Calcular</button>
             <button className="btn btn-primary">{editingId ? "Salvar" : "Cadastrar"}</button>
+            <button type="button" className="btn bg-gray-500 hover:bg-gray-600 text-white" onClick={() => { setForm({ viagemId: "", dataRegistro: "", consumoLitros: "", valorLitro: "", diariaMotorista: "", pedagios: "", manutencao: "", outrosCustos: [], observacoes: "", anexos: [] }); setEditingId(null); localStorage.removeItem("costs_form_draft"); setTab("lista"); }}>Cancelar</button>
             <button type="button" className="btn btn-secondary" onClick={() => { toast?.show("Solicitação de aprovação registrada", "success"); setTab("lista"); }}>Solicitar aprovação</button>
           </div>
         </form>

@@ -12,7 +12,17 @@ export default function Trips() {
   const [pranchas, setPranchas] = useState([]);
   const [items, setItems] = useState([]);
   const tipoOptions = ["Máquinas Agrícolas","Máquinas de Construção","Equipamentos Industriais","Veículos Pesados","Veículos Leves"];
-  const [form, setForm] = useState({ date: "", end_date: "", requester: "", driver_id: "", truck_id: "", prancha_id: "", destination: "", service_type: "", status: "", description: "", start_time: "", end_time: "", km_start: "", km_end: "", km_trip: "", km_per_liter: "", noKmStart: false, noKmEnd: false, fuel_liters: "", noFuelLiters: false, fuel_price: "", noFuelPrice: false, other_costs: "", noOtherCosts: false, maintenance_cost: "", noMaintenanceCost: false, driver_daily: "", noDriverDaily: false });
+  const [form, setForm] = useState(() => {
+    const saved = localStorage.getItem("trips_form_draft");
+    return saved ? JSON.parse(saved) : { date: "", end_date: "", requester: "", driver_id: "", truck_id: "", prancha_id: "", destination: "", service_type: "", status: "", description: "", start_time: "", end_time: "", km_start: "", km_end: "", km_trip: "", km_per_liter: "", noKmStart: false, noKmEnd: false, fuel_liters: "", noFuelLiters: false, fuel_price: "", noFuelPrice: false, other_costs: "", noOtherCosts: false, maintenance_cost: "", noMaintenanceCost: false, driver_daily: "", noDriverDaily: false };
+  });
+  
+  useEffect(() => {
+    if (!editing) {
+      localStorage.setItem("trips_form_draft", JSON.stringify(form));
+    }
+  }, [form, editing]);
+
   const [editing, setEditing] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [kmMode, setKmMode] = useState("");
@@ -258,6 +268,7 @@ export default function Trips() {
       await saveViagem(payload);
     }
     toast?.show(editing ? "Viagem atualizada" : "Viagem cadastrada", "success");
+    localStorage.removeItem("trips_form_draft");
     setForm({ date: "", end_date: "", requester: "", driver_id: "", truck_id: "", prancha_id: "", destination: "", service_type: "", status: "", description: "", start_time: "", end_time: "", km_start: "", km_end: "", km_trip: "", km_per_liter: "", noKmStart: false, noKmEnd: false, fuel_liters: "", noFuelLiters: false, fuel_price: "", noFuelPrice: false, other_costs: "", noOtherCosts: false, maintenance_cost: "", noMaintenanceCost: false, driver_daily: "", noDriverDaily: false });
     setEditing(null);
     setShowForm(false);
@@ -383,7 +394,7 @@ export default function Trips() {
           <div className="flex flex-col">
             <select className={`select ${validationErrors.prancha_id ? 'ring-red-500 border-red-500' : ''}`} value={form.prancha_id} onChange={(e) => setForm({ ...form, prancha_id: e.target.value })}>
               <option value="" disabled>Prancha *</option>
-              {pranchas.map((p) => <option key={p.id} value={p.asset_number || ''}>{p.asset_number || p.identifier || p.model || p.id}</option>)}
+              {pranchas.map((p) => <option key={p.id} value={p.asset_number || ''}>{p.asset_number || "Reboque"}{p.is_set && p.asset_number2 ? ` / ${p.asset_number2}` : ""}</option>)}
             </select>
             {validationErrors.prancha_id && <span className="text-red-500 text-xs mt-1">{validationErrors.prancha_id}</span>}
           </div>

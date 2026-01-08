@@ -14,7 +14,14 @@ export default function Dashboard() {
     { v: "09", n: "Set" }, { v: "10", n: "Out" }, { v: "11", n: "Nov" }, { v: "12", n: "Dez" }
   ];
   const [data, setData] = useState(null);
-  const [period, setPeriod] = useState({ month: String(now.getMonth() + 1).padStart(2, "0"), year: now.getFullYear() });
+  const [period, setPeriod] = useState(() => {
+    const saved = localStorage.getItem("dashboard_period_draft");
+    return saved ? JSON.parse(saved) : { month: String(now.getMonth() + 1).padStart(2, "0"), year: now.getFullYear() };
+  });
+
+  useEffect(() => {
+    localStorage.setItem("dashboard_period_draft", JSON.stringify(period));
+  }, [period]);
 
   const refresh = async (p = period) => {
     const r = await dashboard({ month: Number(p.month), year: Number(p.year) });

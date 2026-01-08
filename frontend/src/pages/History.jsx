@@ -9,7 +9,15 @@ export default function History() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [filters, setFilters] = useState({ startDate: "", endDate: "", driverId: "", destination: "", status: "", search: "" });
+  const [filters, setFilters] = useState(() => {
+    const saved = localStorage.getItem("history_filters");
+    return saved ? JSON.parse(saved) : { startDate: "", endDate: "", driverId: "", destination: "", status: "", search: "" };
+  });
+
+  useEffect(() => {
+    localStorage.setItem("history_filters", JSON.stringify(filters));
+  }, [filters]);
+
   const [viewItem, setViewItem] = useState(null);
 
   const loadDrivers = () => getMotoristas().then((r) => setDrivers(r));
