@@ -400,6 +400,7 @@ export async function deleteMotorista(id) { await initLoad(); if (API_URL) { awa
 
 export async function getViagens(opts = {}) {
   await initLoad();
+  const { supabase: sb } = await import("./supabaseClient.js");
   const { startDate, endDate, driverId, destination, status, search, truckId, pranchaId, vehicleType, plate, id, page = 1, pageSize = 10 } = opts;
   if (API_URL) {
     const params = new URLSearchParams();
@@ -469,7 +470,7 @@ export async function getViagens(opts = {}) {
   const data = rows.slice(offset, offset + Number(pageSize));
   return { data, total, page: Number(page), pageSize: Number(pageSize) };
 }
-export async function getViagem(id) { await initLoad(); if (API_URL) { const r = await api(`/api/viagens/${id}`); if (!r.ok) return null; const j = await r.json(); return { ...j, end_date: j.end_date || j.date }; } if (sb && isOnline()) { const { data: t } = await sb.from("viagens").select("*").eq("id", Number(id)).single(); if (!t) return null; return { ...t, end_date: t.end_date || t.date, km_rodado: computeKm(t.km_start, t.km_end), horas: computeHours(t.date, t.start_time, t.end_time, t.end_date || t.date) }; } const db = getDB(); const t = db.viagens.find((x) => x.id === Number(id)); if (!t) return null; return { ...t, end_date: t.end_date || t.date, km_rodado: computeKm(t.km_start, t.km_end), horas: computeHours(t.date, t.start_time, t.end_time, t.end_date || t.date) }; }
+export async function getViagem(id) { await initLoad(); const { supabase: sb } = await import("./supabaseClient.js"); if (API_URL) { const r = await api(`/api/viagens/${id}`); if (!r.ok) return null; const j = await r.json(); return { ...j, end_date: j.end_date || j.date }; } if (sb && isOnline()) { const { data: t } = await sb.from("viagens").select("*").eq("id", Number(id)).single(); if (!t) return null; return { ...t, end_date: t.end_date || t.date, km_rodado: computeKm(t.km_start, t.km_end), horas: computeHours(t.date, t.start_time, t.end_time, t.end_date || t.date) }; } const db = getDB(); const t = db.viagens.find((x) => x.id === Number(id)); if (!t) return null; return { ...t, end_date: t.end_date || t.date, km_rodado: computeKm(t.km_start, t.km_end), horas: computeHours(t.date, t.start_time, t.end_time, t.end_date || t.date) }; }
 export async function saveViagem(data) { await initLoad(); if (API_URL) { const r = await api("/api/viagens", { method: "POST", body: JSON.stringify(data) }); return await r.json(); } const { supabase: sb } = await import("./supabaseClient.js"); if (sb && isOnline()) { const status = data.status || computeStatus(data.end_time, data.km_end); const payload = { date: data.date, driver_id: Number(data.driver_id), truck_id: data.truck_id != null ? Number(data.truck_id) : null, prancha_id: data.prancha_id != null ? Number(data.prancha_id) : null, destination: data.destination || null, service_type: data.service_type || null, description: data.description || null, start_time: data.start_time || null, end_time: data.end_time || null, km_start: data.km_start != null ? Number(data.km_start) : null, km_end: data.km_end != null ? Number(data.km_end) : null, fuel_liters: data.fuel_liters != null ? Number(data.fuel_liters) : 0, fuel_price: data.fuel_price != null ? Number(data.fuel_price) : 0, other_costs: data.other_costs != null ? Number(data.other_costs) : 0, maintenance_cost: data.maintenance_cost != null ? Number(data.maintenance_cost) : 0, driver_daily: data.driver_daily != null ? Number(data.driver_daily) : 0, requester: data.requester || null, status };
   const { data: row, error } = await sb.from("viagens").insert([payload]).select().single();
   if (row) {
@@ -488,7 +489,7 @@ export async function updateViagem(id, data) { await initLoad(); if (API_URL) { 
 const db = getDB(); const i = db.viagens.findIndex((t) => t.id === Number(id)); const status = data.status || computeStatus(data.end_time, data.km_end); if (i>=0) db.viagens[i] = { id: Number(id), date: data.date, end_date: data.end_date || data.date, driver_id: Number(data.driver_id), truck_id: data.truck_id != null ? Number(data.truck_id) : null, prancha_id: data.prancha_id != null ? Number(data.prancha_id) : null, destination: data.destination || null, service_type: data.service_type || null, description: data.description || null, start_time: data.start_time || null, end_time: data.end_time || null, km_start: data.km_start != null ? Number(data.km_start) : null, km_end: data.km_end != null ? Number(data.km_end) : null, fuel_liters: data.fuel_liters != null ? Number(data.fuel_liters) : 0, fuel_price: data.fuel_price != null ? Number(data.fuel_price) : 0, other_costs: data.other_costs != null ? Number(data.other_costs) : 0, maintenance_cost: data.maintenance_cost != null ? Number(data.maintenance_cost) : 0, driver_daily: data.driver_daily != null ? Number(data.driver_daily) : 0, requester: data.requester || null, status }; const t = db.viagens[i]; if (t.truck_id != null && t.km_end != null) { const ti = db.caminhoes.findIndex((d) => d.id === Number(t.truck_id)); if (ti>=0) db.caminhoes[ti] = { ...db.caminhoes[ti], km_current: Number(t.km_end) }; } setDB(db);
 enqueue({ table: "viagens", op: "update", payload: t, localId: Number(id) }); return { ...t, km_rodado: computeKm(t.km_start, t.km_end), horas: computeHours(t.date, t.start_time, t.end_time, t.end_date), total_cost: Number(t.fuel_liters || 0) * Number(t.fuel_price || 0) + Number(t.other_costs || 0) + Number(t.maintenance_cost || 0) + Number(t.driver_daily || 0) };
 }
-export async function deleteViagem(id) { await initLoad(); if (API_URL) { await api(`/api/viagens/${id}`, { method: "DELETE" }); return { ok: true }; } if (sb && isOnline()) { await sb.from("viagens").delete().eq("id", Number(id)); return { ok: true }; } const db = getDB(); db.viagens = db.viagens.filter((t) => t.id !== Number(id)); setDB(db); enqueue({ table: "viagens", op: "delete", localId: Number(id) }); return { ok: true }; }
+export async function deleteViagem(id) { await initLoad(); const { supabase: sb } = await import("./supabaseClient.js"); if (API_URL) { await api(`/api/viagens/${id}`, { method: "DELETE" }); return { ok: true }; } if (sb && isOnline()) { await sb.from("viagens").delete().eq("id", Number(id)); return { ok: true }; } const db = getDB(); db.viagens = db.viagens.filter((t) => t.id !== Number(id)); setDB(db); enqueue({ table: "viagens", op: "delete", localId: Number(id) }); return { ok: true }; }
 
 export async function getDestinos() { await initLoad(); return getDB().destinos; }
 export async function saveDestino(name) { await initLoad(); const db = getDB(); const id = db.seq.destinos++; const row = { id, name }; db.destinos.push(row); setDB(db); return row; }
@@ -1201,7 +1202,7 @@ export async function updateCusto(id, patch) {
   return after;
 }
 
-export async function deleteCusto(id) { await initLoad(); if (sb && isOnline()) { await sb.from("custos").delete().eq("id", String(id)); return { ok: true }; } const db = getDB(); db.custos = db.custos.filter((c) => String(c.id) !== String(id)); setDB(db); enqueue({ table: "custos", op: "delete", localId: String(id) }); return { ok: true }; }
+export async function deleteCusto(id) { await initLoad(); const { supabase: sb } = await import("./supabaseClient.js"); if (sb && isOnline()) { await sb.from("custos").delete().eq("id", String(id)); return { ok: true }; } const db = getDB(); db.custos = db.custos.filter((c) => String(c.id) !== String(id)); setDB(db); enqueue({ table: "custos", op: "delete", localId: String(id) }); return { ok: true }; }
 
 export async function attachFileToCusto(id, fileMeta, fileContentBase64) {
   await initLoad();
@@ -1231,6 +1232,7 @@ export async function attachFileToCusto(id, fileMeta, fileContentBase64) {
 
 export async function approveCusto(id, usuario) {
   await initLoad();
+  const { supabase: sb } = await import("./supabaseClient.js");
   const user = usuario || JSON.parse(localStorage.getItem("user") || "{}");
   if ((user.role || "user") !== "admin") throw new Error("Acesso negado");
   if (sb && isOnline()) {
