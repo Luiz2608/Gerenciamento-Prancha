@@ -128,7 +128,9 @@ export default function FleetPranchas() {
               <option>Reboque 30 metros</option>
               <option>Reboque 26 metros</option>
             </select>
-            <input className="input" placeholder="Conjunto" value={form.conjunto} onChange={(e) => setForm({ ...form, conjunto: e.target.value })} />
+            {(form.type === "Reboque 30 metros" || form.type === "Reboque 26 metros") && (
+              <input className="input" placeholder="Conjunto" value={form.conjunto} onChange={(e) => setForm({ ...form, conjunto: e.target.value })} />
+            )}
             <input className="input" placeholder="Capacidade" value={form.capacity} readOnly />
             <input className="input" placeholder="Ano" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} />
             <select className="select" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
