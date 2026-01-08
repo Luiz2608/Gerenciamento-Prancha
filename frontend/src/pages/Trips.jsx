@@ -242,6 +242,7 @@ export default function Trips() {
     setShowForm(false);
     setShowValidation(false);
     loadTrips();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleFormKeyDown = (e) => {
