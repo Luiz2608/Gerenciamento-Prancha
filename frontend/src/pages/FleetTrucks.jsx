@@ -14,11 +14,6 @@ export default function FleetTrucks() {
   const [showForm, setShowForm] = useState(false);
   const formRef = useRef(null);
 
-  useEffect(() => {
-    if (!editing) {
-      localStorage.setItem("trucks_form_draft", JSON.stringify(form));
-    }
-  }, [form, editing]);
   const maskPlate = (v) => {
     const s = String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0,7);
     return s;
@@ -101,6 +96,13 @@ export default function FleetTrucks() {
   };
   const del = async (id) => { await deleteCaminhao(id); toast?.show("Caminhão excluído", "success"); load(); };
   const delConfirm = async (id) => { if (!window.confirm("Confirma excluir este caminhão?")) return; await del(id); };
+
+  useEffect(() => {
+    if (!editing) {
+      localStorage.setItem("trucks_form_draft", JSON.stringify(form));
+    }
+  }, [form, editing]);
+
   return (
     <div className="space-y-8 overflow-x-auto overflow-y-auto min-h-screen page" style={{ WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain', overscrollBehaviorY: 'contain', touchAction: 'pan-y' }}>
       {!showForm && !editing && (

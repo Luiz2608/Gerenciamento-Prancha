@@ -100,7 +100,15 @@ export default function FleetPranchas() {
       else window.scrollTo({ top: 0, behavior: "smooth" });
     }, 100);
   };
-  const del = async (id) => { await deletePrancha(id); load(); };
+  const del = async (id) => { await deletePrancha(id); toast?.show("Reboque excluído", "success"); load(); };
+  const delConfirm = async (id) => { if (!window.confirm("Confirma excluir este reboque?")) return; await del(id); };
+
+  useEffect(() => {
+    if (!editing) {
+      localStorage.setItem("pranchas_form_draft", JSON.stringify(form));
+    }
+  }, [form, editing]);
+
   return (
     <div className="space-y-8 overflow-x-auto overflow-y-auto min-h-screen page" style={{ WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain', overscrollBehaviorY: 'contain', touchAction: 'pan-y' }}>
       {!showForm && !editing && (

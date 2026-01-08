@@ -15,12 +15,6 @@ export default function Drivers() {
   const [showForm, setShowForm] = useState(false);
   const formRef = useRef(null);
 
-  useEffect(() => {
-    if (!editing) {
-      localStorage.setItem("drivers_form_draft", JSON.stringify(form));
-    }
-  }, [form, editing]);
-
   const load = () => getMotoristas().then((r) => setItems(r));
   useEffect(() => {
     load();
@@ -94,6 +88,12 @@ export default function Drivers() {
 
   const del = async (id) => { await deleteMotorista(id); toast?.show("Motorista excluído", "success"); load(); };
   const delConfirm = async (id) => { if (!window.confirm("Confirma excluir este motorista?")) return; await del(id); };
+
+  useEffect(() => {
+    if (!editing) {
+      localStorage.setItem("drivers_form_draft", JSON.stringify(form));
+    }
+  }, [form, editing]);
 
   const filteredItems = items.filter((it) => 
     it.name.toLowerCase().includes(searchTerm.toLowerCase()) ||

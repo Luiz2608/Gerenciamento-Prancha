@@ -350,6 +350,12 @@ export default function Trips() {
   const del = async (id) => { await deleteViagem(id); toast?.show("Viagem excluída", "success"); loadTrips(); };
   const delConfirm = async (id) => { if (!window.confirm("Confirma excluir esta viagem?")) return; await del(id); };
 
+  useEffect(() => {
+    if (!editing) {
+      localStorage.setItem("trips_form_draft", JSON.stringify(form));
+    }
+  }, [form, editing]);
+
   return (
     <div className="space-y-8 overflow-x-auto overflow-y-auto min-h-screen page" style={{ WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain', overscrollBehaviorY: 'contain', touchAction: 'pan-y' }}>
       
