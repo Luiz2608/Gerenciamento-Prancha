@@ -10,15 +10,15 @@ export default function FleetPranchas() {
     return saved ? JSON.parse(saved) : { asset_number: "", type: "", capacity: "", year: "", plate: "", chassis: "", status: "Ativo", fleet: "", conjunto: "", is_set: false, asset_number2: "", plate2: "", chassis2: "" };
   });
 
+  const [editing, setEditing] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const formRef = useRef(null);
+
   useEffect(() => {
     if (!editing) {
       localStorage.setItem("pranchas_form_draft", JSON.stringify(form));
     }
   }, [form, editing]);
-
-  const [editing, setEditing] = useState(null);
-  const [showForm, setShowForm] = useState(false);
-  const formRef = useRef(null);
   const typeCap = { "Prancha 2 eixos": 20000, "Prancha 3 eixos": 30000, "Prancha 4 eixos": 45000, "Reboque 30 metros": 50000, "Reboque 26 metros": 40000 };
   const load = () => getPranchas().then((r) => setItems(r));
   useEffect(() => {
