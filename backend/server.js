@@ -1,5 +1,10 @@
 import express from "express";
+import path from "path";
+import { fileURLToPath } from "url";
 import cors from "cors";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 import { Pool } from "pg";
 import bcrypt from "bcryptjs";
 
@@ -250,7 +255,15 @@ app.delete("/api/viagens/:id", async (req, res) => {
 
 app.get("/api/health", (req, res) => res.json({ ok: true }));
 
-const port = process.env.PORT || 4000;
+// Serve frontend static files
+app.use(express.static(path.join(__dirname, "../frontend/dist")));
+
+// Handle SPA routing - return index.html for any unknown route
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "../frontend/dist/index.html"));
+});
+
+const port = process.env.PORT || 3000;
 app.listen(port, () => {
   console.log(`API running on http://localhost:${port}`);
 });

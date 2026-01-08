@@ -76,7 +76,12 @@ export default function Trips() {
     loadTrucks();
     loadPranchas();
     loadTrips();
-    if (supabase) {
+
+    let channels = [];
+    const setupRealtime = async () => {
+      const { supabase } = await import("../services/supabaseClient.js");
+      if (!supabase) return;
+
       const ch1 = supabase
         .channel("public:viagens")
         .on("postgres_changes", { event: "*", schema: "public", table: "viagens" }, () => { loadTrips(); })
@@ -93,15 +98,21 @@ export default function Trips() {
         .channel("public:pranchas")
         .on("postgres_changes", { event: "*", schema: "public", table: "pranchas" }, () => { loadPranchas(); })
         .subscribe();
-      const interval = setInterval(() => { loadTrips(); }, 10000);
-      return () => {
-        supabase.removeChannel(ch1);
-        supabase.removeChannel(ch2);
-        supabase.removeChannel(ch3);
-        supabase.removeChannel(ch4);
+      
+      channels = [ch1, ch2, ch3, ch4];
+    };
+
+    setupRealtime();
+
+    const interval = setInterval(() => { loadTrips(); }, 10000);
+    return () => {
+      import("../services/supabaseClient.js").then(({ supabase }) => {
+        if (supabase) {
+           channels.forEach(ch => supabase.removeChannel(ch));
+        }
+      });
         clearInterval(interval);
       };
-    }
   }, []);
   useEffect(() => {
     const id = new URLSearchParams(location.search).get("editId");
