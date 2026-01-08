@@ -32,7 +32,6 @@ const getClientId = () => {
 
 const API_URL = typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_API_URL ? String(import.meta.env.VITE_API_URL) : null;
 const api = (path, opts = {}) => fetch(`${API_URL}${path}`, { ...opts, headers: { "Content-Type": "application/json", "x-client-id": getClientId(), ...(opts.headers || {}) } });
-import { supabase as sb } from "./supabaseClient.js";
 
 const getDB = () => JSON.parse(localStorage.getItem(KEY) || "null");
 const setDB = (db) => localStorage.setItem(KEY, JSON.stringify(db));
