@@ -239,6 +239,7 @@ export default function Trips() {
     toast?.show(editing ? "Viagem atualizada" : "Viagem cadastrada", "success");
     setForm({ date: "", end_date: "", requester: "", driver_id: "", truck_id: "", prancha_id: "", destination: "", service_type: "", status: "", description: "", start_time: "", end_time: "", km_start: "", km_end: "", km_trip: "", km_per_liter: "", noKmStart: false, noKmEnd: false, fuel_liters: "", noFuelLiters: false, fuel_price: "", noFuelPrice: false, other_costs: "", noOtherCosts: false, maintenance_cost: "", noMaintenanceCost: false, driver_daily: "", noDriverDaily: false });
     setEditing(null);
+    setShowForm(false);
     setShowValidation(false);
     loadTrips();
   };
