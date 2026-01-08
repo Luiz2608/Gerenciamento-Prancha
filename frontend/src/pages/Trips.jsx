@@ -257,6 +257,16 @@ export default function Trips() {
     setEditing(it);
     setShowForm(true);
     setShowValidation(true);
+    
+    // Determinar modo de KM
+    if (it.km_start != null || it.km_end != null) {
+      setKmMode("KM Caminhão");
+    } else if (it.km_rodado != null && it.km_rodado > 0) {
+      setKmMode("KM da Viagem");
+    } else {
+      setKmMode("KM Caminhão"); // Default
+    }
+
     setForm({
       date: it.date ? fromIsoDate(it.date) : "",
       end_date: it.end_date ? fromIsoDate(it.end_date) : "",
@@ -270,21 +280,21 @@ export default function Trips() {
       description: it.description || "",
       start_time: it.start_time || "",
       end_time: it.end_time || "",
-      km_start: it.km_start?.toString() || "",
-      km_end: it.km_end?.toString() || "",
+      km_start: it.km_start != null ? String(it.km_start) : "",
+      km_end: it.km_end != null ? String(it.km_end) : "",
       km_trip: (it.km_rodado != null ? String(it.km_rodado) : ((it.km_start != null && it.km_end != null) ? String(Math.max(0, Number(it.km_end) - Number(it.km_start))) : "")),
-      noKmStart: false,
-      noKmEnd: false,
-      fuel_liters: it.fuel_liters?.toString() || "",
-      noFuelLiters: false,
-      fuel_price: it.fuel_price?.toString() || "",
-      noFuelPrice: false,
-      other_costs: it.other_costs?.toString() || "",
-      noOtherCosts: false,
-      maintenance_cost: it.maintenance_cost?.toString() || "",
-      noMaintenanceCost: false,
-      driver_daily: it.driver_daily?.toString() || "",
-      noDriverDaily: false
+      noKmStart: it.km_start === null,
+      noKmEnd: it.km_end === null,
+      fuel_liters: it.fuel_liters ? String(it.fuel_liters) : "",
+      noFuelLiters: !it.fuel_liters,
+      fuel_price: it.fuel_price ? String(it.fuel_price) : "",
+      noFuelPrice: !it.fuel_price,
+      other_costs: it.other_costs ? String(it.other_costs) : "",
+      noOtherCosts: !it.other_costs,
+      maintenance_cost: it.maintenance_cost ? String(it.maintenance_cost) : "",
+      noMaintenanceCost: !it.maintenance_cost,
+      driver_daily: it.driver_daily ? String(it.driver_daily) : "",
+      noDriverDaily: !it.driver_daily
     });
     toast?.show("Edição carregada", "info");
     if (formRef.current) formRef.current.scrollIntoView({ behavior: "smooth" });
