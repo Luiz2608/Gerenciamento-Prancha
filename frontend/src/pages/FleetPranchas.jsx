@@ -6,11 +6,11 @@ import { supabase } from "../services/supabaseClient.js";
 export default function FleetPranchas() {
   const toast = useToast();
   const [items, setItems] = useState([]);
-  const [form, setForm] = useState({ asset_number: "", type: "", capacity: "", year: "", plate: "", chassis: "", status: "Ativo" });
+  const [form, setForm] = useState({ asset_number: "", type: "", capacity: "", year: "", plate: "", chassis: "", status: "Ativo", fleet: "", conjunto: "" });
   const [editing, setEditing] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const formRef = useRef(null);
-  const typeCap = { "Prancha 2 eixos": 20000, "Prancha 3 eixos": 30000, "Prancha 4 eixos": 45000 };
+  const typeCap = { "Prancha 2 eixos": 20000, "Prancha 3 eixos": 30000, "Prancha 4 eixos": 45000, "Conjunto 30 metros": 50000, "Conjunto 26 metros": 40000 };
   const load = () => getPranchas().then((r) => setItems(r));
   useEffect(() => {
     load();
@@ -28,12 +28,12 @@ export default function FleetPranchas() {
   const maskChassis = (v) => String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0,17);
   const submit = async (e) => {
     e.preventDefault();
-    const payload = { asset_number: form.asset_number || null, type: form.type || null, capacity: form.capacity ? Number(form.capacity) : null, year: form.year ? Number(form.year) : null, plate: form.plate || null, chassis: form.chassis || null, status: form.status || "Ativo" };
-    if (!payload.asset_number || !payload.type || !payload.year) { const field = !payload.asset_number ? "Frota" : (!payload.type ? "Tipo" : "Ano"); toast?.show(`Erro → Aba Pranchas → Campo ${field} obrigatório`, "error"); return; }
+    const payload = { asset_number: form.asset_number || null, type: form.type || null, capacity: form.capacity ? Number(form.capacity) : null, year: form.year ? Number(form.year) : null, plate: form.plate || null, chassis: form.chassis || null, status: form.status || "Ativo", fleet: form.fleet || null, conjunto: form.conjunto || null };
+    if (!payload.asset_number || !payload.type || !payload.year) { const field = !payload.asset_number ? "Nº Ativo" : (!payload.type ? "Tipo" : "Ano"); toast?.show(`Erro → Aba Reboques → Campo ${field} obrigatório`, "error"); return; }
     if (editing) await updatePrancha(editing.id, payload);
     else await savePrancha(payload);
-    setForm({ asset_number: "", type: "", capacity: "", year: "", plate: "", chassis: "", status: "Ativo" });
-    toast?.show(editing ? "Prancha atualizada" : "Prancha cadastrada", "success");
+    setForm({ asset_number: "", type: "", capacity: "", year: "", plate: "", chassis: "", status: "Ativo", fleet: "", conjunto: "" });
+    toast?.show(editing ? "Reboque atualizado" : "Reboque cadastrado", "success");
     setEditing(null);
     setShowForm(false);
     load();
@@ -41,7 +41,7 @@ export default function FleetPranchas() {
   };
   const edit = (it) => {
     setEditing(it);
-    setForm({ asset_number: it.asset_number || "", type: it.type || "", capacity: it.capacity?.toString() || "", year: it.year?.toString() || "", plate: it.plate || "", chassis: it.chassis || "", status: it.status });
+    setForm({ asset_number: it.asset_number || "", type: it.type || "", capacity: it.capacity?.toString() || "", year: it.year?.toString() || "", plate: it.plate || "", chassis: it.chassis || "", status: it.status, fleet: it.fleet || "", conjunto: it.conjunto || "" });
     setShowForm(true);
     toast?.show("Edição carregada", "info");
     setTimeout(() => {
@@ -59,15 +59,19 @@ export default function FleetPranchas() {
       )}
       {(showForm || editing) && (
         <div ref={formRef} className="card p-6 animate-fade">
-          <div className="font-semibold mb-4 text-secondary text-xl">Cadastro de Prancha</div>
+          <div className="font-semibold mb-4 text-secondary text-xl">Cadastro de Reboque</div>
           <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-6 gap-4">
-            <input className="input" placeholder="Frota" value={form.asset_number} onChange={(e) => setForm({ ...form, asset_number: e.target.value })} />
+            <input className="input" placeholder="Nº Ativo" value={form.asset_number} onChange={(e) => setForm({ ...form, asset_number: e.target.value })} />
             <select className="select" value={form.type} onChange={(e) => { const tp = e.target.value; setForm({ ...form, type: tp, capacity: typeCap[tp] || "" }); }}>
-              <option value="">Tipo da prancha</option>
+              <option value="">Tipo de Reboque</option>
               <option>Prancha 2 eixos</option>
               <option>Prancha 3 eixos</option>
               <option>Prancha 4 eixos</option>
+              <option>Conjunto 30 metros</option>
+              <option>Conjunto 26 metros</option>
             </select>
+            <input className="input" placeholder="Frota" value={form.fleet} onChange={(e) => setForm({ ...form, fleet: e.target.value })} />
+            <input className="input" placeholder="Conjunto" value={form.conjunto} onChange={(e) => setForm({ ...form, conjunto: e.target.value })} />
             <input className="input" placeholder="Capacidade" value={form.capacity} readOnly />
             <input className="input" placeholder="Ano" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} />
             <input className="input" placeholder="Placa" value={form.plate} onChange={(e) => setForm({ ...form, plate: maskPlate(e.target.value) })} />
@@ -76,9 +80,9 @@ export default function FleetPranchas() {
               <option>Ativo</option>
               <option>Manutenção</option>
             </select>
-            <div className="flex gap-2">
+            <div className="flex gap-2 md:col-span-6">
               <button className="btn btn-primary flex-1">{editing ? "Salvar" : "Adicionar"}</button>
-              <button type="button" className="btn bg-gray-500 hover:bg-gray-600 text-white" onClick={() => { setShowForm(false); setEditing(null); setForm({ asset_number: "", type: "", capacity: "", year: "", plate: "", chassis: "", status: "Ativo" }); }}>Cancelar</button>
+              <button type="button" className="btn bg-gray-500 hover:bg-gray-600 text-white" onClick={() => { setShowForm(false); setEditing(null); setForm({ asset_number: "", type: "", capacity: "", year: "", plate: "", chassis: "", status: "Ativo", fleet: "", conjunto: "" }); }}>Cancelar</button>
             </div>
           </form>
         </div>
@@ -88,7 +92,9 @@ export default function FleetPranchas() {
           <thead>
             <tr>
               <th>ID</th>
+              <th>Nº Ativo</th>
               <th>Frota</th>
+              <th>Conjunto</th>
               <th>Tipo</th>
               <th>Ano</th>
               <th>Capacidade</th>
@@ -103,6 +109,8 @@ export default function FleetPranchas() {
               <tr key={it.id} className={`${idx % 2 === 0 ? 'bg-slate-50 dark:bg-slate-800' : 'bg-white dark:bg-slate-700'} hover:bg-slate-100 dark:hover:bg-slate-600`}>
                 <td>{it.id}</td>
                 <td>{it.asset_number || ""}</td>
+                <td>{it.fleet || ""}</td>
+                <td>{it.conjunto || ""}</td>
                 <td>{it.type || ""}</td>
                 <td>{it.year ?? ""}</td>
                 <td>{it.capacity ?? ""}</td>
@@ -122,9 +130,11 @@ export default function FleetPranchas() {
         {items.map((it) => (
           <div key={it.id} className="card p-4">
             <div className="flex justify-between items-center">
-              <div className="font-semibold">{it.asset_number || "Prancha"}</div>
+              <div className="font-semibold">{it.asset_number || "Reboque"}</div>
               <div className="text-sm">{it.status}</div>
             </div>
+            <div className="text-sm text-slate-600 dark:text-slate-300">Frota: {it.fleet || "-"}</div>
+            <div className="text-sm text-slate-600 dark:text-slate-300">Conjunto: {it.conjunto || "-"}</div>
             <div className="text-sm text-slate-600 dark:text-slate-300">Tipo: {it.type || ""}</div>
             <div className="text-sm text-slate-600 dark:text-slate-300">Ano: {it.year ?? ""}</div>
             <div className="text-sm text-slate-600 dark:text-slate-300">Capacidade: {it.capacity ?? ""}</div>

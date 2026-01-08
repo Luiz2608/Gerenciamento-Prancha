@@ -88,7 +88,7 @@ export default function MainLayout() {
           <div className="mt-2">
             <div className="px-4 py-2 text-white/80">Frota</div>
             <Link onClick={closeMenuOnNavigate} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${isActive("/frota/caminhoes") ? "bg-accent/20 text-white" : "hover:bg-white/10"}`} to="/frota/caminhoes">🚛 <span>Caminhão</span></Link>
-            <Link onClick={closeMenuOnNavigate} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${isActive("/frota/pranchas") ? "bg-accent/20 text-white" : "hover:bg-white/10"}`} to="/frota/pranchas">🛠️ <span>Prancha</span></Link>
+            <Link onClick={closeMenuOnNavigate} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${isActive("/frota/pranchas") ? "bg-accent/20 text-white" : "hover:bg-white/10"}`} to="/frota/pranchas">🛠️ <span>Reboques</span></Link>
           </div>
           <Link onClick={closeMenuOnNavigate} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${isActive("/custos") ? "bg-accent/20 text-white" : "hover:bg-white/10"}`} to="/custos">💸 <span>Custos</span></Link>
           <Link onClick={closeMenuOnNavigate} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${isActive("/exportar") ? "bg-accent/20 text-white" : "hover:bg-white/10"}`} to="/exportar">🗳️ <span>Exportar Dados</span></Link>
