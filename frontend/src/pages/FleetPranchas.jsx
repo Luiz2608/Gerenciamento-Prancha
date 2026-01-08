@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { getPranchas, savePrancha, updatePrancha, deletePrancha } from "../services/storageService.js";
 import { useToast } from "../components/ToastProvider.jsx";
 import { supabase } from "../services/supabaseClient.js";
@@ -8,6 +8,8 @@ export default function FleetPranchas() {
   const [items, setItems] = useState([]);
   const [form, setForm] = useState({ asset_number: "", type: "", capacity: "", year: "", plate: "", chassis: "", status: "Ativo" });
   const [editing, setEditing] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const formRef = useRef(null);
   const typeCap = { "Prancha 2 eixos": 20000, "Prancha 3 eixos": 30000, "Prancha 4 eixos": 45000 };
   const load = () => getPranchas().then((r) => setItems(r));
   useEffect(() => {
@@ -33,33 +35,54 @@ export default function FleetPranchas() {
     setForm({ asset_number: "", type: "", capacity: "", year: "", plate: "", chassis: "", status: "Ativo" });
     toast?.show(editing ? "Prancha atualizada" : "Prancha cadastrada", "success");
     setEditing(null);
+    setShowForm(false);
     load();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
-  const edit = (it) => { setEditing(it); setForm({ asset_number: it.asset_number || "", type: it.type || "", capacity: it.capacity?.toString() || "", year: it.year?.toString() || "", plate: it.plate || "", chassis: it.chassis || "", status: it.status }); };
+  const edit = (it) => {
+    setEditing(it);
+    setForm({ asset_number: it.asset_number || "", type: it.type || "", capacity: it.capacity?.toString() || "", year: it.year?.toString() || "", plate: it.plate || "", chassis: it.chassis || "", status: it.status });
+    setShowForm(true);
+    toast?.show("Edição carregada", "info");
+    setTimeout(() => {
+      if (formRef.current) formRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      else window.scrollTo({ top: 0, behavior: "smooth" });
+    }, 100);
+  };
   const del = async (id) => { await deletePrancha(id); load(); };
   return (
     <div className="space-y-8 overflow-x-auto overflow-y-auto min-h-screen page" style={{ WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain', overscrollBehaviorY: 'contain', touchAction: 'pan-y' }}>
-      <div className="card p-6 animate-fade">
-        <div className="font-semibold mb-4 text-secondary text-xl">Cadastro de Prancha</div>
-        <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-6 gap-4">
-          <input className="input" placeholder="Frota" value={form.asset_number} onChange={(e) => setForm({ ...form, asset_number: e.target.value })} />
-          <select className="select" value={form.type} onChange={(e) => { const tp = e.target.value; setForm({ ...form, type: tp, capacity: typeCap[tp] || "" }); }}>
-            <option value="">Tipo da prancha</option>
-            <option>Prancha 2 eixos</option>
-            <option>Prancha 3 eixos</option>
-            <option>Prancha 4 eixos</option>
-          </select>
-          <input className="input" placeholder="Capacidade" value={form.capacity} readOnly />
-          <input className="input" placeholder="Ano" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} />
-          <input className="input" placeholder="Placa" value={form.plate} onChange={(e) => setForm({ ...form, plate: maskPlate(e.target.value) })} />
-          <input className="input" placeholder="Chassi" value={form.chassis} onChange={(e) => setForm({ ...form, chassis: maskChassis(e.target.value) })} />
-          <select className="select" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-            <option>Ativo</option>
-            <option>Manutenção</option>
-          </select>
-          <button className="btn btn-primary">{editing ? "Salvar" : "Adicionar"}</button>
-        </form>
-      </div>
+      {!showForm && !editing && (
+        <div className="flex justify-end mb-4">
+          <button className="btn btn-primary w-full md:w-auto" onClick={() => setShowForm(true)}>Novo</button>
+        </div>
+      )}
+      {(showForm || editing) && (
+        <div ref={formRef} className="card p-6 animate-fade">
+          <div className="font-semibold mb-4 text-secondary text-xl">Cadastro de Prancha</div>
+          <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-6 gap-4">
+            <input className="input" placeholder="Frota" value={form.asset_number} onChange={(e) => setForm({ ...form, asset_number: e.target.value })} />
+            <select className="select" value={form.type} onChange={(e) => { const tp = e.target.value; setForm({ ...form, type: tp, capacity: typeCap[tp] || "" }); }}>
+              <option value="">Tipo da prancha</option>
+              <option>Prancha 2 eixos</option>
+              <option>Prancha 3 eixos</option>
+              <option>Prancha 4 eixos</option>
+            </select>
+            <input className="input" placeholder="Capacidade" value={form.capacity} readOnly />
+            <input className="input" placeholder="Ano" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} />
+            <input className="input" placeholder="Placa" value={form.plate} onChange={(e) => setForm({ ...form, plate: maskPlate(e.target.value) })} />
+            <input className="input" placeholder="Chassi" value={form.chassis} onChange={(e) => setForm({ ...form, chassis: maskChassis(e.target.value) })} />
+            <select className="select" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+              <option>Ativo</option>
+              <option>Manutenção</option>
+            </select>
+            <div className="flex gap-2">
+              <button className="btn btn-primary flex-1">{editing ? "Salvar" : "Adicionar"}</button>
+              <button type="button" className="btn bg-gray-500 hover:bg-gray-600 text-white" onClick={() => { setShowForm(false); setEditing(null); setForm({ asset_number: "", type: "", capacity: "", year: "", plate: "", chassis: "", status: "Ativo" }); }}>Cancelar</button>
+            </div>
+          </form>
+        </div>
+      )}
       <div className="card p-6 animate-fade overflow-x-auto hidden md:block">
         <table className="table md:min-w-[1100px] min-w-full">
           <thead>

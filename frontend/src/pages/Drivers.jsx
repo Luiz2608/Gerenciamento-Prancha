@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { getMotoristas, saveMotorista, updateMotorista, deleteMotorista } from "../services/storageService.js";
 import { useToast } from "../components/ToastProvider.jsx";
 import { supabase } from "../services/supabaseClient.js";
@@ -9,6 +9,8 @@ export default function Drivers() {
   const [searchTerm, setSearchTerm] = useState("");
   const [form, setForm] = useState({ name: "", cpf: "", cnh_category: "", status: "Ativo" });
   const [editing, setEditing] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const formRef = useRef(null);
 
   const load = () => getMotoristas().then((r) => setItems(r));
   useEffect(() => {
@@ -31,7 +33,9 @@ export default function Drivers() {
     else { await saveMotorista(form); toast?.show("Motorista cadastrado", "success"); }
     setForm({ name: "", cpf: "", cnh_category: "", status: "Ativo" });
     setEditing(null);
+    setShowForm(false);
     load();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleFormKeyDown = (e) => {
@@ -47,7 +51,12 @@ export default function Drivers() {
   const edit = (it) => {
     setEditing(it);
     setForm({ name: it.name, cpf: it.cpf || "", cnh_category: it.cnh_category || "", status: it.status });
+    setShowForm(true);
     toast?.show("Edição carregada", "info");
+    setTimeout(() => {
+      if (formRef.current) formRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      else window.scrollTo({ top: 0, behavior: "smooth" });
+    }, 100);
   };
 
   const maskCpf = (v) => {
@@ -70,19 +79,30 @@ export default function Drivers() {
 
   return (
     <div className="space-y-8 overflow-x-auto overflow-y-auto min-h-screen page" style={{ WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain', overscrollBehaviorY: 'contain', touchAction: 'pan-y' }}>
-      <div className="card p-6 animate-fade">
-        <div className="font-semibold mb-4 text-secondary text-xl">Cadastro de Motoristas</div>
-        <form onSubmit={submit} onKeyDown={handleFormKeyDown} className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <input className="input" placeholder="Nome" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          <input className="input" placeholder="CPF" value={form.cpf} onChange={(e) => setForm({ ...form, cpf: maskCpf(e.target.value) })} />
-          <input className="input" placeholder="CNH" value={form.cnh_category} onChange={(e) => setForm({ ...form, cnh_category: maskDigits(e.target.value, 12) })} />
-          <select className="select" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-            <option>Ativo</option>
-            <option>Inativo</option>
-          </select>
-          <button className="btn btn-primary">{editing ? "Salvar" : "Adicionar"}</button>
-        </form>
-      </div>
+      {!showForm && !editing && (
+        <div className="flex justify-end mb-4">
+          <button className="btn btn-primary w-full md:w-auto" onClick={() => setShowForm(true)}>Novo</button>
+        </div>
+      )}
+
+      {(showForm || editing) && (
+        <div ref={formRef} className="card p-6 animate-fade">
+          <div className="font-semibold mb-4 text-secondary text-xl">Cadastro de Motoristas</div>
+          <form onSubmit={submit} onKeyDown={handleFormKeyDown} className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <input className="input" placeholder="Nome" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            <input className="input" placeholder="CPF" value={form.cpf} onChange={(e) => setForm({ ...form, cpf: maskCpf(e.target.value) })} />
+            <input className="input" placeholder="CNH" value={form.cnh_category} onChange={(e) => setForm({ ...form, cnh_category: maskDigits(e.target.value, 12) })} />
+            <select className="select" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+              <option>Ativo</option>
+              <option>Inativo</option>
+            </select>
+            <div className="flex gap-2">
+              <button className="btn btn-primary flex-1">{editing ? "Salvar" : "Adicionar"}</button>
+              <button type="button" className="btn bg-gray-500 hover:bg-gray-600 text-white" onClick={() => { setShowForm(false); setEditing(null); setForm({ name: "", cpf: "", cnh_category: "", status: "Ativo" }); }}>Cancelar</button>
+            </div>
+          </form>
+        </div>
+      )}
 
       <div className="card p-4 animate-fade flex items-center gap-2">
         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">

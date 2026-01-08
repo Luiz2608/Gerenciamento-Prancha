@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { getCaminhoes, saveCaminhao, updateCaminhao, deleteCaminhao } from "../services/storageService.js";
 import { useToast } from "../components/ToastProvider.jsx";
 import { supabase } from "../services/supabaseClient.js";
@@ -8,6 +8,8 @@ export default function FleetTrucks() {
   const [items, setItems] = useState([]);
   const [form, setForm] = useState({ plate: "", model: "", year: "", chassis: "", km_current: "", fleet: "", status: "Ativo" });
   const [editing, setEditing] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const formRef = useRef(null);
   const maskPlate = (v) => {
     const s = String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0,7);
     return s;
@@ -50,7 +52,9 @@ export default function FleetTrucks() {
     toast?.show(editing ? "Caminhão atualizado" : "Caminhão cadastrado", "success");
     setForm({ plate: "", model: "", year: "", asset_number: "", capacity: "", km_current: "", fleet: "", status: "Ativo" });
     setEditing(null);
+    setShowForm(false);
     load();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleFormKeyDown = (e) => {
@@ -62,27 +66,48 @@ export default function FleetTrucks() {
     const next = focusables[idx + 1];
     if (next) next.focus();
   };
-  const edit = (it) => { setEditing(it); setForm({ plate: it.plate || "", model: it.model || "", year: it.year?.toString() || "", chassis: it.chassis || "", km_current: it.km_current?.toString() || "", fleet: it.fleet || "", status: it.status }); toast?.show("Edição carregada", "info"); };
+  const edit = (it) => { 
+    setEditing(it); 
+    setForm({ plate: it.plate || "", model: it.model || "", year: it.year?.toString() || "", chassis: it.chassis || "", km_current: it.km_current?.toString() || "", fleet: it.fleet || "", status: it.status }); 
+    setShowForm(true);
+    toast?.show("Edição carregada", "info"); 
+    setTimeout(() => {
+      if (formRef.current) formRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      else window.scrollTo({ top: 0, behavior: "smooth" });
+    }, 100);
+  };
   const del = async (id) => { await deleteCaminhao(id); toast?.show("Caminhão excluído", "success"); load(); };
   const delConfirm = async (id) => { if (!window.confirm("Confirma excluir este caminhão?")) return; await del(id); };
   return (
     <div className="space-y-8 overflow-x-auto overflow-y-auto min-h-screen page" style={{ WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain', overscrollBehaviorY: 'contain', touchAction: 'pan-y' }}>
-      <div className="card p-6 animate-fade">
-        <div className="font-semibold mb-4 text-secondary text-xl">Cadastro de Caminhão</div>
-        <form onSubmit={submit} onKeyDown={handleFormKeyDown} className="grid grid-cols-1 md:grid-cols-6 gap-4">
-          <input className={`input ${form.plate && !isValidPlateBr(form.plate) && 'ring-red-500 border-red-500'}`} placeholder="Placa" value={form.plate} onChange={(e) => setForm({ ...form, plate: maskPlate(e.target.value) })} />
-          <input className="input" placeholder="Modelo" value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} />
-          <input className="input" placeholder="Ano" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value.replace(/[^0-9]/g, '').slice(0,4) })} />
-          <input className={`input ${form.chassis && form.chassis.length > 17 && 'ring-red-500 border-red-500'}`} placeholder="Chassi" value={form.chassis} onChange={(e) => setForm({ ...form, chassis: maskChassis(e.target.value) })} />
-          <input className="input" placeholder="KM atual" value={form.km_current} onChange={(e) => setForm({ ...form, km_current: e.target.value })} />
-          <input className="input" placeholder="Frota" value={form.fleet} maxLength={7} onChange={(e) => setForm({ ...form, fleet: e.target.value.replace(/\D/g, "").slice(0,7) })} />
-          <select className="select" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-            <option>Ativo</option>
-            <option>Manutenção</option>
-          </select>
-          <button className="btn btn-primary">{editing ? "Salvar" : "Adicionar"}</button>
-        </form>
-      </div>
+      {!showForm && !editing && (
+        <div className="flex justify-end mb-4">
+          <button className="btn btn-primary w-full md:w-auto" onClick={() => setShowForm(true)}>Novo</button>
+        </div>
+      )}
+
+      {(showForm || editing) && (
+        <div ref={formRef} className="card p-6 animate-fade">
+          <div className="font-semibold mb-4 text-secondary text-xl">Cadastro de Caminhão</div>
+          <form onSubmit={submit} onKeyDown={handleFormKeyDown} className="grid grid-cols-1 md:grid-cols-6 gap-4">
+            <input className={`input ${form.plate && !isValidPlateBr(form.plate) && 'ring-red-500 border-red-500'}`} placeholder="Placa" value={form.plate} onChange={(e) => setForm({ ...form, plate: maskPlate(e.target.value) })} />
+            <input className="input" placeholder="Modelo" value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} />
+            <input className="input" placeholder="Ano" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value.replace(/[^0-9]/g, '').slice(0,4) })} />
+            <input className={`input ${form.chassis && form.chassis.length > 17 && 'ring-red-500 border-red-500'}`} placeholder="Chassi" value={form.chassis} onChange={(e) => setForm({ ...form, chassis: maskChassis(e.target.value) })} />
+            <input className="input" placeholder="KM atual" value={form.km_current} onChange={(e) => setForm({ ...form, km_current: e.target.value })} />
+            <input className="input" placeholder="Frota" value={form.fleet} maxLength={7} onChange={(e) => setForm({ ...form, fleet: e.target.value.replace(/\D/g, "").slice(0,7) })} />
+            <select className="select" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+              <option>Ativo</option>
+              <option>Manutenção</option>
+            </select>
+            <div className="flex gap-2">
+              <button className="btn btn-primary flex-1">{editing ? "Salvar" : "Adicionar"}</button>
+              <button type="button" className="btn bg-gray-500 hover:bg-gray-600 text-white" onClick={() => { setShowForm(false); setEditing(null); setForm({ plate: "", model: "", year: "", asset_number: "", capacity: "", km_current: "", fleet: "", status: "Ativo" }); }}>Cancelar</button>
+            </div>
+          </form>
+        </div>
+      )}
+
       <div className="card p-6 animate-fade overflow-x-auto hidden md:block">
         <table className="table min-w-[1000px]">
           <thead>
