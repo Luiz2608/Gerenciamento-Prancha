@@ -299,7 +299,10 @@ export default function Trips() {
       noDriverDaily: !it.driver_daily
     });
     toast?.show("Edição carregada", "info");
-    if (formRef.current) formRef.current.scrollIntoView({ behavior: "smooth" });
+    setTimeout(() => {
+      if (formRef.current) formRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      else window.scrollTo({ top: 0, behavior: "smooth" });
+    }, 100);
   };
 
   const del = async (id) => { await deleteViagem(id); toast?.show("Viagem excluída", "success"); loadTrips(); };
@@ -327,9 +330,9 @@ export default function Trips() {
       )}
 
       {(showForm || editing) && (
-      <div className="card p-6 animate-fade">
+      <div ref={formRef} className="card p-6 animate-fade">
         <div className="font-semibold mb-4 text-secondary text-xl">Cadastro de Viagens</div>
-        <form ref={formRef} onSubmit={submit} onKeyDown={handleFormKeyDown} className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <form onSubmit={submit} onKeyDown={handleFormKeyDown} className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="flex flex-col">
             <input className={`input ${validationErrors.date ? 'ring-red-500 border-red-500' : ''}`} placeholder="Data (DD/MM/YY) *" value={form.date} onChange={(e) => setForm({ ...form, date: maskDate(e.target.value) })} />
             {validationErrors.date && <span className="text-red-500 text-xs mt-1">{validationErrors.date}</span>}
