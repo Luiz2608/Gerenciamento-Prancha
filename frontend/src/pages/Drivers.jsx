@@ -66,14 +66,19 @@ export default function Drivers() {
   const submit = async (e) => {
     e.preventDefault();
     if (!form.name) { toast?.show("Erro → Aba Motoristas → Campo Nome obrigatório", "error"); return; }
-    if (editing) { await updateMotorista(editing.id, form); toast?.show("Motorista atualizado", "success"); }
-    else { await saveMotorista(form); toast?.show("Motorista cadastrado", "success"); }
-    localStorage.removeItem("drivers_form_draft");
-    setForm({ name: "", cpf: "", cnh_number: "", cnh_category: "", status: "Ativo" });
-    setEditing(null);
-    setShowForm(false);
-    load();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    try {
+      if (editing) { await updateMotorista(editing.id, form); toast?.show("Motorista atualizado", "success"); }
+      else { await saveMotorista(form); toast?.show("Motorista cadastrado", "success"); }
+      localStorage.removeItem("drivers_form_draft");
+      setForm({ name: "", cpf: "", cnh_number: "", cnh_category: "", status: "Ativo" });
+      setEditing(null);
+      setShowForm(false);
+      load();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (error) {
+      console.error(error);
+      toast?.show("Erro ao salvar motorista: " + (error.message || "Erro desconhecido"), "error");
+    }
   };
 
   const handleFormKeyDown = (e) => {
@@ -173,7 +178,7 @@ export default function Drivers() {
               <div className="relative">
                 <FileText className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                 <input
-                  className="input pl-10"
+                  className="input !pl-10"
                   placeholder="12345678900"
                   maxLength={11}
                   value={form.cnh_number || ""}
@@ -220,7 +225,7 @@ export default function Drivers() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input
-              className="input pl-10"
+              className="input !pl-10"
               placeholder="Buscar por nome ou CPF..."
               value={searchTerm}
               onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}

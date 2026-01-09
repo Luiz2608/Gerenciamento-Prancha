@@ -451,7 +451,9 @@ export async function saveMotorista(data) {
   const { supabase: sb } = await import("./supabaseClient.js");
   const payload = { name: data.name, cpf: data.cpf || null, cnh_number: data.cnh_number || null, cnh_category: data.cnh_category || null, status: data.status || "Ativo" };
   if (sb && isOnline()) {
-    const { data: row } = await sb.from("motoristas").insert([payload]).select().single();
+    const { data: row, error } = await sb.from("motoristas").insert([payload]).select().single();
+    if (error) { console.error("Supabase insert error", error); throw error; }
+    if (!row) throw new Error("Erro ao salvar: retorno vazio");
     const db = getDB();
     const idx = db.motoristas.findIndex((d) => d.id === row.id);
     if (idx>=0) db.motoristas[idx] = row; else db.motoristas.push(row);
@@ -475,7 +477,9 @@ export async function updateMotorista(id, data) {
   const { supabase: sb } = await import("./supabaseClient.js");
   const payload = { name: data.name, cpf: data.cpf || null, cnh_number: data.cnh_number || null, cnh_category: data.cnh_category || null, status: data.status || "Ativo" };
   if (sb && isOnline()) {
-    const { data: row } = await sb.from("motoristas").update(payload).eq("id", id).select().single();
+    const { data: row, error } = await sb.from("motoristas").update(payload).eq("id", id).select().single();
+    if (error) { console.error("Supabase update error", error); throw error; }
+    if (!row) throw new Error("Erro ao atualizar: retorno vazio");
     const db = getDB();
     const i = db.motoristas.findIndex((d) => d.id === id);
     if (i>=0) db.motoristas[i] = row; else db.motoristas.push(row);
