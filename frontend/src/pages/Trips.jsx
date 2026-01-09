@@ -37,7 +37,7 @@ export default function Trips() {
   const statusFilterRef = useRef(statusFilter);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const pageSize = 20;
+  const [pageSize, setPageSize] = useState(20);
 
   const loadDrivers = () => getMotoristas().then((r) => setDrivers(r));
   const loadTrucks = () => getCaminhoes().then((r) => setTrucks(r.filter((x) => x.status === "Ativo")));
@@ -47,8 +47,13 @@ export default function Trips() {
     const opts = { page, pageSize };
     if (statusFilterRef.current) opts.status = statusFilterRef.current;
     getViagens(opts).then((r) => {
-      setItems(r.data);
-      setTotalPages(Math.ceil(r.total / pageSize));
+      if (r.data) {
+        setItems(r.data);
+        setTotalPages(Math.ceil(r.total / pageSize));
+      } else {
+        setItems(r);
+        setTotalPages(1);
+      }
     });
   };
   
@@ -60,7 +65,7 @@ export default function Trips() {
 
   useEffect(() => {
     loadTrips();
-  }, [page]);
+  }, [page, pageSize]);
   
   const handleSort = (key) => {
     let direction = 'asc';
@@ -723,39 +728,6 @@ export default function Trips() {
         ))}
       </div>
 
-      <div className="flex items-center justify-between mt-4 p-2 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-100 dark:border-slate-700">
-        <div className="text-sm text-slate-500 dark:text-slate-400">
-          Página {page} de {totalPages || 1}
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            className="btn btn-sm border border-slate-300 dark:border-slate-600"
-            disabled={page <= 1}
-            onClick={() => handlePageChange(page - 1)}
-          >
-            Anterior
-          </button>
-          <button
-            className="btn btn-sm border border-slate-300 dark:border-slate-600"
-            disabled={page >= totalPages}
-            onClick={() => handlePageChange(page + 1)}
-          >
-            Próxima
-          </button>
-          <select
-            className="select select-sm !py-1 dark:bg-slate-700 dark:border-slate-600"
-            value={pageSize}
-            onChange={(e) => {
-              setPageSize(Number(e.target.value));
-              setPage(1);
-            }}
-          >
-            <option value={10}>10</option>
-            <option value={20}>20</option>
-            <option value={50}>50</option>
-          </select>
-        </div>
-      </div>
       <div className="flex items-center justify-between mt-4 p-2 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-100 dark:border-slate-700">
         <div className="text-sm text-slate-500 dark:text-slate-400">
           Página {page} de {totalPages || 1}

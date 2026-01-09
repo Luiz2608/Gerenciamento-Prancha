@@ -21,7 +21,15 @@ export default function History() {
   const [viewItem, setViewItem] = useState(null);
 
   const loadDrivers = () => getMotoristas().then((r) => setDrivers(r));
-  const load = () => getViagens({ ...filters, page, pageSize }).then((r) => { setItems(r.data); setTotal(r.total); });
+  const load = () => getViagens({ ...filters, page, pageSize }).then((r) => {
+    if (r.data) {
+      setItems(r.data);
+      setTotal(r.total);
+    } else {
+      setItems(r);
+      setTotal(r.length || 0);
+    }
+  });
   useEffect(() => { loadDrivers(); }, []);
   useEffect(() => { load(); }, [filters, page, pageSize]);
 

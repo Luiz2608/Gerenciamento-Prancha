@@ -50,8 +50,13 @@ export default function Costs() {
     if (filters.startDate && isValidDate(filters.startDate)) f.startDate = toIsoDate(filters.startDate);
     if (filters.endDate && isValidDate(filters.endDate)) f.endDate = toIsoDate(filters.endDate);
     const r = await getCustos(f);
-    setCustos(r.data);
-    setTotalRows(r.total);
+    if (r.data) {
+      setCustos(r.data);
+      setTotalRows(r.total);
+    } else {
+      setCustos(r);
+      setTotalRows(r.length || 0);
+    }
   };
   useEffect(() => { loadRefs(); }, []);
   useEffect(() => { if (tab === "lista" || tab === "relatorios") loadList(); }, [filters, tab]);

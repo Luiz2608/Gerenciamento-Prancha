@@ -27,8 +27,13 @@ export default function FleetPranchas() {
   
   const load = () => {
     getPranchas({ page, pageSize }).then((r) => {
-      setItems(r.data || []);
-      if (r.total) setTotalPages(Math.ceil(r.total / pageSize));
+      if (r.data) {
+        setItems(r.data);
+        setTotalPages(Math.ceil(r.total / pageSize));
+      } else {
+        setItems(r);
+        setTotalPages(1);
+      }
     });
   };
   
