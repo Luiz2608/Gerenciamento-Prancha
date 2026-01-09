@@ -56,6 +56,9 @@ export default function Trips() {
       }
     });
   };
+
+  const loadTripsRef = useRef(loadTrips);
+  loadTripsRef.current = loadTrips;
   
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= totalPages) {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { dashboard } from "../services/storageService.js";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, LabelList, Legend, CartesianGrid } from "recharts";
 
@@ -27,6 +27,9 @@ export default function Dashboard() {
     setData(r);
   };
 
+  const refreshRef = useRef(refresh);
+  refreshRef.current = refresh;
+
   useEffect(() => { refresh(period); }, []);
 
   useEffect(() => {
@@ -34,16 +37,16 @@ export default function Dashboard() {
     const initRealtime = async () => {
       const { supabase } = await import("../services/supabaseClient.js");
       if (supabase) {
-        const ch1 = supabase.channel("public:viagens").on("postgres_changes", { event: "*", schema: "public", table: "viagens" }, () => { refresh(); }).subscribe();
-        const ch2 = supabase.channel("public:motoristas").on("postgres_changes", { event: "*", schema: "public", table: "motoristas" }, () => { refresh(); }).subscribe();
-        const ch3 = supabase.channel("public:caminhoes").on("postgres_changes", { event: "*", schema: "public", table: "caminhoes" }, () => { refresh(); }).subscribe();
-        const ch4 = supabase.channel("public:pranchas").on("postgres_changes", { event: "*", schema: "public", table: "pranchas" }, () => { refresh(); }).subscribe();
+        const ch1 = supabase.channel("public:viagens").on("postgres_changes", { event: "*", schema: "public", table: "viagens" }, () => { refreshRef.current(); }).subscribe();
+        const ch2 = supabase.channel("public:motoristas").on("postgres_changes", { event: "*", schema: "public", table: "motoristas" }, () => { refreshRef.current(); }).subscribe();
+        const ch3 = supabase.channel("public:caminhoes").on("postgres_changes", { event: "*", schema: "public", table: "caminhoes" }, () => { refreshRef.current(); }).subscribe();
+        const ch4 = supabase.channel("public:pranchas").on("postgres_changes", { event: "*", schema: "public", table: "pranchas" }, () => { refreshRef.current(); }).subscribe();
         channels = [ch1, ch2, ch3, ch4];
       }
     };
     initRealtime();
 
-    const interval = setInterval(() => { refresh(); }, 10000);
+    const interval = setInterval(() => { refreshRef.current(); }, 10000);
     return () => {
       if (channels.length > 0) {
         import("../services/supabaseClient.js").then(({ supabase }) => {
