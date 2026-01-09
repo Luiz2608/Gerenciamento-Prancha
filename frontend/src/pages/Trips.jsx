@@ -35,16 +35,32 @@ export default function Trips() {
   const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'desc' });
   const [statusFilter, setStatusFilter] = useState("");
   const statusFilterRef = useRef(statusFilter);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const pageSize = 20;
 
   const loadDrivers = () => getMotoristas().then((r) => setDrivers(r));
   const loadTrucks = () => getCaminhoes().then((r) => setTrucks(r.filter((x) => x.status === "Ativo")));
   const loadPranchas = () => getPranchas().then((r) => setPranchas(r.filter((x) => x.status === "Ativo")));
 
   const loadTrips = () => {
-    const opts = { page: 1, pageSize: 20000 };
+    const opts = { page, pageSize };
     if (statusFilterRef.current) opts.status = statusFilterRef.current;
-    getViagens(opts).then((r) => setItems(r.data));
+    getViagens(opts).then((r) => {
+      setItems(r.data);
+      setTotalPages(Math.ceil(r.total / pageSize));
+    });
   };
+  
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setPage(newPage);
+    }
+  };
+
+  useEffect(() => {
+    loadTrips();
+  }, [page]);
   
   const handleSort = (key) => {
     let direction = 'asc';
@@ -705,6 +721,27 @@ export default function Trips() {
             </div>
           </div>
         ))}
+        <div className="flex items-center justify-between mt-4 p-2">
+          <div className="text-sm text-slate-500">
+            Página {page} de {totalPages}
+          </div>
+          <div className="flex gap-2">
+            <button 
+              className="btn border border-slate-300 px-4 py-2" 
+              onClick={() => handlePageChange(page - 1)}
+              disabled={page <= 1}
+            >
+              Anterior
+            </button>
+            <button 
+              className="btn border border-slate-300 px-4 py-2" 
+              onClick={() => handlePageChange(page + 1)}
+              disabled={page >= totalPages}
+            >
+              Próxima
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

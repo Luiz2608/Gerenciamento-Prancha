@@ -14,13 +14,30 @@ export default function FleetPranchas() {
   const [showForm, setShowForm] = useState(false);
   const formRef = useRef(null);
 
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [totalPages, setTotalPages] = useState(0);
+
   useEffect(() => {
     if (!editing) {
       localStorage.setItem("pranchas_form_draft", JSON.stringify(form));
     }
   }, [form, editing]);
   const typeCap = { "Prancha 2 eixos": 20000, "Prancha 3 eixos": 30000, "Prancha 4 eixos": 45000, "Reboque 30 metros": 50000, "Reboque 26 metros": 40000 };
-  const load = () => getPranchas().then((r) => setItems(r));
+  
+  const load = () => {
+    getPranchas({ page, pageSize }).then((r) => {
+      setItems(r.data || []);
+      if (r.total) setTotalPages(Math.ceil(r.total / pageSize));
+    });
+  };
+  
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setPage(newPage);
+    }
+  };
+
   useEffect(() => {
     load();
     const interval = setInterval(load, 10000);
@@ -45,7 +62,7 @@ export default function FleetPranchas() {
       }
       clearInterval(interval); 
     };
-  }, []);
+  }, [page, pageSize]);
   const maskPlate = (v) => String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0,7);
   const maskChassis = (v) => String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0,17);
   const submit = async (e) => {
@@ -258,6 +275,40 @@ export default function FleetPranchas() {
             </div>
           </div>
         ))}
+      </div>
+
+      <div className="flex items-center justify-between mt-4 p-2 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-100">
+        <div className="text-sm text-slate-500">
+          Página {page} de {totalPages || 1}
+        </div>
+        <div className="flex items-center gap-2">
+          <button 
+            className="btn btn-sm border border-slate-300" 
+            onClick={() => handlePageChange(page - 1)}
+            disabled={page <= 1}
+          >
+            Anterior
+          </button>
+          <button 
+            className="btn btn-sm border border-slate-300" 
+            onClick={() => handlePageChange(page + 1)}
+            disabled={page >= totalPages}
+          >
+            Próxima
+          </button>
+          <select
+            className="select select-sm !py-1"
+            value={pageSize}
+            onChange={(e) => {
+              setPageSize(Number(e.target.value));
+              setPage(1);
+            }}
+          >
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+          </select>
+        </div>
       </div>
     </div>
   );

@@ -14,13 +14,30 @@ export default function FleetTrucks() {
   const [showForm, setShowForm] = useState(false);
   const formRef = useRef(null);
 
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [totalPages, setTotalPages] = useState(0);
+
   const maskPlate = (v) => {
     const s = String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0,7);
     return s;
   };
   const isValidPlateBr = (s) => /^[A-Z]{3}[0-9][A-Z][0-9]{2}$/.test(String(s)) || /^[A-Z]{3}[0-9]{4}$/.test(String(s));
   const maskChassis = (v) => String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0,17);
-  const load = () => getCaminhoes().then((r) => setItems(r));
+  
+  const load = () => {
+    getCaminhoes({ page, pageSize }).then((r) => {
+      setItems(r.data || []);
+      if (r.total) setTotalPages(Math.ceil(r.total / pageSize));
+    });
+  };
+
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setPage(newPage);
+    }
+  };
+
   useEffect(() => {
     load();
     const interval = setInterval(load, 10000);
@@ -45,7 +62,8 @@ export default function FleetTrucks() {
       }
       clearInterval(interval); 
     };
-  }, []);
+  }, [page, pageSize]);
+
   const submit = async (e) => {
     e.preventDefault();
     const yearNum = form.year ? Number(form.year) : null;
@@ -185,6 +203,40 @@ export default function FleetTrucks() {
             </div>
           </div>
         ))}
+      </div>
+
+      <div className="flex items-center justify-between mt-4 p-2 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-100">
+        <div className="text-sm text-slate-500">
+          Página {page} de {totalPages || 1}
+        </div>
+        <div className="flex items-center gap-2">
+          <button 
+            className="btn btn-sm border border-slate-300" 
+            onClick={() => handlePageChange(page - 1)}
+            disabled={page <= 1}
+          >
+            Anterior
+          </button>
+          <button 
+            className="btn btn-sm border border-slate-300" 
+            onClick={() => handlePageChange(page + 1)}
+            disabled={page >= totalPages}
+          >
+            Próxima
+          </button>
+          <select
+            className="select select-sm !py-1"
+            value={pageSize}
+            onChange={(e) => {
+              setPageSize(Number(e.target.value));
+              setPage(1);
+            }}
+          >
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+          </select>
+        </div>
       </div>
     </div>
   );

@@ -15,7 +15,7 @@ export default function Costs() {
   const [pranchas, setPranchas] = useState([]);
   const [custos, setCustos] = useState([]);
   const [totalRows, setTotalRows] = useState(0);
-  const [filters, setFilters] = useState({ startDate: "", endDate: "", caminhaoId: "", pranchaId: "", driverId: "", aprovado: "", search: "", page: 1, pageSize: 20000 });
+  const [filters, setFilters] = useState({ startDate: "", endDate: "", caminhaoId: "", pranchaId: "", driverId: "", aprovado: "", search: "", page: 1, pageSize: 20 });
   const [total, setTotal] = useState(0);
   const [avgKm, setAvgKm] = useState(0);
   const [avgHour, setAvgHour] = useState(0);

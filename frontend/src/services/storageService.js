@@ -410,7 +410,38 @@ export async function registerUser(username, password, role = "user") {
   return { id, username, role };
 }
 
-export async function getMotoristas() { await initLoad(); if (API_URL) { const r = await api("/api/motoristas"); const j = await r.json(); return Array.isArray(j) ? j : []; } const { supabase: sb } = await import("./supabaseClient.js"); if (sb && isOnline()) { const { data } = await sb.from("motoristas").select("*").order("id", { ascending: false }); const rows = Array.isArray(data) ? data : []; const db = getDB(); db.motoristas = rows.slice(); setDB(db); return rows; } return getDB().motoristas.slice().reverse(); }
+export async function getMotoristas(opts = {}) {
+  await initLoad();
+  const { page, pageSize, search } = opts;
+  let rows = [];
+  if (API_URL) {
+    const r = await api("/api/motoristas");
+    const j = await r.json();
+    rows = Array.isArray(j) ? j : [];
+  } else {
+    const { supabase: sb } = await import("./supabaseClient.js");
+    if (sb && isOnline()) {
+      const { data } = await sb.from("motoristas").select("*").order("id", { ascending: false });
+      rows = Array.isArray(data) ? data : [];
+      const db = getDB();
+      db.motoristas = rows.slice();
+      setDB(db);
+    } else {
+      rows = getDB().motoristas.slice().reverse();
+    }
+  }
+
+  if (search) {
+    const s = search.toLowerCase();
+    rows = rows.filter((r) => r.name.toLowerCase().includes(s) || (r.cpf && r.cpf.includes(s)));
+  }
+
+  if (page && pageSize) {
+    const offset = (Number(page) - 1) * Number(pageSize);
+    return { data: rows.slice(offset, offset + Number(pageSize)), total: rows.length, page: Number(page), pageSize: Number(pageSize) };
+  }
+  return rows;
+}
 export async function saveMotorista(data) { await initLoad(); if (API_URL) { const r = await api("/api/motoristas", { method: "POST", body: JSON.stringify({ name: data.name, cpf: data.cpf || null, cnh_category: data.cnh_category || null, status: data.status || "Ativo" }) }); return await r.json(); } const { supabase: sb } = await import("./supabaseClient.js"); const payload = { name: data.name, cpf: data.cpf || null, cnh_category: data.cnh_category || null, status: data.status || "Ativo" }; if (sb && isOnline()) { const { data: row } = await sb.from("motoristas").insert([payload]).select().single(); const db = getDB(); const idx = db.motoristas.findIndex((d) => d.id === row.id); if (idx>=0) db.motoristas[idx] = row; else db.motoristas.push(row); setDB(db); return row; } const db = getDB(); const id = db.seq.motoristas++; const row = { id, ...payload }; db.motoristas.push(row); setDB(db); enqueue({ table: "motoristas", op: "insert", payload, localId: id }); return row; }
 export async function updateMotorista(id, data) { await initLoad(); if (API_URL) { const r = await api(`/api/motoristas/${id}`, { method: "PUT", body: JSON.stringify({ name: data.name, cpf: data.cpf || null, cnh_category: data.cnh_category || null, status: data.status || "Ativo" }) }); return await r.json(); } const { supabase: sb } = await import("./supabaseClient.js"); const payload = { name: data.name, cpf: data.cpf || null, cnh_category: data.cnh_category || null, status: data.status || "Ativo" }; if (sb && isOnline()) { const { data: row } = await sb.from("motoristas").update(payload).eq("id", id).select().single(); const db = getDB(); const i = db.motoristas.findIndex((d) => d.id === id); if (i>=0) db.motoristas[i] = row; else db.motoristas.push(row); setDB(db); return row; } const db = getDB(); const i = db.motoristas.findIndex((d) => d.id === id); if (i>=0) db.motoristas[i] = { id, ...payload }; else db.motoristas.push({ id, ...payload }); setDB(db); enqueue({ table: "motoristas", op: "update", payload, localId: id }); return db.motoristas[i>=0?i:db.motoristas.length-1]; }
 export async function deleteMotorista(id) { await initLoad(); if (API_URL) { await api(`/api/motoristas/${id}`, { method: "DELETE" }); return { ok: true }; } const { supabase: sb } = await import("./supabaseClient.js"); if (sb && isOnline()) { await sb.from("motoristas").delete().eq("id", id); const db = getDB(); db.motoristas = db.motoristas.filter((d) => d.id !== id); setDB(db); return { ok: true }; } const db = getDB(); db.motoristas = db.motoristas.filter((d) => d.id !== id); setDB(db); enqueue({ table: "motoristas", op: "delete", localId: id }); return { ok: true }; }
@@ -519,39 +550,50 @@ export async function deleteTipoServico(id) { await initLoad(); const db = getDB
 export async function getTruck() { await initLoad(); return getDB().config.truck || {}; }
 export async function updateTruck(data) { await initLoad(); const db = getDB(); db.config.truck = { plate: data.plate || null, model: data.model || null, year: data.year != null ? Number(data.year) : null }; setDB(db); return db.config.truck; }
 
-export async function getCaminhoes() { 
+export async function getCaminhoes(opts = {}) { 
   await initLoad(); 
+  const { page, pageSize } = opts;
+  let rows = [];
   if (API_URL) { 
     try {
       const r = await api("/api/caminhoes"); 
       const j = await r.json(); 
-      return Array.isArray(j) ? j : []; 
+      rows = Array.isArray(j) ? j : []; 
     } catch (e) {
       console.error("API error getCaminhoes", e);
-      return [];
+      rows = [];
     }
-  } 
-  const { supabase: sb } = await import("./supabaseClient.js"); 
-  if (sb && isOnline()) { 
-    const { data } = await sb.from("caminhoes").select("*").order("id", { ascending: false }); 
-    const rows = Array.isArray(data) ? data : []; 
-    const db = getDB(); 
-    if (db && Array.isArray(db.caminhoes)) {
-      const mergedRows = rows.map(r => {
-        const local = db.caminhoes.find(p => p.id == r.id);
-        if (local) {
-          return { ...r, chassis: local.chassis || r.chassis, plate: local.plate || r.plate, fleet: local.fleet || r.fleet };
-        }
-        return r;
-      });
-      db.caminhoes = mergedRows.slice(); 
-      setDB(db); 
-      return mergedRows; 
+  } else {
+    const { supabase: sb } = await import("./supabaseClient.js"); 
+    if (sb && isOnline()) { 
+      const { data } = await sb.from("caminhoes").select("*").order("id", { ascending: false }); 
+      const remoteRows = Array.isArray(data) ? data : []; 
+      const db = getDB(); 
+      if (db && Array.isArray(db.caminhoes)) {
+        const mergedRows = remoteRows.map(r => {
+          const local = db.caminhoes.find(p => p.id == r.id);
+          if (local) {
+            return { ...r, chassis: local.chassis || r.chassis, plate: local.plate || r.plate, fleet: local.fleet || r.fleet };
+          }
+          return r;
+        });
+        db.caminhoes = mergedRows.slice(); 
+        setDB(db); 
+        rows = mergedRows; 
+      } else {
+        rows = remoteRows;
+      }
+    } else {
+      const db = getDB();
+      rows = (db && Array.isArray(db.caminhoes)) ? db.caminhoes.slice().reverse() : []; 
     }
-    return rows;
-  } 
-  const db = getDB();
-  return (db && Array.isArray(db.caminhoes)) ? db.caminhoes.slice().reverse() : []; 
+  }
+
+  if (page && pageSize) {
+    const offset = (Number(page) - 1) * Number(pageSize);
+    return { data: rows.slice(offset, offset + Number(pageSize)), total: rows.length, page: Number(page), pageSize: Number(pageSize) };
+  }
+  return rows;
 }
 
 export async function saveCaminhao(data) {
@@ -673,39 +715,48 @@ export async function deleteCaminhao(id) {
   return { ok: true };
 }
 
-export async function getPranchas() { 
+export async function getPranchas(opts = {}) { 
   await initLoad(); 
+  const { page, pageSize } = opts;
+  let rows = [];
   if (API_URL) { 
     try {
       const r = await api("/api/pranchas"); 
       const j = await r.json(); 
-      return Array.isArray(j) ? j : []; 
+      rows = Array.isArray(j) ? j : []; 
     } catch (e) {
       console.error("API error getPranchas", e);
-      return [];
+      rows = [];
     }
-  } 
-  const { supabase: sb } = await import("./supabaseClient.js"); 
-  if (sb && isOnline()) { 
-    const { data } = await sb.from("pranchas").select("*").order("id", { ascending: false }); 
-    const rows = Array.isArray(data) ? data : []; 
-    const db = getDB(); 
-    if (db && Array.isArray(db.pranchas)) {
-      const mergedRows = rows.map(r => {
-        const local = db.pranchas.find(p => p.id == r.id);
-        if (local) {
-          return { ...r, plate: local.plate || r.plate, chassis: local.chassis || r.chassis, fleet: local.fleet || r.fleet, conjunto: local.conjunto || r.conjunto, is_set: local.is_set || r.is_set, asset_number2: local.asset_number2 || r.asset_number2, plate2: local.plate2 || r.plate2, chassis2: local.chassis2 || r.chassis2 };
-        }
-        return r;
-      });
-      db.pranchas = mergedRows.slice(); 
-      setDB(db); 
-      return mergedRows; 
+  } else {
+    const { supabase: sb } = await import("./supabaseClient.js"); 
+    if (sb && isOnline()) { 
+      const { data } = await sb.from("pranchas").select("*").order("id", { ascending: false }); 
+      rows = Array.isArray(data) ? data : []; 
+      const db = getDB(); 
+      if (db && Array.isArray(db.pranchas)) {
+        const mergedRows = rows.map(r => {
+          const local = db.pranchas.find(p => p.id == r.id);
+          if (local) {
+            return { ...r, plate: local.plate || r.plate, chassis: local.chassis || r.chassis, fleet: local.fleet || r.fleet, conjunto: local.conjunto || r.conjunto, is_set: local.is_set || r.is_set, asset_number2: local.asset_number2 || r.asset_number2, plate2: local.plate2 || r.plate2, chassis2: local.chassis2 || r.chassis2 };
+          }
+          return r;
+        });
+        db.pranchas = mergedRows.slice(); 
+        setDB(db); 
+        rows = mergedRows; 
+      }
+    } else {
+      const db = getDB();
+      rows = (db && Array.isArray(db.pranchas)) ? db.pranchas.slice().reverse() : []; 
     }
-    return rows;
-  } 
-  const db = getDB();
-  return (db && Array.isArray(db.pranchas)) ? db.pranchas.slice().reverse() : []; 
+  }
+
+  if (page && pageSize) {
+    const offset = (Number(page) - 1) * Number(pageSize);
+    return { data: rows.slice(offset, offset + Number(pageSize)), total: rows.length, page: Number(page), pageSize: Number(pageSize) };
+  }
+  return rows;
 }
 
 export async function savePrancha(data) {
