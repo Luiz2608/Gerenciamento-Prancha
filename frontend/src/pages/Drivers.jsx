@@ -31,9 +31,15 @@ export default function Drivers() {
     });
   };
 
+  const loadRef = useRef(load);
+  loadRef.current = load;
+
   useEffect(() => {
     load();
-    const interval = setInterval(load, 10000);
+  }, [page, pageSize, searchTerm]);
+
+  useEffect(() => {
+    const interval = setInterval(() => { loadRef.current(); }, 10000);
     
     let channel = null;
     const initRealtime = async () => {
@@ -41,7 +47,7 @@ export default function Drivers() {
       if (supabase) {
         channel = supabase
           .channel("public:motoristas")
-          .on("postgres_changes", { event: "*", schema: "public", table: "motoristas" }, () => { load(); })
+          .on("postgres_changes", { event: "*", schema: "public", table: "motoristas" }, () => { loadRef.current(); })
           .subscribe();
       }
     };
@@ -55,7 +61,7 @@ export default function Drivers() {
       }
       clearInterval(interval); 
     };
-  }, [page, pageSize, searchTerm]);
+  }, []);
 
   const submit = async (e) => {
     e.preventDefault();

@@ -43,9 +43,15 @@ export default function FleetTrucks() {
     }
   };
 
+  const loadRef = useRef(load);
+  loadRef.current = load;
+
   useEffect(() => {
     load();
-    const interval = setInterval(load, 10000);
+  }, [page, pageSize]);
+
+  useEffect(() => {
+    const interval = setInterval(() => { loadRef.current(); }, 10000);
     
     let channel = null;
     const initRealtime = async () => {
@@ -53,7 +59,7 @@ export default function FleetTrucks() {
       if (supabase) {
         channel = supabase
           .channel("public:caminhoes")
-          .on("postgres_changes", { event: "*", schema: "public", table: "caminhoes" }, () => { load(); })
+          .on("postgres_changes", { event: "*", schema: "public", table: "caminhoes" }, () => { loadRef.current(); })
           .subscribe();
       }
     };
@@ -67,7 +73,7 @@ export default function FleetTrucks() {
       }
       clearInterval(interval); 
     };
-  }, [page, pageSize]);
+  }, []);
 
   const submit = async (e) => {
     e.preventDefault();

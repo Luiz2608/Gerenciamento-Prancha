@@ -43,9 +43,15 @@ export default function FleetPranchas() {
     }
   };
 
+  const loadRef = useRef(load);
+  loadRef.current = load;
+
   useEffect(() => {
     load();
-    const interval = setInterval(load, 10000);
+  }, [page, pageSize]);
+
+  useEffect(() => {
+    const interval = setInterval(() => { loadRef.current(); }, 10000);
     
     let channel = null;
     const initRealtime = async () => {
@@ -53,7 +59,7 @@ export default function FleetPranchas() {
       if (supabase) {
         channel = supabase
           .channel("public:pranchas")
-          .on("postgres_changes", { event: "*", schema: "public", table: "pranchas" }, () => { load(); })
+          .on("postgres_changes", { event: "*", schema: "public", table: "pranchas" }, () => { loadRef.current(); })
           .subscribe();
       }
     };
@@ -67,7 +73,7 @@ export default function FleetPranchas() {
       }
       clearInterval(interval); 
     };
-  }, [page, pageSize]);
+  }, []);
   const maskPlate = (v) => String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0,7);
   const maskChassis = (v) => String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0,17);
   const submit = async (e) => {

@@ -111,7 +111,7 @@ export default function Trips() {
 
       const ch1 = supabase
         .channel("public:viagens")
-        .on("postgres_changes", { event: "*", schema: "public", table: "viagens" }, () => { loadTrips(); })
+        .on("postgres_changes", { event: "*", schema: "public", table: "viagens" }, () => { loadTripsRef.current(); })
         .subscribe();
       const ch2 = supabase
         .channel("public:motoristas")
@@ -131,7 +131,7 @@ export default function Trips() {
 
     setupRealtime();
 
-    const interval = setInterval(() => { loadTrips(); }, 10000);
+    const interval = setInterval(() => { loadTripsRef.current(); }, 10000);
     return () => {
       import("../services/supabaseClient.js").then(({ supabase }) => {
         if (supabase) {
