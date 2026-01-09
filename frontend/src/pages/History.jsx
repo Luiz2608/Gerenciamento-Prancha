@@ -8,7 +8,7 @@ export default function History() {
   const [items, setItems] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(20000);
   const [filters, setFilters] = useState(() => {
     const saved = localStorage.getItem("history_filters");
     return saved ? JSON.parse(saved) : { startDate: "", endDate: "", driverId: "", destination: "", status: "", search: "" };

@@ -37,7 +37,7 @@ export default function Trips() {
   const loadPranchas = () => getPranchas().then((r) => setPranchas(r.filter((x) => x.status === "Ativo")));
 
   const loadTrips = () => {
-    const opts = { page: 1, pageSize: 20 };
+    const opts = { page: 1, pageSize: 20000 };
     if (statusFilterRef.current) opts.status = statusFilterRef.current;
     getViagens(opts).then((r) => setItems(r.data));
   };
@@ -225,6 +225,13 @@ export default function Trips() {
 
   const submit = async (e) => {
     e.preventDefault();
+    const now = Date.now();
+    if (now - lastSubmitTime.current < 3000) {
+      toast?.show("Aguarde um momento antes de enviar novamente", "warning");
+      return;
+    }
+    lastSubmitTime.current = now;
+
     setShowValidation(true);
     const errs = getErrors();
     if (Object.keys(errs).length > 0) {

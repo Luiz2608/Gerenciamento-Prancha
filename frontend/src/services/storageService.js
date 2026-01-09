@@ -437,14 +437,14 @@ export async function getViagens(opts = {}) {
     const data = rows.slice(offset, offset + Number(pageSize));
     return { data, total, page: Number(page), pageSize: Number(pageSize) };
   } else if (sb && isOnline()) {
-    let query = sb.from("viagens").select("*").order("date", { ascending: false }).order("id", { ascending: false });
+    let query = sb.from("viagens").select("*", { count: "exact" }).order("date", { ascending: false }).order("id", { ascending: false });
     if (startDate) query = query.gte("date", startDate);
     if (endDate) query = query.lte("date", endDate);
     if (driverId) query = query.eq("driver_id", Number(driverId));
     if (status) query = query.eq("status", status);
     if (truckId) query = query.eq("truck_id", Number(truckId));
     if (pranchaId) query = query.eq("prancha_id", Number(pranchaId));
-    const { data: rows0 } = await query;
+    const { data: rows0 } = await query.range(0, 19999);
     let rows = Array.isArray(rows0) ? rows0.slice() : [];
     if (id) rows = rows.filter((t) => String(t.id).includes(String(id)));
     if (destination) rows = rows.filter((t) => String(t.destination || "").toLowerCase().includes(destination.toLowerCase()));
@@ -897,7 +897,7 @@ export async function dashboard(opts = {}) {
   let pranchas = [];
   let custos = [];
   if (sb && isOnline()) {
-    const { data: v } = await sb.from("viagens").select("*");
+    const { data: v } = await sb.from("viagens").select("*").range(0, 19999);
     const { data: d } = await sb.from("motoristas").select("*");
     const { data: t } = await sb.from("caminhoes").select("*");
     const { data: p } = await sb.from("pranchas").select("*");
@@ -1047,13 +1047,13 @@ export async function getCustos(opts = {}) {
   const { supabase: sb } = await import("./supabaseClient.js");
   const { startDate, endDate, caminhaoId, pranchaId, driverId, aprovado, search, minCusto, maxCusto, page = 1, pageSize = 10 } = opts;
   if (sb && isOnline()) {
-    let query = sb.from("custos").select("*");
+    let query = sb.from("custos").select("*", { count: "exact" });
     if (startDate) query = query.gte("dataRegistro", startDate);
     if (endDate) query = query.lte("dataRegistro", endDate);
     if (caminhaoId) query = query.eq("caminhaoId", String(caminhaoId));
     if (pranchaId) query = query.eq("pranchaId", String(pranchaId));
     if (typeof aprovado === "boolean") query = query.eq("aprovado", aprovado);
-    const { data: rows0 } = await query;
+    const { data: rows0 } = await query.range(0, 19999);
     let rows = Array.isArray(rows0) ? rows0.slice().reverse() : [];
     if (driverId) {
       const { data: viagens } = await sb.from("viagens").select("id, driver_id");

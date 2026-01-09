@@ -12,7 +12,7 @@ export default function HistoryUnified() {
   const [items, setItems] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = useState(20000);
   const [totalCount, setTotalCount] = useState(0);
   const [filters, setFilters] = useState(() => {
     const saved = localStorage.getItem("history_unified_filters");

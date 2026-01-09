@@ -41,7 +41,7 @@ export default function Costs() {
     setDrivers(await getMotoristas());
     setTrucks((await getCaminhoes()).filter((x) => x.status === "Ativo"));
     setPranchas((await getPranchas()).filter((x) => x.status === "Ativo"));
-    const r = await getViagens({ page: 1, pageSize: 1000 });
+    const r = await getViagens({ page: 1, pageSize: 20000 });
     setTrips(r.data);
   };
   const loadList = async () => {
@@ -127,6 +127,13 @@ export default function Costs() {
 
   const submit = async (e) => {
     e.preventDefault();
+    const now = Date.now();
+    if (now - lastSubmitTime.current < 3000) {
+      toast?.show("Aguarde um momento antes de enviar novamente", "warning");
+      return;
+    }
+    lastSubmitTime.current = now;
+
     const payload = {
       viagemId: form.viagemId || null,
       dataRegistro: form.dataRegistro || new Date().toISOString().slice(0,10),

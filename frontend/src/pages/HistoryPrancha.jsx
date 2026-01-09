@@ -26,7 +26,7 @@ export default function HistoryPrancha() {
   };
   const query = async () => {
     if (!filters.pranchaId) { setItems([]); setTotalKm(0); setTotalHours(0); setCount(0); return; }
-    const r = await getViagemByPrancha(Number(filters.pranchaId), filters);
+    const r = await getViagemByPrancha(Number(filters.pranchaId), { ...filters, pageSize: 20000 });
     setItems(r.data);
     setCount(r.total);
     setTotalKm(r.data.reduce((a, it) => a + (it.km_rodado || 0), 0));

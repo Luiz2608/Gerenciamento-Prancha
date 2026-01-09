@@ -26,7 +26,7 @@ export default function HistoryTruck() {
   };
   const query = async () => {
     if (!filters.truckId) { setItems([]); setTotalKm(0); setTotalHours(0); setCount(0); return; }
-    const r = await getViagemByCaminhao(Number(filters.truckId), filters);
+    const r = await getViagemByCaminhao(Number(filters.truckId), { ...filters, pageSize: 20000 });
     setItems(r.data);
     setCount(r.total);
     setTotalKm(r.data.reduce((a, it) => a + (it.km_rodado || 0), 0));
