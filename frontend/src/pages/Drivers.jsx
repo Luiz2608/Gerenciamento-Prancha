@@ -182,22 +182,6 @@ export default function Drivers() {
               </div>
             </div>
             <div>
-              <label className="label">Categoria CNH</label>
-              <div className="relative">
-                <FileText className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                <select
-                  className="input pl-10"
-                  value={form.cnh_category || ""}
-                  onChange={(e) => setForm({ ...form, cnh_category: e.target.value })}
-                >
-                  <option value="">Selecione...</option>
-                  <option value="C">C</option>
-                  <option value="D">D</option>
-                  <option value="E">E</option>
-                </select>
-              </div>
-            </div>
-            <div>
               <label className="label">Status</label>
               <select
                 className="input"
@@ -265,7 +249,7 @@ export default function Drivers() {
               </div>
               <div className="flex items-center justify-between text-sm text-slate-500 dark:text-slate-400 mt-2">
                 <span className="flex items-center gap-1">
-                  <FileText size={14} /> Cat. {item.cnh_category || "-"}
+                  <FileText size={14} /> CNH {item.cnh_number || "-"}
                 </span>
                 <div className="flex gap-2">
                   <button
@@ -306,7 +290,7 @@ export default function Drivers() {
                 <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
                   <td className="p-4 font-medium text-slate-800 dark:text-slate-200">{item.name}</td>
                   <td className="p-4 text-slate-600 dark:text-slate-400">{item.cpf}</td>
-                  <td className="p-4 text-slate-600 dark:text-slate-400">{item.cnh_number || "-"} / {item.cnh_category || "-"}</td>
+                  <td className="p-4 text-slate-600 dark:text-slate-400">{item.cnh_number || "-"}</td>
                   <td className="p-4">
                     <span
                       className={`px-2 py-1 rounded-full text-xs font-medium ${
