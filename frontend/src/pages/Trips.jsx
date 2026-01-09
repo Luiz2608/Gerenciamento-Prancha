@@ -21,6 +21,7 @@ export default function Trips() {
   const [kmMode, setKmMode] = useState("");
   const [showValidation, setShowValidation] = useState(false);
   const formRef = useRef(null);
+  const lastSubmitTime = useRef(0);
 
   useEffect(() => {
     if (!editing) {

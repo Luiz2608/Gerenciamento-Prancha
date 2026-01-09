@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { useToast } from "../components/ToastProvider.jsx";
 import { getMotoristas, getCaminhoes, getPranchas, getViagens, getCustos, saveCusto, updateCusto, deleteCusto, approveCusto } from "../services/storageService.js";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts";
@@ -29,6 +29,7 @@ export default function Costs() {
   const [viewing, setViewing] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [calc, setCalc] = useState(null);
+  const lastSubmitTime = useRef(0);
 
   useEffect(() => {
     if (!editingId) {
