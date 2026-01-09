@@ -267,7 +267,7 @@ export default function Costs() {
         </table>
       </div>
       <div className="space-y-3 md:hidden">
-        {custos.map((c) => (
+        {custos.slice(0, filters.pageSize).map((c) => (
           <div key={c.id} className="card p-4">
             <div className="flex justify-between items-center">
               <div className="font-semibold">{String(c.dataRegistro).slice(0,10)}</div>

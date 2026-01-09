@@ -289,7 +289,7 @@ export default function Drivers() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-700 text-sm">
-              {filteredItems.map((item) => (
+              {filteredItems.slice(0, pageSize).map((item) => (
                 <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
                   <td className="p-4 font-medium text-slate-800 dark:text-slate-200">{item.name}</td>
                   <td className="p-4 text-slate-600 dark:text-slate-400">{item.cpf}</td>

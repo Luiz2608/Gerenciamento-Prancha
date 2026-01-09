@@ -43,13 +43,13 @@ export default function Trips() {
   const loadTrucks = () => getCaminhoes().then((r) => setTrucks(r.filter((x) => x.status === "Ativo")));
   const loadPranchas = () => getPranchas().then((r) => setPranchas(r.filter((x) => x.status === "Ativo")));
 
-  const loadTrips = () => {
-    const opts = { page, pageSize };
+  const loadTrips = (p = page, ps = pageSize) => {
+    const opts = { page: p, pageSize: ps };
     if (statusFilterRef.current) opts.status = statusFilterRef.current;
     getViagens(opts).then((r) => {
       if (r.data) {
         setItems(r.data);
-        setTotalPages(Math.ceil(r.total / pageSize));
+        setTotalPages(Math.ceil(r.total / ps));
       } else {
         setItems(r);
         setTotalPages(1);
@@ -674,7 +674,7 @@ export default function Trips() {
                 <td colSpan="12" className="text-center p-4 text-gray-500">Nenhuma viagem encontrada.</td>
               </tr>
             )}
-            {sortedItems.map((it, idx) => (
+            {sortedItems.slice(0, pageSize).map((it, idx) => (
               <tr key={it.id} className={`${idx % 2 === 0 ? 'bg-slate-50 dark:bg-slate-800' : 'bg-white dark:bg-slate-700'} hover:bg-slate-100 dark:hover:bg-slate-600`}>
                 <td>{it.id}</td>
                 <td>{it.date}{it.end_date ? ` → ${it.end_date}` : ''}</td>
@@ -711,7 +711,7 @@ export default function Trips() {
         {sortedItems.length === 0 && (
           <div className="text-center p-4 text-gray-500 card">Nenhuma viagem encontrada.</div>
         )}
-        {sortedItems.map((it) => (
+        {sortedItems.slice(0, pageSize).map((it) => (
           <div key={it.id} className="card p-4">
             <div className="flex justify-between items-center">
               <div className="font-semibold">#{it.id} • {it.date}{it.end_date ? ` → ${it.end_date}` : ''}</div>

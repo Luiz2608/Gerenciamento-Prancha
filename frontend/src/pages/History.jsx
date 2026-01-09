@@ -111,7 +111,7 @@ export default function History() {
         </table>
       </div>
       <div className="space-y-3 md:hidden">
-        {items.map((it) => (
+        {items.slice(0, pageSize).map((it) => (
           <div key={it.id} className="card p-4">
             <div className="flex justify-between items-center">
               <div className="font-semibold">#{it.id} • {it.date}</div>
