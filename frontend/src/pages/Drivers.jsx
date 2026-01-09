@@ -12,7 +12,7 @@ export default function Drivers() {
   const [total, setTotal] = useState(0);
   const [form, setForm] = useState(() => {
     const saved = localStorage.getItem("drivers_form_draft");
-    return saved ? JSON.parse(saved) : { name: "", cpf: "", cnh_category: "", status: "Ativo" };
+    return saved ? JSON.parse(saved) : { name: "", cpf: "", cnh_number: "", cnh_category: "", status: "Ativo" };
   });
 
   const [editing, setEditing] = useState(null);
@@ -69,7 +69,7 @@ export default function Drivers() {
     if (editing) { await updateMotorista(editing.id, form); toast?.show("Motorista atualizado", "success"); }
     else { await saveMotorista(form); toast?.show("Motorista cadastrado", "success"); }
     localStorage.removeItem("drivers_form_draft");
-    setForm({ name: "", cpf: "", cnh_category: "", status: "Ativo" });
+    setForm({ name: "", cpf: "", cnh_number: "", cnh_category: "", status: "Ativo" });
     setEditing(null);
     setShowForm(false);
     load();
@@ -148,8 +148,8 @@ export default function Drivers() {
                 <input
                   required
                   className="input pl-10"
-                  placeholder="Ex: João da Silva"
-                  value={form.name}
+                  placeholder="João da Silva"
+                  value={form.name || ""}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                 />
               </div>
@@ -163,8 +163,21 @@ export default function Drivers() {
                   className="input pl-10"
                   placeholder="000.000.000-00"
                   maxLength={14}
-                  value={form.cpf}
+                  value={form.cpf || ""}
                   onChange={(e) => setForm({ ...form, cpf: maskCPF(e.target.value) })}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="label">Número CNH</label>
+              <div className="relative">
+                <FileText className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input
+                  className="input pl-10"
+                  placeholder="12345678900"
+                  maxLength={11}
+                  value={form.cnh_number || ""}
+                  onChange={(e) => setForm({ ...form, cnh_number: e.target.value.replace(/\D/g, "").slice(0, 11) })}
                 />
               </div>
             </div>
@@ -174,7 +187,7 @@ export default function Drivers() {
                 <FileText className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                 <select
                   className="input pl-10"
-                  value={form.cnh_category}
+                  value={form.cnh_category || ""}
                   onChange={(e) => setForm({ ...form, cnh_category: e.target.value })}
                 >
                   <option value="">Selecione...</option>
@@ -293,7 +306,7 @@ export default function Drivers() {
                 <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
                   <td className="p-4 font-medium text-slate-800 dark:text-slate-200">{item.name}</td>
                   <td className="p-4 text-slate-600 dark:text-slate-400">{item.cpf}</td>
-                  <td className="p-4 text-slate-600 dark:text-slate-400">{item.cnh_category || "-"}</td>
+                  <td className="p-4 text-slate-600 dark:text-slate-400">{item.cnh_number || "-"} / {item.cnh_category || "-"}</td>
                   <td className="p-4">
                     <span
                       className={`px-2 py-1 rounded-full text-xs font-medium ${

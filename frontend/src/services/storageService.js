@@ -442,8 +442,54 @@ export async function getMotoristas(opts = {}) {
   }
   return rows;
 }
-export async function saveMotorista(data) { await initLoad(); if (API_URL) { const r = await api("/api/motoristas", { method: "POST", body: JSON.stringify({ name: data.name, cpf: data.cpf || null, cnh_category: data.cnh_category || null, status: data.status || "Ativo" }) }); return await r.json(); } const { supabase: sb } = await import("./supabaseClient.js"); const payload = { name: data.name, cpf: data.cpf || null, cnh_category: data.cnh_category || null, status: data.status || "Ativo" }; if (sb && isOnline()) { const { data: row } = await sb.from("motoristas").insert([payload]).select().single(); const db = getDB(); const idx = db.motoristas.findIndex((d) => d.id === row.id); if (idx>=0) db.motoristas[idx] = row; else db.motoristas.push(row); setDB(db); return row; } const db = getDB(); const id = db.seq.motoristas++; const row = { id, ...payload }; db.motoristas.push(row); setDB(db); enqueue({ table: "motoristas", op: "insert", payload, localId: id }); return row; }
-export async function updateMotorista(id, data) { await initLoad(); if (API_URL) { const r = await api(`/api/motoristas/${id}`, { method: "PUT", body: JSON.stringify({ name: data.name, cpf: data.cpf || null, cnh_category: data.cnh_category || null, status: data.status || "Ativo" }) }); return await r.json(); } const { supabase: sb } = await import("./supabaseClient.js"); const payload = { name: data.name, cpf: data.cpf || null, cnh_category: data.cnh_category || null, status: data.status || "Ativo" }; if (sb && isOnline()) { const { data: row } = await sb.from("motoristas").update(payload).eq("id", id).select().single(); const db = getDB(); const i = db.motoristas.findIndex((d) => d.id === id); if (i>=0) db.motoristas[i] = row; else db.motoristas.push(row); setDB(db); return row; } const db = getDB(); const i = db.motoristas.findIndex((d) => d.id === id); if (i>=0) db.motoristas[i] = { id, ...payload }; else db.motoristas.push({ id, ...payload }); setDB(db); enqueue({ table: "motoristas", op: "update", payload, localId: id }); return db.motoristas[i>=0?i:db.motoristas.length-1]; }
+export async function saveMotorista(data) {
+  await initLoad();
+  if (API_URL) {
+    const r = await api("/api/motoristas", { method: "POST", body: JSON.stringify({ name: data.name, cpf: data.cpf || null, cnh_number: data.cnh_number || null, cnh_category: data.cnh_category || null, status: data.status || "Ativo" }) });
+    return await r.json();
+  }
+  const { supabase: sb } = await import("./supabaseClient.js");
+  const payload = { name: data.name, cpf: data.cpf || null, cnh_number: data.cnh_number || null, cnh_category: data.cnh_category || null, status: data.status || "Ativo" };
+  if (sb && isOnline()) {
+    const { data: row } = await sb.from("motoristas").insert([payload]).select().single();
+    const db = getDB();
+    const idx = db.motoristas.findIndex((d) => d.id === row.id);
+    if (idx>=0) db.motoristas[idx] = row; else db.motoristas.push(row);
+    setDB(db);
+    return row;
+  }
+  const db = getDB();
+  const id = db.seq.motoristas++;
+  const row = { id, ...payload };
+  db.motoristas.push(row);
+  setDB(db);
+  enqueue({ table: "motoristas", op: "insert", payload, localId: id });
+  return row;
+}
+export async function updateMotorista(id, data) {
+  await initLoad();
+  if (API_URL) {
+    const r = await api(`/api/motoristas/${id}`, { method: "PUT", body: JSON.stringify({ name: data.name, cpf: data.cpf || null, cnh_number: data.cnh_number || null, cnh_category: data.cnh_category || null, status: data.status || "Ativo" }) });
+    return await r.json();
+  }
+  const { supabase: sb } = await import("./supabaseClient.js");
+  const payload = { name: data.name, cpf: data.cpf || null, cnh_number: data.cnh_number || null, cnh_category: data.cnh_category || null, status: data.status || "Ativo" };
+  if (sb && isOnline()) {
+    const { data: row } = await sb.from("motoristas").update(payload).eq("id", id).select().single();
+    const db = getDB();
+    const i = db.motoristas.findIndex((d) => d.id === id);
+    if (i>=0) db.motoristas[i] = row; else db.motoristas.push(row);
+    setDB(db);
+    return row;
+  }
+  const db = getDB();
+  const i = db.motoristas.findIndex((d) => d.id === id);
+  if (i>=0) db.motoristas[i] = { id, ...payload };
+  else db.motoristas.push({ id, ...payload });
+  setDB(db);
+  enqueue({ table: "motoristas", op: "update", payload, localId: id });
+  return db.motoristas[i>=0?i:db.motoristas.length-1];
+}
 export async function deleteMotorista(id) { await initLoad(); if (API_URL) { await api(`/api/motoristas/${id}`, { method: "DELETE" }); return { ok: true }; } const { supabase: sb } = await import("./supabaseClient.js"); if (sb && isOnline()) { await sb.from("motoristas").delete().eq("id", id); const db = getDB(); db.motoristas = db.motoristas.filter((d) => d.id !== id); setDB(db); return { ok: true }; } const db = getDB(); db.motoristas = db.motoristas.filter((d) => d.id !== id); setDB(db); enqueue({ table: "motoristas", op: "delete", localId: id }); return { ok: true }; }
 
 export async function getViagens(opts = {}) {

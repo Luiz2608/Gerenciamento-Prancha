@@ -129,15 +129,15 @@ app.get("/api/motoristas", async (req, res) => {
   res.json(r.rows);
 });
 app.post("/api/motoristas", async (req, res) => {
-  const { name, cpf = null, cnh_category = null, status = "Ativo" } = req.body || {};
+  const { name, cpf = null, cnh_number = null, cnh_category = null, status = "Ativo" } = req.body || {};
   if (!name) return res.status(400).json({ error: "Nome é obrigatório" });
-  const r = await pool.query("INSERT INTO motoristas (name, cpf, cnh_category, status) VALUES ($1, $2, $3, $4) RETURNING *", [name, cpf, cnh_category, status]);
+  const r = await pool.query("INSERT INTO motoristas (name, cpf, cnh_number, cnh_category, status) VALUES ($1, $2, $3, $4, $5) RETURNING *", [name, cpf, cnh_number, cnh_category, status]);
   res.json(r.rows[0]);
 });
 app.put("/api/motoristas/:id", async (req, res) => {
   const id = Number(req.params.id);
-  const { name, cpf = null, cnh_category = null, status = "Ativo" } = req.body || {};
-  const r = await pool.query("UPDATE motoristas SET name=$1, cpf=$2, cnh_category=$3, status=$4 WHERE id=$5 RETURNING *", [name, cpf, cnh_category, status, id]);
+  const { name, cpf = null, cnh_number = null, cnh_category = null, status = "Ativo" } = req.body || {};
+  const r = await pool.query("UPDATE motoristas SET name=$1, cpf=$2, cnh_number=$3, cnh_category=$4, status=$5 WHERE id=$6 RETURNING *", [name, cpf, cnh_number, cnh_category, status, id]);
   res.json(r.rows[0]);
 });
 app.delete("/api/motoristas/:id", async (req, res) => {
