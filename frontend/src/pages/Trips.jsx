@@ -225,13 +225,7 @@ export default function Trips() {
 
   const submit = async (e) => {
     e.preventDefault();
-    const now = Date.now();
-    if (now - lastSubmitTime.current < 3000) {
-      toast?.show("Aguarde um momento antes de enviar novamente", "warning");
-      return;
-    }
-    lastSubmitTime.current = now;
-
+    
     setShowValidation(true);
     const errs = getErrors();
     if (Object.keys(errs).length > 0) {
@@ -239,6 +233,14 @@ export default function Trips() {
         if (formRef.current) formRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
         return;
     }
+
+    const now = Date.now();
+    if (now - lastSubmitTime.current < 3000) {
+      toast?.show("Aguarde um momento antes de enviar novamente", "warning");
+      return;
+    }
+    lastSubmitTime.current = now;
+
     const payload = {
       ...form,
       date: isValidDate(form.date) ? toIsoDate(form.date) : "",

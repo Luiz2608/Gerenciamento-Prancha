@@ -15,7 +15,7 @@ export default function Costs() {
   const [pranchas, setPranchas] = useState([]);
   const [custos, setCustos] = useState([]);
   const [totalRows, setTotalRows] = useState(0);
-  const [filters, setFilters] = useState({ startDate: "", endDate: "", caminhaoId: "", pranchaId: "", driverId: "", aprovado: "", search: "", page: 1, pageSize: 10 });
+  const [filters, setFilters] = useState({ startDate: "", endDate: "", caminhaoId: "", pranchaId: "", driverId: "", aprovado: "", search: "", page: 1, pageSize: 20000 });
   const [total, setTotal] = useState(0);
   const [avgKm, setAvgKm] = useState(0);
   const [avgHour, setAvgHour] = useState(0);
@@ -127,13 +127,6 @@ export default function Costs() {
 
   const submit = async (e) => {
     e.preventDefault();
-    const now = Date.now();
-    if (now - lastSubmitTime.current < 3000) {
-      toast?.show("Aguarde um momento antes de enviar novamente", "warning");
-      return;
-    }
-    lastSubmitTime.current = now;
-
     const payload = {
       viagemId: form.viagemId || null,
       dataRegistro: form.dataRegistro || new Date().toISOString().slice(0,10),
@@ -152,6 +145,14 @@ export default function Costs() {
     };
     const v = validate(payload);
     if (!v.ok) { toast?.show(v.errs[0], "error"); return; }
+
+    const now = Date.now();
+    if (now - lastSubmitTime.current < 3000) {
+      toast?.show("Aguarde um momento antes de enviar novamente", "warning");
+      return;
+    }
+    lastSubmitTime.current = now;
+
     try {
       if (editingId) {
         await updateCusto(editingId, payload);
