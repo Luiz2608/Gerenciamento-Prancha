@@ -32,6 +32,11 @@ CREATE TABLE IF NOT EXISTS motoristas (
   cnh_category TEXT,
   status TEXT DEFAULT 'Ativo'
 );
+/* Migration to ensure cnh_number exists */
+try {
+  await pool.query("ALTER TABLE motoristas ADD COLUMN IF NOT EXISTS cnh_number TEXT");
+} catch (e) { console.error("Migration warning:", e.message); }
+
 CREATE TABLE IF NOT EXISTS caminhoes (
   id SERIAL PRIMARY KEY,
   plate TEXT,
