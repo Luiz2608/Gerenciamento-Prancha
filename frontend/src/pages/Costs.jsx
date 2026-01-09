@@ -281,13 +281,30 @@ export default function Costs() {
           </div>
         ))}
       </div>
-      <div className="flex items-center justify-between">
-        <div>Registros: {totalRows}</div>
+      <div className="flex items-center justify-between mt-4 p-2 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-100 dark:border-slate-700">
+        <div className="text-sm text-slate-500 dark:text-slate-400">
+          Página {filters.page} de {Math.ceil(totalRows / filters.pageSize) || 1}
+        </div>
         <div className="flex items-center gap-2">
-          <button className="btn" disabled={filters.page <= 1} onClick={() => setFilters({ ...filters, page: Math.max(1, Number(filters.page) - 1) })}>Anterior</button>
-          <div>Página {filters.page}</div>
-          <button className="btn" disabled={(filters.page * filters.pageSize) >= totalRows} onClick={() => setFilters({ ...filters, page: Number(filters.page) + 1 })}>Próxima</button>
-          <select className="select" value={filters.pageSize} onChange={(e) => setFilters({ ...filters, pageSize: Number(e.target.value), page: 1 })}>
+          <button
+            className="btn btn-sm border border-slate-300 dark:border-slate-600"
+            disabled={filters.page <= 1}
+            onClick={() => setFilters({ ...filters, page: Math.max(1, Number(filters.page) - 1) })}
+          >
+            Anterior
+          </button>
+          <button
+            className="btn btn-sm border border-slate-300 dark:border-slate-600"
+            disabled={filters.page * filters.pageSize >= totalRows}
+            onClick={() => setFilters({ ...filters, page: Number(filters.page) + 1 })}
+          >
+            Próxima
+          </button>
+          <select
+            className="select select-sm !py-1 dark:bg-slate-700 dark:border-slate-600"
+            value={filters.pageSize}
+            onChange={(e) => setFilters({ ...filters, pageSize: Number(e.target.value), page: 1 })}
+          >
             <option value={10}>10</option>
             <option value={20}>20</option>
             <option value={50}>50</option>

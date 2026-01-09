@@ -133,7 +133,7 @@ export default function Drivers() {
       </div>
 
       {showForm && (
-        <div ref={formRef} className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 mb-8 animate-fade-in">
+        <div ref={formRef} className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 mb-8 animate-fade-in">
           <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="label">Nome Completo</label>
@@ -212,8 +212,8 @@ export default function Drivers() {
         </div>
       )}
 
-      <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-        <div className="p-4 border-b border-slate-100 flex gap-4">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+        <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex gap-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input
@@ -226,38 +226,38 @@ export default function Drivers() {
         </div>
 
         {/* Mobile List */}
-        <div className="md:hidden divide-y divide-slate-100">
+        <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-700">
           {filteredItems.map((item) => (
-            <div key={item.id} className="p-4 hover:bg-slate-50 transition-colors">
+            <div key={item.id} className="p-4 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
               <div className="flex justify-between items-start mb-2">
                 <div>
-                  <h3 className="font-semibold text-slate-800">{item.name}</h3>
-                  <p className="text-sm text-slate-500">{item.cpf}</p>
+                  <h3 className="font-semibold text-slate-800 dark:text-slate-200">{item.name}</h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">{item.cpf}</p>
                 </div>
                 <span
                   className={`px-2 py-1 rounded-full text-xs font-medium ${
                     item.status === "Ativo"
-                      ? "bg-emerald-100 text-emerald-700"
-                      : "bg-slate-100 text-slate-600"
+                      ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                      : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400"
                   }`}
                 >
                   {item.status}
                 </span>
               </div>
-              <div className="flex items-center justify-between text-sm text-slate-500 mt-2">
+              <div className="flex items-center justify-between text-sm text-slate-500 dark:text-slate-400 mt-2">
                 <span className="flex items-center gap-1">
                   <FileText size={14} /> Cat. {item.cnh_category || "-"}
                 </span>
                 <div className="flex gap-2">
                   <button
                     onClick={() => edit(item)}
-                    className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    className="p-2 text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
                   >
                     <Edit2 size={18} />
                   </button>
                   <button
                     onClick={() => remove(item.id)}
-                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    className="p-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                   >
                     <Trash2 size={18} />
                   </button>
@@ -266,14 +266,14 @@ export default function Drivers() {
             </div>
           ))}
           {filteredItems.length === 0 && (
-            <div className="p-8 text-center text-slate-500">Nenhum motorista encontrado</div>
+            <div className="p-8 text-center text-slate-500 dark:text-slate-400">Nenhum motorista encontrado</div>
           )}
         </div>
 
         {/* Desktop Table */}
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left">
-            <thead className="bg-slate-50 text-slate-600 font-semibold text-sm">
+            <thead className="bg-slate-50 dark:bg-slate-700/50 text-slate-600 dark:text-slate-400 font-semibold text-sm">
               <tr>
                 <th className="p-4">Nome</th>
                 <th className="p-4">CPF</th>
@@ -282,18 +282,18 @@ export default function Drivers() {
                 <th className="p-4 text-right">Ações</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-sm">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-700 text-sm">
               {filteredItems.map((item) => (
-                <tr key={item.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="p-4 font-medium text-slate-800">{item.name}</td>
-                  <td className="p-4 text-slate-600">{item.cpf}</td>
-                  <td className="p-4 text-slate-600">{item.cnh_category || "-"}</td>
+                <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                  <td className="p-4 font-medium text-slate-800 dark:text-slate-200">{item.name}</td>
+                  <td className="p-4 text-slate-600 dark:text-slate-400">{item.cpf}</td>
+                  <td className="p-4 text-slate-600 dark:text-slate-400">{item.cnh_category || "-"}</td>
                   <td className="p-4">
                     <span
                       className={`px-2 py-1 rounded-full text-xs font-medium ${
                         item.status === "Ativo"
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "bg-slate-100 text-slate-600"
+                          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                          : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400"
                       }`}
                     >
                       {item.status}
@@ -303,14 +303,14 @@ export default function Drivers() {
                     <div className="flex justify-end gap-2">
                       <button
                         onClick={() => edit(item)}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        className="p-2 text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
                         title="Editar"
                       >
                         <Edit2 size={18} />
                       </button>
                       <button
                         onClick={() => remove(item.id)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        className="p-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                         title="Excluir"
                       >
                         <Trash2 size={18} />
@@ -321,7 +321,7 @@ export default function Drivers() {
               ))}
               {filteredItems.length === 0 && (
                 <tr>
-                  <td colSpan="5" className="p-8 text-center text-slate-500">
+                  <td colSpan="5" className="p-8 text-center text-slate-500 dark:text-slate-400">
                     Nenhum motorista encontrado
                   </td>
                 </tr>
@@ -331,30 +331,27 @@ export default function Drivers() {
         </div>
       </div>
 
-      <div className="flex items-center justify-between mt-4">
-        <div className="text-sm text-slate-500">
-           Registros: {total}
+      <div className="flex items-center justify-between mt-4 p-2 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-100 dark:border-slate-700">
+        <div className="text-sm text-slate-500 dark:text-slate-400">
+          Página {page} de {Math.ceil(total / pageSize) || 1}
         </div>
         <div className="flex items-center gap-2">
           <button
-            className="btn btn-sm border border-slate-300"
+            className="btn btn-sm border border-slate-300 dark:border-slate-600"
             disabled={page <= 1}
             onClick={() => setPage(page - 1)}
           >
             Anterior
           </button>
-          <span className="text-sm text-slate-600">
-            Página {page}
-          </span>
           <button
-            className="btn btn-sm border border-slate-300"
+            className="btn btn-sm border border-slate-300 dark:border-slate-600"
             disabled={page * pageSize >= total}
             onClick={() => setPage(page + 1)}
           >
             Próxima
           </button>
           <select
-            className="select select-sm !py-1"
+            className="select select-sm !py-1 dark:bg-slate-700 dark:border-slate-600"
             value={pageSize}
             onChange={(e) => {
               setPageSize(Number(e.target.value));

@@ -101,16 +101,6 @@ export default function History() {
             ))}
           </tbody>
         </table>
-        <div className="mt-4 flex items-center gap-2">
-          <button className="btn border border-slate-300" disabled={page === 1} onClick={() => setPage(page - 1)}>Anterior</button>
-          <span>{page}</span>
-          <button className="btn border border-slate-300" disabled={(page * pageSize) >= total} onClick={() => setPage(page + 1)}>Próximo</button>
-          <select className="select ml-auto !py-2 !px-2" value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))}>
-            <option value={10}>10</option>
-            <option value={20}>20</option>
-            <option value={50}>50</option>
-          </select>
-        </div>
       </div>
       <div className="space-y-3 md:hidden">
         {items.map((it) => (
@@ -129,10 +119,39 @@ export default function History() {
             </div>
           </div>
         ))}
-        <div className="mt-2 flex items-center gap-2">
-          <button className="btn border border-slate-300" disabled={page === 1} onClick={() => setPage(page - 1)}>Anterior</button>
-          <span>{page}</span>
-          <button className="btn border border-slate-300" disabled={(page * pageSize) >= total} onClick={() => setPage(page + 1)}>Próximo</button>
+      </div>
+
+      <div className="flex items-center justify-between mt-4 p-2 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-100 dark:border-slate-700">
+        <div className="text-sm text-slate-500 dark:text-slate-400">
+          Página {page} de {Math.ceil(total / pageSize) || 1}
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            className="btn btn-sm border border-slate-300 dark:border-slate-600"
+            disabled={page <= 1}
+            onClick={() => setPage(page - 1)}
+          >
+            Anterior
+          </button>
+          <button
+            className="btn btn-sm border border-slate-300 dark:border-slate-600"
+            disabled={page * pageSize >= total}
+            onClick={() => setPage(page + 1)}
+          >
+            Próxima
+          </button>
+          <select
+            className="select select-sm !py-1 dark:bg-slate-700 dark:border-slate-600"
+            value={pageSize}
+            onChange={(e) => {
+              setPageSize(Number(e.target.value));
+              setPage(1);
+            }}
+          >
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+          </select>
         </div>
       </div>
       {viewItem && (

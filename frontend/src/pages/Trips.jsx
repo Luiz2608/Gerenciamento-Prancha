@@ -721,26 +721,39 @@ export default function Trips() {
             </div>
           </div>
         ))}
-        <div className="flex items-center justify-between mt-4 p-2">
-          <div className="text-sm text-slate-500">
-            Página {page} de {totalPages}
-          </div>
-          <div className="flex gap-2">
-            <button 
-              className="btn border border-slate-300 px-4 py-2" 
-              onClick={() => handlePageChange(page - 1)}
-              disabled={page <= 1}
-            >
-              Anterior
-            </button>
-            <button 
-              className="btn border border-slate-300 px-4 py-2" 
-              onClick={() => handlePageChange(page + 1)}
-              disabled={page >= totalPages}
-            >
-              Próxima
-            </button>
-          </div>
+      </div>
+
+      <div className="flex items-center justify-between mt-4 p-2 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-100 dark:border-slate-700">
+        <div className="text-sm text-slate-500 dark:text-slate-400">
+          Página {page} de {totalPages || 1}
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            className="btn btn-sm border border-slate-300 dark:border-slate-600"
+            disabled={page <= 1}
+            onClick={() => handlePageChange(page - 1)}
+          >
+            Anterior
+          </button>
+          <button
+            className="btn btn-sm border border-slate-300 dark:border-slate-600"
+            disabled={page >= totalPages}
+            onClick={() => handlePageChange(page + 1)}
+          >
+            Próxima
+          </button>
+          <select
+            className="select select-sm !py-1 dark:bg-slate-700 dark:border-slate-600"
+            value={pageSize}
+            onChange={(e) => {
+              setPageSize(Number(e.target.value));
+              setPage(1);
+            }}
+          >
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+          </select>
         </div>
       </div>
     </div>
