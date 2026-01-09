@@ -29,6 +29,9 @@ export default function Trips() {
     }
   }, [form, editing]);
 
+  // Force re-render/cache bust check
+  useEffect(() => { console.log("Trips component loaded v1.0.1"); }, []);
+
   const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'desc' });
   const [statusFilter, setStatusFilter] = useState("");
   const statusFilterRef = useRef(statusFilter);
