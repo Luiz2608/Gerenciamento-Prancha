@@ -53,8 +53,16 @@ CREATE TABLE IF NOT EXISTS pranchas (
   type TEXT,
   capacity INTEGER,
   year INTEGER,
+  plate TEXT,
+  chassis TEXT,
   status TEXT DEFAULT 'Ativo'
 );
+/* Migration to ensure pranchas columns exist */
+try {
+  await pool.query("ALTER TABLE pranchas ADD COLUMN IF NOT EXISTS plate TEXT");
+  await pool.query("ALTER TABLE pranchas ADD COLUMN IF NOT EXISTS chassis TEXT");
+} catch (e) { console.error("Migration warning (pranchas):", e.message); }
+
 CREATE TABLE IF NOT EXISTS viagens (
   id SERIAL PRIMARY KEY,
   date TEXT NOT NULL,
@@ -179,14 +187,14 @@ app.get("/api/pranchas", async (req, res) => {
   res.json(r.rows);
 });
 app.post("/api/pranchas", async (req, res) => {
-  const { asset_number = null, type = null, capacity = null, year = null, status = "Ativo" } = req.body || {};
-  const r = await pool.query("INSERT INTO pranchas (asset_number, type, capacity, year, status) VALUES ($1, $2, $3, $4, $5) RETURNING *", [asset_number, type, capacity != null ? Number(capacity) : null, year != null ? Number(year) : null, status]);
+  const { asset_number = null, type = null, capacity = null, year = null, plate = null, chassis = null, status = "Ativo" } = req.body || {};
+  const r = await pool.query("INSERT INTO pranchas (asset_number, type, capacity, year, plate, chassis, status) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *", [asset_number, type, capacity != null ? Number(capacity) : null, year != null ? Number(year) : null, plate, chassis, status]);
   res.json(r.rows[0]);
 });
 app.put("/api/pranchas/:id", async (req, res) => {
   const id = Number(req.params.id);
-  const { asset_number = null, type = null, capacity = null, year = null, status = "Ativo" } = req.body || {};
-  const r = await pool.query("UPDATE pranchas SET asset_number=$1, type=$2, capacity=$3, year=$4, status=$5 WHERE id=$6 RETURNING *", [asset_number, type, capacity != null ? Number(capacity) : null, year != null ? Number(year) : null, status, id]);
+  const { asset_number = null, type = null, capacity = null, year = null, plate = null, chassis = null, status = "Ativo" } = req.body || {};
+  const r = await pool.query("UPDATE pranchas SET asset_number=$1, type=$2, capacity=$3, year=$4, plate=$5, chassis=$6, status=$7 WHERE id=$8 RETURNING *", [asset_number, type, capacity != null ? Number(capacity) : null, year != null ? Number(year) : null, plate, chassis, status, id]);
   res.json(r.rows[0]);
 });
 app.delete("/api/pranchas/:id", async (req, res) => {

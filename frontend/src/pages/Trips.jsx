@@ -17,6 +17,7 @@ export default function Trips() {
   });
   
   const [editing, setEditing] = useState(null);
+  const [viewing, setViewing] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [kmMode, setKmMode] = useState("");
   const [showValidation, setShowValidation] = useState(false);
@@ -764,6 +765,131 @@ export default function Trips() {
           </select>
         </div>
       </div>
+
+      {viewing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto animate-fade">
+            <div className="p-6 space-y-6">
+              <div className="flex justify-between items-start">
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Detalhes da Viagem #{viewing.id}</h2>
+                <button onClick={() => setViewing(null)} className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200">
+                  <span className="material-icons">close</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="space-y-1">
+                  <div className="text-sm font-medium text-slate-500 dark:text-slate-400">Data de Saída</div>
+                  <div className="text-lg">{viewing.date} {viewing.start_time}</div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-sm font-medium text-slate-500 dark:text-slate-400">Data de Retorno</div>
+                  <div className="text-lg">{viewing.end_date || "-"} {viewing.end_time}</div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-sm font-medium text-slate-500 dark:text-slate-400">Status</div>
+                  <div className="text-lg font-medium">{viewing.status}</div>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="text-sm font-medium text-slate-500 dark:text-slate-400">Solicitante</div>
+                  <div className="text-lg">{viewing.requester}</div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-sm font-medium text-slate-500 dark:text-slate-400">Motorista</div>
+                  <div className="text-lg">{drivers.find((d) => d.id === viewing.driver_id)?.name || viewing.driver_id}</div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-sm font-medium text-slate-500 dark:text-slate-400">Caminhão</div>
+                  <div className="text-lg">{trucks.find((t) => t.id === viewing.truck_id)?.fleet || trucks.find((t) => t.id === viewing.truck_id)?.plate || viewing.truck_id}</div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-sm font-medium text-slate-500 dark:text-slate-400">Prancha</div>
+                  <div className="text-lg">{pranchas.find((p) => p.id === viewing.prancha_id)?.asset_number || pranchas.find((p) => p.id === viewing.prancha_id)?.identifier || viewing.prancha_id}</div>
+                </div>
+                
+                <div className="space-y-1">
+                  <div className="text-sm font-medium text-slate-500 dark:text-slate-400">Destino</div>
+                  <div className="text-lg">{viewing.destination}</div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-sm font-medium text-slate-500 dark:text-slate-400">Tipo de Serviço</div>
+                  <div className="text-lg">{viewing.service_type}</div>
+                </div>
+
+                <div className="col-span-full border-t border-slate-200 dark:border-slate-700 pt-4">
+                  <h3 className="font-semibold text-lg mb-4 text-secondary">Quilometragem</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="space-y-1">
+                      <div className="text-sm font-medium text-slate-500 dark:text-slate-400">KM Inicial</div>
+                      <div className="text-lg">{viewing.km_start != null ? viewing.km_start : "N/R"}</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-sm font-medium text-slate-500 dark:text-slate-400">KM Final</div>
+                      <div className="text-lg">{viewing.km_end != null ? viewing.km_end : "N/R"}</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-sm font-medium text-slate-500 dark:text-slate-400">KM Total</div>
+                      <div className="text-lg font-bold">{viewing.km_rodado || 0} km</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="col-span-full border-t border-slate-200 dark:border-slate-700 pt-4">
+                  <h3 className="font-semibold text-lg mb-4 text-secondary">Custos</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="space-y-1">
+                      <div className="text-sm font-medium text-slate-500 dark:text-slate-400">Combustível</div>
+                      <div className="text-lg">
+                        {viewing.fuel_liters ? `${viewing.fuel_liters} L` : "0 L"} 
+                        {viewing.fuel_price ? ` (R$ ${viewing.fuel_price}/L)` : ""}
+                      </div>
+                      <div className="text-sm text-slate-500">Total: R$ {((viewing.fuel_liters || 0) * (viewing.fuel_price || 0)).toFixed(2)}</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-sm font-medium text-slate-500 dark:text-slate-400">Manutenção</div>
+                      <div className="text-lg">R$ {(viewing.maintenance_cost || 0).toFixed(2)}</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-sm font-medium text-slate-500 dark:text-slate-400">Diária Motorista</div>
+                      <div className="text-lg">R$ {(viewing.driver_daily || 0).toFixed(2)}</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-sm font-medium text-slate-500 dark:text-slate-400">Outros</div>
+                      <div className="text-lg">R$ {(viewing.other_costs || 0).toFixed(2)}</div>
+                    </div>
+                    <div className="space-y-1 col-span-full mt-2 bg-slate-50 dark:bg-slate-700 p-3 rounded">
+                      <div className="text-sm font-bold text-slate-700 dark:text-slate-200">Custo Total da Viagem</div>
+                      <div className="text-2xl font-bold text-green-600 dark:text-green-400">R$ {(viewing.total_cost || 0).toFixed(2)}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {viewing.description && (
+                  <div className="col-span-full border-t border-slate-200 dark:border-slate-700 pt-4">
+                    <div className="space-y-1">
+                      <div className="text-sm font-medium text-slate-500 dark:text-slate-400">Observações</div>
+                      <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded text-sm whitespace-pre-wrap">{viewing.description}</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end pt-4 border-t border-slate-200 dark:border-slate-700">
+                <button className="btn btn-primary" onClick={() => {
+                   // Print logic reusing the window.print feature but specifically for this view if needed, 
+                   // or just close. The user just asked for "View".
+                   // But since we have a print feature in memory, maybe add it? 
+                   // The memory says "Unified History Print Feature... Accessible via 'View Details' -> 'Print' button."
+                   // So I should probably add a Print button here to match the memory/feature expectation.
+                   window.print(); 
+                }}>Imprimir</button>
+                <button className="btn bg-gray-500 hover:bg-gray-600 text-white ml-2" onClick={() => setViewing(null)}>Fechar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

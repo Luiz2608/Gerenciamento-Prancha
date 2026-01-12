@@ -184,8 +184,67 @@ export default function Costs() {
   const del = async (id) => { await deleteCusto(id); toast?.show("Custo excluído", "success"); loadList(); };
   const delConfirm = async (id) => { if (!window.confirm("Confirma excluir este custo?")) return; await del(id); };
 
+  const summary = useMemo(() => {
+    const total = custos.reduce((acc, curr) => acc + (Number(curr.custoTotal) || 0), 0);
+    const fuel = custos.reduce((acc, curr) => {
+        const lit = Number(curr.consumoLitros) || 0;
+        const val = Number(curr.valorLitro) || 0;
+        return acc + (lit * val);
+    }, 0);
+    const maintenance = custos.reduce((acc, curr) => acc + (Number(curr.manutencao) || 0), 0);
+    const other = custos.reduce((acc, curr) => {
+       const o = Array.isArray(curr.outrosCustos) ? curr.outrosCustos.reduce((s, x) => s + (Number(x.valor) || 0), 0) : 0;
+       return acc + o + (Number(curr.pedagios) || 0) + (Number(curr.diariaMotorista) || 0);
+    }, 0);
+    return { total, fuel, maintenance, other };
+  }, [custos]);
+
   const lista = (
     <div className="space-y-6 overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain', touchAction: 'pan-x' }} onKeyDown={handleEnterInContainer}>
+      
+      {/* Dashboard Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="card p-4 border-l-4 border-blue-500 bg-white dark:bg-slate-800 shadow-sm">
+          <div className="flex justify-between items-start">
+            <div>
+              <div className="text-slate-500 dark:text-slate-400 text-sm font-medium uppercase tracking-wider">Custo Total</div>
+              <div className="text-2xl font-bold text-slate-800 dark:text-white mt-1">R$ {summary.total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            </div>
+            <span className="material-icons text-blue-500 bg-blue-100 dark:bg-blue-900/30 p-2 rounded-lg">attach_money</span>
+          </div>
+        </div>
+        <div className="card p-4 border-l-4 border-orange-500 bg-white dark:bg-slate-800 shadow-sm">
+          <div className="flex justify-between items-start">
+            <div>
+              <div className="text-slate-500 dark:text-slate-400 text-sm font-medium uppercase tracking-wider">Combustível</div>
+              <div className="text-2xl font-bold text-slate-800 dark:text-white mt-1">R$ {summary.fuel.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+              <div className="text-xs text-slate-400 mt-1">{summary.total > 0 ? ((summary.fuel / summary.total) * 100).toFixed(1) : 0}% do total</div>
+            </div>
+            <span className="material-icons text-orange-500 bg-orange-100 dark:bg-orange-900/30 p-2 rounded-lg">local_gas_station</span>
+          </div>
+        </div>
+        <div className="card p-4 border-l-4 border-red-500 bg-white dark:bg-slate-800 shadow-sm">
+          <div className="flex justify-between items-start">
+            <div>
+              <div className="text-slate-500 dark:text-slate-400 text-sm font-medium uppercase tracking-wider">Manutenção</div>
+              <div className="text-2xl font-bold text-slate-800 dark:text-white mt-1">R$ {summary.maintenance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+              <div className="text-xs text-slate-400 mt-1">{summary.total > 0 ? ((summary.maintenance / summary.total) * 100).toFixed(1) : 0}% do total</div>
+            </div>
+            <span className="material-icons text-red-500 bg-red-100 dark:bg-red-900/30 p-2 rounded-lg">build</span>
+          </div>
+        </div>
+        <div className="card p-4 border-l-4 border-green-500 bg-white dark:bg-slate-800 shadow-sm">
+          <div className="flex justify-between items-start">
+            <div>
+              <div className="text-slate-500 dark:text-slate-400 text-sm font-medium uppercase tracking-wider">Outros / Diárias</div>
+              <div className="text-2xl font-bold text-slate-800 dark:text-white mt-1">R$ {summary.other.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+              <div className="text-xs text-slate-400 mt-1">{summary.total > 0 ? ((summary.other / summary.total) * 100).toFixed(1) : 0}% do total</div>
+            </div>
+            <span className="material-icons text-green-500 bg-green-100 dark:bg-green-900/30 p-2 rounded-lg">account_balance_wallet</span>
+          </div>
+        </div>
+      </div>
+
       <div className="card p-6 grid grid-cols-1 md:grid-cols-9 gap-4">
         <input className={`input ${filters.startDate && !isValidDate(filters.startDate) && 'ring-red-500 border-red-500'}`} placeholder="Início (DD/MM/YYYY)" value={filters.startDate} onChange={(e) => setFilters({ ...filters, startDate: maskDate(e.target.value) })} />
         <input className={`input ${filters.endDate && !isValidDate(filters.endDate) && 'ring-red-500 border-red-500'}`} placeholder="Fim (DD/MM/YYYY)" value={filters.endDate} onChange={(e) => setFilters({ ...filters, endDate: maskDate(e.target.value) })} />
