@@ -689,6 +689,7 @@ export default function Trips() {
                 <td>{it.horas}</td>
                 <td>{(it.total_cost ?? 0).toFixed(2)}</td>
                 <td className="space-x-2">
+                  <button className="btn bg-slate-600 hover:bg-slate-700 text-white" onClick={() => setViewing(it)}>Ver</button>
                   <button className="btn bg-yellow-500 hover:bg-yellow-600 text-white" onClick={() => edit(it)}>Editar</button>
                   <button className="btn bg-red-600 hover:bg-red-700 text-white" onClick={() => delConfirm(it.id)}>Excluir</button>
                 </td>
@@ -725,6 +726,7 @@ export default function Trips() {
             <div className="mt-1 text-sm">Tipo: {it.service_type || "-"}</div>
             <div className="mt-1 flex gap-4 text-sm"><span>KM: {it.km_rodado}</span><span>Horas: {it.horas}</span></div>
             <div className="mt-2 flex flex-wrap gap-2">
+              <button className="btn bg-slate-600 hover:bg-slate-700 text-white" onClick={() => setViewing(it)}>Ver</button>
               <button className="btn bg-yellow-500 hover:bg-yellow-600 text-white" onClick={() => edit(it)}>Editar</button>
               <button className="btn bg-red-600 hover:bg-red-700 text-white" onClick={() => delConfirm(it.id)}>Excluir</button>
             </div>

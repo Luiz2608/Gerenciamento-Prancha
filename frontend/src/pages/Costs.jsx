@@ -184,20 +184,36 @@ export default function Costs() {
   const del = async (id) => { await deleteCusto(id); toast?.show("Custo excluído", "success"); loadList(); };
   const delConfirm = async (id) => { if (!window.confirm("Confirma excluir este custo?")) return; await del(id); };
 
+  const calcCost = (t) => Number(t.fuel_liters || 0) * Number(t.fuel_price || 0) + Number(t.other_costs || 0) + Number(t.maintenance_cost || 0) + Number(t.driver_daily || 0);
+
+  const filteredTrips = useMemo(() => {
+    return trips.filter((t) => {
+        if (filters.startDate && isValidDate(filters.startDate) && t.date < toIsoDate(filters.startDate)) return false;
+        if (filters.endDate && isValidDate(filters.endDate) && t.date > toIsoDate(filters.endDate)) return false;
+        if (filters.caminhaoId && String(t.truck_id) !== String(filters.caminhaoId)) return false;
+        if (filters.pranchaId && String(t.prancha_id) !== String(filters.pranchaId)) return false;
+        if (filters.driverId && String(t.driver_id) !== String(filters.driverId)) return false;
+        if (filters.search) {
+             const s = filters.search.toLowerCase();
+             const match = (t.description || "").toLowerCase().includes(s) || (t.destination || "").toLowerCase().includes(s);
+             if (!match) return false;
+        }
+        return true;
+    }).map(t => ({ ...t, totalCost: calcCost(t) }));
+  }, [trips, filters]);
+
   const summary = useMemo(() => {
-    const total = custos.reduce((acc, curr) => acc + (Number(curr.custoTotal) || 0), 0);
-    const fuel = custos.reduce((acc, curr) => {
-        const lit = Number(curr.consumoLitros) || 0;
-        const val = Number(curr.valorLitro) || 0;
+    const total = filteredTrips.reduce((acc, t) => acc + t.totalCost, 0);
+    const fuel = filteredTrips.reduce((acc, t) => {
+        const lit = Number(t.fuel_liters || 0);
+        const val = Number(t.fuel_price || 0);
         return acc + (lit * val);
     }, 0);
-    const maintenance = custos.reduce((acc, curr) => acc + (Number(curr.manutencao) || 0), 0);
-    const other = custos.reduce((acc, curr) => {
-       const o = Array.isArray(curr.outrosCustos) ? curr.outrosCustos.reduce((s, x) => s + (Number(x.valor) || 0), 0) : 0;
-       return acc + o + (Number(curr.pedagios) || 0) + (Number(curr.diariaMotorista) || 0);
-    }, 0);
+    const maintenance = filteredTrips.reduce((acc, t) => acc + Number(t.maintenance_cost || 0), 0);
+    const other = filteredTrips.reduce((acc, t) => acc + Number(t.other_costs || 0) + Number(t.driver_daily || 0), 0);
+
     return { total, fuel, maintenance, other };
-  }, [custos]);
+  }, [filteredTrips]);
 
   const lista = (
     <div className="space-y-6 overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain', touchAction: 'pan-x' }} onKeyDown={handleEnterInContainer}>
@@ -271,24 +287,33 @@ export default function Costs() {
       </div>
       <div className="flex items-center gap-3">
         <button className="btn btn-primary" onClick={async () => {
-          const r = await getCustos({ ...filters, page: 1, pageSize: 10000 });
-          const header = ["id","dataRegistro","categoria","viagemId","caminhaoId","pranchaId","kmRodado","tempoHoras","consumoLitros","valorLitro","diariaMotorista","pedagios","manutencao","outros","custoCombustivel","custoTotal","custoPorKm","aprovado"];
-          const lines = r.data.map((c) => [c.id,String(c.dataRegistro).slice(0,10),c.categoria||"",c.viagemId||"",c.caminhaoId||"",c.pranchaId||"",c.kmRodado||0,c.tempoHoras||0,c.consumoLitros||0,c.valorLitro||0,c.diariaMotorista||0,c.pedagios||0,c.manutencao||0,(Array.isArray(c.outrosCustos)?c.outrosCustos.reduce((s,o)=>s+Number(o.valor||0),0):0),c.custoCombustivel||0,c.custoTotal||0,c.custoPorKm||0,c.aprovado?"sim":"não"]);
+          const r = filteredTrips;
+          const header = ["Data","Viagem","Motorista","Caminhão","Prancha","Combustível","Manutenção","Outros","Total"];
+          const lines = r.map((t) => {
+            const fuel = (Number(t.fuel_liters || 0) * Number(t.fuel_price || 0)).toFixed(2);
+            const maint = Number(t.maintenance_cost || 0).toFixed(2);
+            const other = (Number(t.other_costs || 0) + Number(t.driver_daily || 0)).toFixed(2);
+            const total = t.totalCost.toFixed(2);
+            return [t.date, t.id, drivers.find(d=>d.id===t.driver_id)?.name||t.driver_id, trucks.find(x=>x.id===t.truck_id)?.plate||t.truck_id, pranchas.find(p=>p.id===t.prancha_id)?.asset_number||t.prancha_id, fuel, maint, other, total];
+          });
           const csv = [header.join(","), ...lines.map((l) => l.join(","))].join("\n");
           const blob = new Blob([csv], { type: "text/csv" });
-          const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "custos.csv"; a.click(); URL.revokeObjectURL(url); toast?.show("CSV exportado", "success");
+          const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "custos_viagens.csv"; a.click(); URL.revokeObjectURL(url); toast?.show("CSV exportado", "success");
         }}><span className="material-icons">download</span> CSV</button>
         <button className="btn btn-secondary" onClick={async () => {
-          const r = await getCustos({ ...filters, page: 1, pageSize: 10000 });
+          const r = filteredTrips;
           const { jsPDF } = await import("jspdf");
           const doc = new jsPDF();
           doc.setFontSize(16);
-          doc.text("Relatório de Custos", 105, 15, { align: "center" });
+          doc.text("Relatório de Custos de Viagens", 105, 15, { align: "center" });
           doc.setFontSize(10);
           let y = 25;
-          r.data.forEach((c) => { const line = `Data: ${String(c.dataRegistro).slice(0,10)} | Viagem: ${c.viagemId || ""} | Total: R$ ${(Number(c.custoTotal||0)).toFixed(2)} | Aprovado: ${c.aprovado?"Sim":"Não"}`; doc.text(line, 10, y); y += 6; if (y > 280) { doc.addPage(); y = 15; } });
+          r.forEach((t) => { 
+            const line = `Data: ${t.date} | Viagem: ${t.id} | Total: R$ ${t.totalCost.toFixed(2)}`; 
+            doc.text(line, 10, y); y += 6; if (y > 280) { doc.addPage(); y = 15; } 
+          });
           const blob = doc.output("blob");
-          const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "custos.pdf"; a.click(); URL.revokeObjectURL(url); toast?.show("PDF exportado", "success");
+          const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "custos_viagens.pdf"; a.click(); URL.revokeObjectURL(url); toast?.show("PDF exportado", "success");
         }}><span className="material-icons">picture_as_pdf</span> PDF</button>
       </div>
       <div className="card p-6 animate-fade overflow-x-auto hidden md:block">
@@ -297,53 +322,58 @@ export default function Costs() {
             <tr>
               <th>Data</th>
               <th>Viagem</th>
+              <th>Motorista</th>
               <th>Caminhão</th>
               <th>Prancha</th>
-              <th>Custo total</th>
-              <th>Aprovado</th>
+              <th>Combustível</th>
+              <th>Manutenção</th>
+              <th>Outros</th>
+              <th>Total</th>
               <th>Ações</th>
             </tr>
           </thead>
           <tbody>
-            {custos.map((c, idx) => (
-              <tr key={c.id} className={`${idx % 2 === 0 ? 'bg-slate-50 dark:bg-slate-800' : 'bg-white dark:bg-slate-700'} hover:bg-slate-100 dark:hover:bg-slate-600`}>
-                <td>{String(c.dataRegistro).slice(0,10)}</td>
-                <td>{c.viagemId}</td>
-                <td>{trucks.find((t) => String(t.id) === String(c.caminhaoId))?.plate || c.caminhaoId || ""}</td>
-                <td>{pranchas.find((p) => String(p.id) === String(c.pranchaId))?.identifier || c.pranchaId || ""}</td>
-                <td>R$ {Number(c.custoTotal || 0).toFixed(2)}</td>
-                <td>{c.aprovado ? <span className="px-2 py-1 rounded bg-green-600 text-white">Aprovado</span> : <span className="px-2 py-1 rounded bg-yellow-600 text-white">Pendente</span>}</td>
+            {filteredTrips.slice((filters.page - 1) * filters.pageSize, filters.page * filters.pageSize).map((t, idx) => {
+              const fuelCost = Number(t.fuel_liters || 0) * Number(t.fuel_price || 0);
+              const maintCost = Number(t.maintenance_cost || 0);
+              const otherCost = Number(t.other_costs || 0) + Number(t.driver_daily || 0);
+              return (
+              <tr key={t.id} className={`${idx % 2 === 0 ? 'bg-slate-50 dark:bg-slate-800' : 'bg-white dark:bg-slate-700'} hover:bg-slate-100 dark:hover:bg-slate-600`}>
+                <td>{t.date ? String(t.date).slice(0,10) : "-"}</td>
+                <td>#{t.id}</td>
+                <td>{drivers.find((d) => String(d.id) === String(t.driver_id))?.name || t.driver_id || ""}</td>
+                <td>{trucks.find((x) => String(x.id) === String(t.truck_id))?.plate || t.truck_id || ""}</td>
+                <td>{pranchas.find((p) => String(p.id) === String(t.prancha_id))?.asset_number || t.prancha_id || ""}</td>
+                <td>R$ {fuelCost.toFixed(2)}</td>
+                <td>R$ {maintCost.toFixed(2)}</td>
+                <td>R$ {otherCost.toFixed(2)}</td>
+                <td className="font-bold">R$ {t.totalCost.toFixed(2)}</td>
                 <td className="space-x-2">
-                  <button className="btn bg-slate-600 hover:bg-slate-700 text-white" onClick={() => setViewing(c)}>Ver</button>
-                  <button className="btn bg-yellow-500 hover:bg-yellow-600 text-white" onClick={() => { setEditingId(c.id); setForm({ viagemId: c.viagemId || "", dataRegistro: fromIsoDate(String(c.dataRegistro).slice(0,10)), consumoLitros: c.consumoLitros ?? 0, valorLitro: c.valorLitro ?? 0, kmRodado: c.kmRodado ?? 0, tempoHoras: c.tempoHoras ?? 0, diariaMotorista: c.diariaMotorista ?? 0, pedagios: c.pedagios ?? 0, manutencao: c.manutencao ?? 0, outrosCustos: c.outrosCustos || [], observacoes: c.observacoes || "" }); setTab("novo"); toast?.show("Edição carregada", "info"); }}>Editar</button>
-                  {user?.role === "admin" && <button className="btn bg-green-600 hover:bg-green-700 text-white" onClick={() => approve(c.id)}>Aprovar</button>}
-                  {user?.role === "admin" && <button className="btn bg-red-600 hover:bg-red-700 text-white" onClick={async () => { await updateCusto(c.id, { aprovado: false, aprovadoPor: null, aprovadoEm: null }); toast?.show("Custo recusado", "success"); loadList(); }}>Recusar</button>}
-                  <button className="btn bg-red-600 hover:bg-red-700 text-white" onClick={() => delConfirm(c.id)}>Excluir</button>
+                  <button className="btn bg-slate-600 hover:bg-slate-700 text-white" onClick={() => setViewing(t)}>Ver</button>
                 </td>
               </tr>
-            ))}
+            )})}
+            {filteredTrips.length === 0 && <tr><td colSpan="10" className="text-center p-4">Nenhum registro encontrado</td></tr>}
           </tbody>
         </table>
       </div>
       <div className="space-y-3 md:hidden">
-        {custos.slice(0, filters.pageSize).map((c) => (
-          <div key={c.id} className="card p-4">
+        {filteredTrips.slice((filters.page - 1) * filters.pageSize, filters.page * filters.pageSize).map((t) => {
+          const fuelCost = Number(t.fuel_liters || 0) * Number(t.fuel_price || 0);
+          return (
+          <div key={t.id} className="card p-4">
             <div className="flex justify-between items-center">
-              <div className="font-semibold">{String(c.dataRegistro).slice(0,10)}</div>
-              <div className="text-sm">Viagem #{c.viagemId}</div>
+              <div className="font-semibold">{t.date}</div>
+              <div className="text-sm">Viagem #{t.id}</div>
             </div>
-            <div className="text-sm text-slate-600 dark:text-slate-300">Caminhão: {trucks.find((t) => String(t.id) === String(c.caminhaoId))?.plate || c.caminhaoId || ""}</div>
-            <div className="text-sm text-slate-600 dark:text-slate-300">Prancha: {pranchas.find((p) => String(p.id) === String(c.pranchaId))?.identifier || c.pranchaId || ""}</div>
-            <div className="mt-2 font-bold">Total: R$ {Number(c.custoTotal || 0).toFixed(2)}</div>
+            <div className="text-sm text-slate-600 dark:text-slate-300">Motorista: {drivers.find((d) => String(d.id) === String(t.driver_id))?.name || t.driver_id || ""}</div>
+            <div className="mt-2 font-bold text-lg">Total: R$ {t.totalCost.toFixed(2)}</div>
+            <div className="text-xs text-slate-500">Combustível: R$ {fuelCost.toFixed(2)}</div>
             <div className="mt-2 flex flex-wrap gap-2">
-              <button className="btn" onClick={() => setViewing(c)}>Ver</button>
-              <button className="btn bg-yellow-500 hover:bg-yellow-600 text-white" onClick={() => { setEditingId(c.id); setForm({ viagemId: c.viagemId || "", dataRegistro: fromIsoDate(String(c.dataRegistro).slice(0,10)), consumoLitros: c.consumoLitros ?? 0, valorLitro: c.valorLitro ?? 0, kmRodado: c.kmRodado ?? 0, tempoHoras: c.tempoHoras ?? 0, diariaMotorista: c.diariaMotorista ?? 0, pedagios: c.pedagios ?? 0, manutencao: c.manutencao ?? 0, outrosCustos: c.outrosCustos || [], observacoes: c.observacoes || "" }); setTab("novo"); toast?.show("Edição carregada", "info"); }}>Editar</button>
-              {user?.role === "admin" && <button className="btn bg-green-600 hover:bg-green-700 text-white" onClick={() => approve(c.id)}>Aprovar</button>}
-              {user?.role === "admin" && <button className="btn bg-red-600 hover:bg-red-700 text-white" onClick={async () => { await updateCusto(c.id, { aprovado: false, aprovadoPor: null, aprovadoEm: null }); toast?.show("Custo recusado", "success"); loadList(); }}>Recusar</button>}
-              <button className="btn bg-red-600 hover:bg-red-700 text-white" onClick={() => delConfirm(c.id)}>Excluir</button>
+              <button className="btn bg-slate-600 hover:bg-slate-700 text-white" onClick={() => setViewing(t)}>Ver Detalhes</button>
             </div>
           </div>
-        ))}
+        )})}
       </div>
       <div className="flex items-center justify-between mt-4 p-2 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-100 dark:border-slate-700">
         <div className="text-sm text-slate-500 dark:text-slate-400">
@@ -379,23 +409,42 @@ export default function Costs() {
   );
 
   const relatoriosData = useMemo(() => {
-    const rows = custos;
-    const totalPeriodo = rows.reduce((a, c) => a + Number(c.custoTotal || 0), 0);
-    const kmTotal = rows.reduce((a, c) => a + Number(c.kmRodado || 0), 0);
-    const horasTotal = rows.reduce((a, c) => a + Number(c.tempoHoras || 0), 0);
+    const rows = trips.map(t => {
+      const fuel = Number(t.fuel_liters||0) * Number(t.fuel_price||0);
+      const maint = Number(t.maintenance_cost||0);
+      const driver = Number(t.driver_daily||0);
+      const other = Number(t.other_costs||0);
+      const total = fuel + maint + driver + other;
+      return {
+        ...t,
+        custoTotal: total,
+        custoCombustivel: fuel,
+        manutencao: maint,
+        diariaMotorista: driver,
+        outros: other,
+        kmRodado: Number(t.km_rodado||0),
+        dataRegistro: t.date || "",
+        caminhaoId: t.truck_id
+      };
+    });
+
+    const totalPeriodo = rows.reduce((a, c) => a + c.custoTotal, 0);
+    const kmTotal = rows.reduce((a, c) => a + c.kmRodado, 0);
+    const horasTotal = rows.reduce((a, c) => a + Number(c.horas || 0), 0);
     const mediaKm = kmTotal ? totalPeriodo / kmTotal : 0;
     const mediaHora = horasTotal ? totalPeriodo / horasTotal : 0;
-    const meses = rows.reduce((acc, c) => { const m = String(c.dataRegistro).slice(0,7); const f = acc.find((x) => x.month === m) || { month: m, total: 0, km: 0 }; f.total += Number(c.custoTotal || 0); f.km += Number(c.kmRodado || 0); if (!acc.find((x) => x.month === m)) acc.push(f); return acc; }, []);
+    const meses = rows.reduce((acc, c) => { const m = String(c.dataRegistro).slice(0,7); const f = acc.find((x) => x.month === m) || { month: m, total: 0, km: 0 }; f.total += c.custoTotal; f.km += c.kmRodado; if (!acc.find((x) => x.month === m)) acc.push(f); return acc; }, []);
+    meses.sort((a,b) => a.month.localeCompare(b.month));
+    
     const dist = [
-      { name: "Combustível", value: rows.reduce((a, c) => a + Number(c.custoCombustivel || 0), 0) },
-      { name: "Manutenção", value: rows.reduce((a, c) => a + Number(c.manutencao || 0), 0) },
-      { name: "Diárias", value: rows.reduce((a, c) => a + Number(c.diariaMotorista || 0), 0) },
-      { name: "Pedágios", value: rows.reduce((a, c) => a + Number(c.pedagios || 0), 0) },
-      { name: "Outros", value: rows.reduce((a, c) => a + (Array.isArray(c.outrosCustos) ? c.outrosCustos.reduce((s, o) => s + Number(o.valor || 0), 0) : 0), 0) }
+      { name: "Combustível", value: rows.reduce((a, c) => a + c.custoCombustivel, 0) },
+      { name: "Manutenção", value: rows.reduce((a, c) => a + c.manutencao, 0) },
+      { name: "Diárias", value: rows.reduce((a, c) => a + c.diariaMotorista, 0) },
+      { name: "Outros", value: rows.reduce((a, c) => a + c.outros, 0) }
     ];
-    const porCaminhao = trucks.map((t) => ({ truck: t.plate || t.model || String(t.id), total: rows.filter((c) => String(c.caminhaoId || "") === String(t.id)).reduce((a, c) => a + Number(c.custoTotal || 0), 0) })).sort((a,b)=> b.total - a.total).slice(0,10);
+    const porCaminhao = trucks.map((t) => ({ truck: t.plate || t.model || String(t.id), total: rows.filter((c) => String(c.caminhaoId || "") === String(t.id)).reduce((a, c) => a + c.custoTotal, 0) })).sort((a,b)=> b.total - a.total).slice(0,10);
     return { totalPeriodo, mediaKm, mediaHora, meses, dist, porCaminhao };
-  }, [custos, trucks]);
+  }, [trips, trucks]);
 
   const relatorios = (
     <div className="space-y-8">
@@ -559,58 +608,77 @@ export default function Costs() {
 
       {viewing && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="card p-6 w-full max-w-2xl">
-            <div className="font-semibold mb-2">Detalhes do custo</div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>Data: {String(viewing.dataRegistro).slice(0,10)}</div>
-              <div>Viagem: {viewing.viagemId}</div>
-              <div>Caminhão: {trucks.find((t) => String(t.id) === String(viewing.caminhaoId))?.plate || viewing.caminhaoId || ""}</div>
-              <div>Prancha: {pranchas.find((p) => String(p.id) === String(viewing.pranchaId))?.identifier || viewing.pranchaId || ""}</div>
-              <div>KM rodado: {viewing.kmRodado}</div>
-              <div>Horas: {viewing.tempoHoras}</div>
-              <div>Combustível: R$ {Number(viewing.custoCombustivel || 0).toFixed(2)}</div>
-              <div>Total: R$ {Number(viewing.custoTotal || 0).toFixed(2)}</div>
+          <div className="card p-6 w-full max-w-2xl animate-fade">
+            <div className="flex justify-between items-start mb-4">
+               <h3 className="text-xl font-bold text-slate-800 dark:text-white">Detalhes do Custo da Viagem #{viewing.id}</h3>
+               <button onClick={() => setViewing(null)} className="text-slate-500 hover:text-slate-700">
+                 <span className="material-icons">close</span>
+               </button>
             </div>
-            <div className="mt-4">
-              <div className="font-medium">Outros custos</div>
+            
+            <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                {(viewing.outrosCustos || []).map((o, i) => (
-                  <div key={i} className="flex items-center justify-between py-1"><div>{o.descricao}</div><div>R$ {Number(o.valor).toFixed(2)}</div></div>
-                ))}
+                <span className="block text-slate-500">Data</span>
+                <span className="font-medium">{viewing.date ? String(viewing.date).slice(0,10) : "-"}</span>
+              </div>
+              <div>
+                <span className="block text-slate-500">Viagem</span>
+                <span className="font-medium">#{viewing.id}</span>
+              </div>
+              <div>
+                <span className="block text-slate-500">Caminhão</span>
+                <span className="font-medium">{trucks.find((t) => String(t.id) === String(viewing.truck_id))?.plate || viewing.truck_id || "-"}</span>
+              </div>
+              <div>
+                <span className="block text-slate-500">Prancha</span>
+                <span className="font-medium">{pranchas.find((p) => String(p.id) === String(viewing.prancha_id))?.asset_number || viewing.prancha_id || "-"}</span>
+              </div>
+              <div>
+                <span className="block text-slate-500">Motorista</span>
+                <span className="font-medium">{drivers.find((d) => String(d.id) === String(viewing.driver_id))?.name || viewing.driver_id || "-"}</span>
+              </div>
+              <div>
+                <span className="block text-slate-500">KM Rodado</span>
+                <span className="font-medium">{viewing.km_rodado || 0} km</span>
               </div>
             </div>
-            <div className="mt-4">
-              <div className="font-medium">Anexos</div>
-              <div className="text-sm">
-                {(viewing.anexos || []).map((a) => {
-                  const href = a.base64 ? `data:application/octet-stream;base64,${a.base64}` : a.path || "#";
-                  return <div key={a.id}><a className="text-primary" href={href} download={a.nome || "arquivo"}>{a.nome || "arquivo"}</a> • {String(a.uploadedAt||"").slice(0,19).replace("T"," ")}</div>;
-                })}
+
+            <div className="my-4 border-t border-slate-200 dark:border-slate-700"></div>
+            
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="block text-slate-500">Combustível</span>
+                <span className="font-medium">R$ {((Number(viewing.fuel_liters)||0) * (Number(viewing.fuel_price)||0)).toFixed(2)}</span>
+                <div className="text-xs text-slate-400">{viewing.fuel_liters || 0} L x R$ {viewing.fuel_price || 0}</div>
+              </div>
+              <div>
+                <span className="block text-slate-500">Manutenção</span>
+                <span className="font-medium">R$ {Number(viewing.maintenance_cost||0).toFixed(2)}</span>
+              </div>
+              <div>
+                <span className="block text-slate-500">Diária Motorista</span>
+                <span className="font-medium">R$ {Number(viewing.driver_daily||0).toFixed(2)}</span>
+              </div>
+              <div>
+                <span className="block text-slate-500">Outros</span>
+                <span className="font-medium">R$ {Number(viewing.other_costs||0).toFixed(2)}</span>
               </div>
             </div>
-            <div className="mt-4">
-              <div className="font-medium">Audit trail</div>
-              <div className="text-sm">
-                {(viewing.audit || []).map((a, i) => (
-                  <div key={i}>{String(a.when).slice(0,19).replace("T"," ")} • {a.who} • {a.what}</div>
-                ))}
-              </div>
+
+            <div className="mt-4 p-3 bg-slate-50 dark:bg-slate-700 rounded-lg flex justify-between items-center">
+              <span className="font-bold text-slate-700 dark:text-slate-200">Custo Total</span>
+              <span className="text-xl font-bold text-green-600 dark:text-green-400">R$ {Number(viewing.totalCost||0).toFixed(2)}</span>
             </div>
-            <div className="mt-4">
-              <div className="font-medium">Custo por km vs média</div>
-              <div className="h-40">
-                <ResponsiveContainer>
-                  <BarChart data={[{ name: "Registro", value: Number(viewing.custoPorKm || 0) }, { name: "Média", value: (custos.reduce((a,c)=> a + Number(c.custoPorKm||0),0) / (custos.length||1)) }] }>
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="value" fill="#a78bfa" radius={[8,8,0,0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+
+            {viewing.description && (
+              <div className="mt-4">
+                 <div className="font-medium mb-1">Descrição / Observações</div>
+                 <div className="text-sm p-2 bg-slate-50 dark:bg-slate-800 rounded text-slate-600 dark:text-slate-400">{viewing.description}</div>
               </div>
-            </div>
+            )}
+
             <div className="mt-6 flex justify-end gap-2">
-              <button className="btn" onClick={() => setViewing(null)}>Fechar</button>
+              <button className="btn bg-slate-200 text-slate-800 hover:bg-slate-300" onClick={() => setViewing(null)}>Fechar</button>
             </div>
           </div>
         </div>
