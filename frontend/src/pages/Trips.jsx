@@ -28,9 +28,13 @@ export default function Trips() {
   const handlePrint = () => {
     if (!viewing) return;
     
-    const driverName = drivers.find((d) => d.id === viewing.driver_id)?.name || viewing.driver_id;
-    const truckName = trucks.find((t) => t.id === viewing.truck_id)?.fleet || trucks.find((t) => t.id === viewing.truck_id)?.plate || viewing.truck_id;
-    const pranchaName = pranchas.find((p) => p.id === viewing.prancha_id)?.asset_number || pranchas.find((p) => p.id === viewing.prancha_id)?.identifier || viewing.prancha_id;
+    const driver = drivers.find((d) => d.id === viewing.driver_id);
+    const truck = trucks.find((t) => t.id === viewing.truck_id);
+    const prancha = pranchas.find((p) => p.id === viewing.prancha_id);
+
+    const driverName = driver?.name || viewing.driver_id;
+    const truckName = truck?.fleet || truck?.plate || viewing.truck_id;
+    const pranchaName = prancha?.asset_number || prancha?.identifier || viewing.prancha_id;
     
     const printWindow = window.open('', '_blank');
     printWindow.document.write(`
@@ -50,6 +54,9 @@ export default function Trips() {
             .total-cost-box { background: #dcfce7; padding: 15px; border-radius: 8px; margin-top: 10px; border: 1px solid #86efac; }
             .total-cost { font-size: 1.4em; font-weight: bold; color: #166534; text-align: right; }
             .total-label { font-size: 1.1em; font-weight: 600; color: #15803d; }
+            .signature-section { margin-top: 60px; display: flex; justify-content: space-around; page-break-inside: avoid; }
+            .signature-box { text-align: center; width: 40%; }
+            .signature-line { border-top: 1px solid #333; margin-bottom: 10px; }
             @media print {
               body { margin: 0; padding: 20px; -webkit-print-color-adjust: exact; }
               .section { break-inside: avoid; border: 1px solid #ccc; }
@@ -70,12 +77,38 @@ export default function Trips() {
               <div class="row"><span class="label">Data de Retorno:</span> <span class="value">${viewing.end_date || "-"} ${viewing.end_time}</span></div>
               <div class="row"><span class="label">Status:</span> <span class="value">${viewing.status}</span></div>
               <div class="row"><span class="label">Solicitante:</span> <span class="value">${viewing.requester}</span></div>
-              <div class="row"><span class="label">Motorista:</span> <span class="value">${driverName}</span></div>
-              <div class="row"><span class="label">Caminhão:</span> <span class="value">${truckName}</span></div>
-              <div class="row"><span class="label">Prancha:</span> <span class="value">${pranchaName}</span></div>
               <div class="row"><span class="label">Unidade:</span> <span class="value">${viewing.location || "-"}</span></div>
               <div class="row"><span class="label">Destino:</span> <span class="value">${viewing.destination}</span></div>
               <div class="row"><span class="label">Tipo de Serviço:</span> <span class="value">${viewing.service_type}</span></div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">Dados do Motorista</div>
+            <div class="grid">
+              <div class="row"><span class="label">Nome:</span> <span class="value">${driver?.name || viewing.driver_id}</span></div>
+              <div class="row"><span class="label">CPF:</span> <span class="value">${driver?.cpf || "-"}</span></div>
+              <div class="row"><span class="label">CNH:</span> <span class="value">${driver?.cnh || "-"}</span></div>
+              <div class="row"><span class="label">Categoria:</span> <span class="value">${driver?.category || "-"}</span></div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">Dados do Veículo (Caminhão)</div>
+            <div class="grid">
+              <div class="row"><span class="label">Frota:</span> <span class="value">${truck?.fleet || "-"}</span></div>
+              <div class="row"><span class="label">Placa:</span> <span class="value">${truck?.plate || viewing.truck_id}</span></div>
+              <div class="row"><span class="label">Modelo:</span> <span class="value">${truck?.model || "-"}</span></div>
+              <div class="row"><span class="label">Marca:</span> <span class="value">${truck?.brand || "-"}</span></div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">Dados do Reboque (Prancha)</div>
+            <div class="grid">
+              <div class="row"><span class="label">Ativo:</span> <span class="value">${prancha?.asset_number || viewing.prancha_id}</span></div>
+              <div class="row"><span class="label">Placa:</span> <span class="value">${prancha?.plate || "-"}</span></div>
+              <div class="row"><span class="label">Tipo:</span> <span class="value">${prancha?.type || "-"}</span></div>
             </div>
           </div>
 
@@ -113,6 +146,19 @@ export default function Trips() {
             <div style="white-space: pre-wrap; padding: 10px; background: #fff; border: 1px dashed #cbd5e1; border-radius: 4px;">${viewing.description}</div>
           </div>
           ` : ''}
+
+          <div class="signature-section">
+            <div class="signature-box">
+              <div class="signature-line"></div>
+              <div>${driverName}</div>
+              <div style="font-size: 0.8em; color: #666;">Motorista</div>
+            </div>
+            <div class="signature-box">
+              <div class="signature-line"></div>
+              <div>Responsável / Gestor</div>
+              <div style="font-size: 0.8em; color: #666;">Assinatura</div>
+            </div>
+          </div>
 
           <script>
             window.onload = function() { window.print(); }
