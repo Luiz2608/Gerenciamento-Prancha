@@ -574,7 +574,7 @@ export async function getViagens(opts = {}) {
 }
 export async function getViagem(id) { await initLoad(); const { supabase: sb } = await import("./supabaseClient.js"); if (API_URL) { const r = await api(`/api/viagens/${id}`); if (!r.ok) return null; const j = await r.json(); return { ...j, end_date: j.end_date || j.date }; } if (sb && isOnline()) { const { data: t } = await sb.from("viagens").select("*").eq("id", Number(id)).single(); if (!t) return null; return { ...t, end_date: t.end_date || t.date, km_rodado: computeKm(t.km_start, t.km_end), horas: computeHours(t.date, t.start_time, t.end_time, t.end_date || t.date) }; } const db = getDB(); const t = db.viagens.find((x) => x.id === Number(id)); if (!t) return null; return { ...t, end_date: t.end_date || t.date, km_rodado: computeKm(t.km_start, t.km_end), horas: computeHours(t.date, t.start_time, t.end_time, t.end_date || t.date) }; }
 export async function saveViagem(data) { await initLoad(); if (API_URL) { const r = await api("/api/viagens", { method: "POST", body: JSON.stringify(data) }); return await r.json(); } const { supabase: sb } = await import("./supabaseClient.js"); if (sb && isOnline()) { const status = data.status || computeStatus(data.end_time, data.km_end); const payload = { date: data.date, driver_id: Number(data.driver_id), truck_id: data.truck_id != null ? Number(data.truck_id) : null, prancha_id: data.prancha_id != null ? Number(data.prancha_id) : null, destination: data.destination || null,
-      // location: data.location || null, // Desabilitado temporariamente pois a coluna não existe no Supabase
+      location: data.location || null,
       service_type: data.service_type || null, description: data.description || null, start_time: data.start_time || null, end_time: data.end_time || null, km_start: data.km_start != null ? Number(data.km_start) : null, km_end: data.km_end != null ? Number(data.km_end) : null, fuel_liters: data.fuel_liters != null ? Number(data.fuel_liters) : 0, fuel_price: data.fuel_price != null ? Number(data.fuel_price) : 0, other_costs: data.other_costs != null ? Number(data.other_costs) : 0, maintenance_cost: data.maintenance_cost != null ? Number(data.maintenance_cost) : 0, driver_daily: data.driver_daily != null ? Number(data.driver_daily) : 0, requester: data.requester || null, status };
   const { data: row, error } = await sb.from("viagens").insert([payload]).select().single();
   if (error) throw error;
@@ -593,7 +593,7 @@ export async function updateViagem(id, data) { await initLoad(); if (API_URL) { 
       truck_id: data.truck_id != null ? Number(data.truck_id) : null,
       prancha_id: data.prancha_id != null ? Number(data.prancha_id) : null,
       destination: data.destination || null,
-      // location: data.location || null, // Desabilitado temporariamente pois a coluna não existe no Supabase
+      location: data.location || null,
       service_type: data.service_type || null,
       description: data.description || null,
       start_time: data.start_time || null,
