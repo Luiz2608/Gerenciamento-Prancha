@@ -71,7 +71,7 @@ export default function Dashboard() {
         </select>
         <input className="input w-28" inputMode="numeric" value={period.year} onChange={(e) => { const p = { ...period, year: e.target.value.replace(/[^0-9]/g, '').slice(0,4) || "" }; setPeriod(p); }} onBlur={() => { const y = Number(period.year || now.getFullYear()); const p = { ...period, year: y }; setPeriod(p); refresh(p); }} />
         <select className="select" value={period.location} onChange={(e) => { const p = { ...period, location: e.target.value }; setPeriod(p); refresh(p); }}>
-          <option value="">Todos os Locais</option>
+          <option value="">Todas as Unidades</option>
           <option value="Cambuí">Cambuí</option>
           <option value="Vale">Vale</option>
           <option value="Panorama">Panorama</option>

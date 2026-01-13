@@ -278,7 +278,7 @@ export default function Costs() {
           {drivers.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
         </select>
         <select className="select" value={filters.location} onChange={(e) => setFilters({ ...filters, location: e.target.value })}>
-          <option value="" disabled>Local</option>
+          <option value="" disabled>Unidade</option>
           <option value="Cambuí">Cambuí</option>
           <option value="Vale">Vale</option>
           <option value="Panorama">Panorama</option>

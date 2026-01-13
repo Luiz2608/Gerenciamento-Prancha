@@ -463,7 +463,7 @@ export default function Trips() {
               <div class="field"><span class="label">Data Início:</span> <span class="value">${trip.date}</span></div>
               <div class="field"><span class="label">Data Término:</span> <span class="value">${trip.end_date || "-"}</span></div>
               <div class="field"><span class="label">Destino:</span> <span class="value">${trip.destination || "-"}</span></div>
-              <div class="field"><span class="label">Local:</span> <span class="value">${trip.location || "-"}</span></div>
+              <div class="field"><span class="label">Unidade:</span> <span class="value">${trip.location || "-"}</span></div>
               <div class="field"><span class="label">Tipo de Carga/Serviço:</span> <span class="value">${trip.service_type || "-"}</span></div>
               <div class="field" style="grid-column: span 2"><span class="label">Observações:</span> <span class="value">${trip.description || "-"}</span></div>
             </div>
@@ -583,7 +583,7 @@ export default function Trips() {
                value={locationFilter} 
                onChange={(e) => setLocationFilter(e.target.value)}
              >
-               <option value="">Todos os Locais</option>
+               <option value="">Todas as Unidades</option>
                <option value="Cambuí">Cambuí</option>
                <option value="Vale">Vale</option>
                <option value="Panorama">Panorama</option>
@@ -651,7 +651,7 @@ export default function Trips() {
           </div>
           <div className="flex flex-col">
             <select className={`select ${validationErrors.location ? 'ring-red-500 border-red-500' : ''}`} value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })}>
-              <option value="" disabled>Local *</option>
+              <option value="" disabled>Unidade *</option>
               <option value="Cambuí">Cambuí</option>
               <option value="Vale">Vale</option>
               <option value="Panorama">Panorama</option>
@@ -854,11 +854,13 @@ export default function Trips() {
         <table className="table min-w-[1100px]">
           <thead>
             <tr>
+              <th>ID</th>
+              <th>Data</th>
               <th>Motorista</th>
               <th>Caminhão</th>
               <th>Prancha</th>
               <th>Destino</th>
-              <th>Local</th>
+              <th>Unidade</th>
               <th>Tipo</th>
               <th>Status</th>
               <th>KM</th>
@@ -870,11 +872,13 @@ export default function Trips() {
           <tbody>
             {sortedItems.length === 0 && (
               <tr>
-                <td colSpan="11" className="text-center p-4 text-gray-500">Nenhuma viagem encontrada.</td>
+                <td colSpan="13" className="text-center p-4 text-gray-500">Nenhuma viagem encontrada.</td>
               </tr>
             )}
             {sortedItems.slice(0, pageSize).map((it, idx) => (
               <tr key={it.id} className={`${idx % 2 === 0 ? 'bg-slate-50 dark:bg-slate-800' : 'bg-white dark:bg-slate-700'} hover:bg-slate-100 dark:hover:bg-slate-600`}>
+                <td>#{it.id}</td>
+                <td>{it.date}</td>
                 <td>{drivers.find((d) => d.id === it.driver_id)?.name || it.driver_id}</td>
                 <td>{trucks.find((t) => t.id === it.truck_id)?.fleet || trucks.find((t) => t.id === it.truck_id)?.plate || it.truck_id || ""}</td>
                 <td>{pranchas.find((p) => p.id === it.prancha_id)?.asset_number || pranchas.find((p) => p.id === it.prancha_id)?.identifier || it.prancha_id || ""}</td>
