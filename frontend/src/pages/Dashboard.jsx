@@ -15,7 +15,7 @@ export default function Dashboard() {
   const [data, setData] = useState(null);
   const [period, setPeriod] = useState(() => {
     const saved = localStorage.getItem("dashboard_period_draft");
-    return saved ? JSON.parse(saved) : { month: String(now.getMonth() + 1).padStart(2, "0"), year: now.getFullYear() };
+    return saved ? JSON.parse(saved) : { month: String(now.getMonth() + 1).padStart(2, "0"), year: now.getFullYear(), location: "" };
   });
 
   useEffect(() => {
@@ -23,7 +23,7 @@ export default function Dashboard() {
   }, [period]);
 
   const refresh = async (p = period) => {
-    const r = await dashboard({ month: Number(p.month), year: Number(p.year) });
+    const r = await dashboard({ month: Number(p.month), year: Number(p.year), location: p.location });
     setData(r);
   };
 
@@ -70,6 +70,13 @@ export default function Dashboard() {
           {months.map((m) => (<option key={m.v} value={m.v}>{m.n}</option>))}
         </select>
         <input className="input w-28" inputMode="numeric" value={period.year} onChange={(e) => { const p = { ...period, year: e.target.value.replace(/[^0-9]/g, '').slice(0,4) || "" }; setPeriod(p); }} onBlur={() => { const y = Number(period.year || now.getFullYear()); const p = { ...period, year: y }; setPeriod(p); refresh(p); }} />
+        <select className="select" value={period.location} onChange={(e) => { const p = { ...period, location: e.target.value }; setPeriod(p); refresh(p); }}>
+          <option value="">Todos os Locais</option>
+          <option value="Cambuí">Cambuí</option>
+          <option value="Vale">Vale</option>
+          <option value="Panorama">Panorama</option>
+          <option value="Floresta">Floresta</option>
+        </select>
         <div className="text-xs text-slate-500">Preparado para futuro intervalo personalizado</div>
       </div>
 

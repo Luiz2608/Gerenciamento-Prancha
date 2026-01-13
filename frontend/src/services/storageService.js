@@ -499,7 +499,7 @@ export async function deleteMotorista(id) { await initLoad(); if (API_URL) { awa
 export async function getViagens(opts = {}) {
   await initLoad();
   const { supabase: sb } = await import("./supabaseClient.js");
-  const { startDate, endDate, driverId, destination, status, search, truckId, pranchaId, vehicleType, plate, id, page = 1, pageSize = 10 } = opts;
+  const { startDate, endDate, driverId, destination, status, search, truckId, pranchaId, vehicleType, plate, id, location, page = 1, pageSize = 10 } = opts;
   if (API_URL) {
     const params = new URLSearchParams();
     if (id) params.set("id", id);
@@ -511,6 +511,7 @@ export async function getViagens(opts = {}) {
     if (truckId) params.set("truckId", String(truckId));
     if (pranchaId) params.set("pranchaId", String(pranchaId));
     if (plate) params.set("plate", plate);
+    if (location) params.set("location", location);
     const r = await api(`/api/viagens?${params.toString()}`);
     const rows = await r.json();
     const total = rows.length;
@@ -525,6 +526,7 @@ export async function getViagens(opts = {}) {
     if (status) query = query.eq("status", status);
     if (truckId) query = query.eq("truck_id", Number(truckId));
     if (pranchaId) query = query.eq("prancha_id", Number(pranchaId));
+    if (location) query = query.eq("location", location);
     const { data: rows0 } = await query.range(0, 19999);
     let rows = Array.isArray(rows0) ? rows0.slice() : [];
     if (id) rows = rows.filter((t) => String(t.id).includes(String(id)));
@@ -556,6 +558,7 @@ export async function getViagens(opts = {}) {
   if (search) rows = rows.filter((t) => (t.description || "").toLowerCase().includes(search.toLowerCase()) || (t.service_type || "").toLowerCase().includes(search.toLowerCase()));
   if (truckId) rows = rows.filter((t) => t.truck_id === Number(truckId));
   if (pranchaId) rows = rows.filter((t) => t.prancha_id === Number(pranchaId));
+  if (location) rows = rows.filter((t) => t.location === location);
   if (vehicleType === "truck") rows = rows.filter((t) => t.truck_id != null);
   if (vehicleType === "prancha") rows = rows.filter((t) => t.prancha_id != null);
   if (plate) rows = rows.filter((t) => {
@@ -569,7 +572,7 @@ export async function getViagens(opts = {}) {
   return { data, total, page: Number(page), pageSize: Number(pageSize) };
 }
 export async function getViagem(id) { await initLoad(); const { supabase: sb } = await import("./supabaseClient.js"); if (API_URL) { const r = await api(`/api/viagens/${id}`); if (!r.ok) return null; const j = await r.json(); return { ...j, end_date: j.end_date || j.date }; } if (sb && isOnline()) { const { data: t } = await sb.from("viagens").select("*").eq("id", Number(id)).single(); if (!t) return null; return { ...t, end_date: t.end_date || t.date, km_rodado: computeKm(t.km_start, t.km_end), horas: computeHours(t.date, t.start_time, t.end_time, t.end_date || t.date) }; } const db = getDB(); const t = db.viagens.find((x) => x.id === Number(id)); if (!t) return null; return { ...t, end_date: t.end_date || t.date, km_rodado: computeKm(t.km_start, t.km_end), horas: computeHours(t.date, t.start_time, t.end_time, t.end_date || t.date) }; }
-export async function saveViagem(data) { await initLoad(); if (API_URL) { const r = await api("/api/viagens", { method: "POST", body: JSON.stringify(data) }); return await r.json(); } const { supabase: sb } = await import("./supabaseClient.js"); if (sb && isOnline()) { const status = data.status || computeStatus(data.end_time, data.km_end); const payload = { date: data.date, driver_id: Number(data.driver_id), truck_id: data.truck_id != null ? Number(data.truck_id) : null, prancha_id: data.prancha_id != null ? Number(data.prancha_id) : null, destination: data.destination || null, service_type: data.service_type || null, description: data.description || null, start_time: data.start_time || null, end_time: data.end_time || null, km_start: data.km_start != null ? Number(data.km_start) : null, km_end: data.km_end != null ? Number(data.km_end) : null, fuel_liters: data.fuel_liters != null ? Number(data.fuel_liters) : 0, fuel_price: data.fuel_price != null ? Number(data.fuel_price) : 0, other_costs: data.other_costs != null ? Number(data.other_costs) : 0, maintenance_cost: data.maintenance_cost != null ? Number(data.maintenance_cost) : 0, driver_daily: data.driver_daily != null ? Number(data.driver_daily) : 0, requester: data.requester || null, status };
+export async function saveViagem(data) { await initLoad(); if (API_URL) { const r = await api("/api/viagens", { method: "POST", body: JSON.stringify(data) }); return await r.json(); } const { supabase: sb } = await import("./supabaseClient.js"); if (sb && isOnline()) { const status = data.status || computeStatus(data.end_time, data.km_end); const payload = { date: data.date, driver_id: Number(data.driver_id), truck_id: data.truck_id != null ? Number(data.truck_id) : null, prancha_id: data.prancha_id != null ? Number(data.prancha_id) : null, destination: data.destination || null, location: data.location || null, service_type: data.service_type || null, description: data.description || null, start_time: data.start_time || null, end_time: data.end_time || null, km_start: data.km_start != null ? Number(data.km_start) : null, km_end: data.km_end != null ? Number(data.km_end) : null, fuel_liters: data.fuel_liters != null ? Number(data.fuel_liters) : 0, fuel_price: data.fuel_price != null ? Number(data.fuel_price) : 0, other_costs: data.other_costs != null ? Number(data.other_costs) : 0, maintenance_cost: data.maintenance_cost != null ? Number(data.maintenance_cost) : 0, driver_daily: data.driver_daily != null ? Number(data.driver_daily) : 0, requester: data.requester || null, status };
   const { data: row, error } = await sb.from("viagens").insert([payload]).select().single();
   if (row) {
     if (row.truck_id != null && row.km_end != null) { await sb.from("caminhoes").update({ km_current: Number(row.km_end) }).eq("id", Number(row.truck_id)); }
@@ -1015,6 +1018,10 @@ export async function dashboard(opts = {}) {
     caminhoes = db.caminhoes;
     pranchas = db.pranchas;
     custos = db.custos;
+  }
+  
+  if (opts.location) {
+    viagens = viagens.filter(t => t.location === opts.location);
   }
 
   // Pending Trips & Truck Status

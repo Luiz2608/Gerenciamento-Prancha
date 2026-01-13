@@ -15,7 +15,7 @@ export default function Costs() {
   const [pranchas, setPranchas] = useState([]);
   const [custos, setCustos] = useState([]);
   const [totalRows, setTotalRows] = useState(0);
-  const [filters, setFilters] = useState({ startDate: "", endDate: "", caminhaoId: "", pranchaId: "", driverId: "", aprovado: "", search: "", page: 1, pageSize: 20 });
+  const [filters, setFilters] = useState({ startDate: "", endDate: "", caminhaoId: "", pranchaId: "", driverId: "", location: "", aprovado: "", search: "", page: 1, pageSize: 20 });
   const [total, setTotal] = useState(0);
   const [avgKm, setAvgKm] = useState(0);
   const [avgHour, setAvgHour] = useState(0);
@@ -193,6 +193,7 @@ export default function Costs() {
         if (filters.caminhaoId && String(t.truck_id) !== String(filters.caminhaoId)) return false;
         if (filters.pranchaId && String(t.prancha_id) !== String(filters.pranchaId)) return false;
         if (filters.driverId && String(t.driver_id) !== String(filters.driverId)) return false;
+        if (filters.location && t.location !== filters.location) return false;
         if (filters.search) {
              const s = filters.search.toLowerCase();
              const match = (t.description || "").toLowerCase().includes(s) || (t.destination || "").toLowerCase().includes(s);
@@ -275,6 +276,13 @@ export default function Costs() {
         <select className="select" value={filters.driverId} onChange={(e) => setFilters({ ...filters, driverId: e.target.value })}>
           <option value="" disabled>Motorista</option>
           {drivers.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+        </select>
+        <select className="select" value={filters.location} onChange={(e) => setFilters({ ...filters, location: e.target.value })}>
+          <option value="" disabled>Local</option>
+          <option value="Cambuí">Cambuí</option>
+          <option value="Vale">Vale</option>
+          <option value="Panorama">Panorama</option>
+          <option value="Floresta">Floresta</option>
         </select>
         <select className="select" value={filters.aprovado} onChange={(e) => setFilters({ ...filters, aprovado: e.target.value })}>
           <option value="" disabled>Aprovado?</option>

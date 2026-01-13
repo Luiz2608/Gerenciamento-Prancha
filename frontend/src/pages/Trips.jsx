@@ -13,7 +13,7 @@ export default function Trips() {
   const tipoOptions = ["Máquinas Agrícolas","Máquinas de Construção","Equipamentos Industriais","Veículos Pesados","Veículos Leves"];
   const [form, setForm] = useState(() => {
     const saved = localStorage.getItem("trips_form_draft");
-    return saved ? JSON.parse(saved) : { date: "", end_date: "", requester: "", driver_id: "", truck_id: "", prancha_id: "", destination: "", service_type: "", status: "", description: "", start_time: "", end_time: "", km_start: "", km_end: "", km_trip: "", km_per_liter: "", noKmStart: false, noKmEnd: false, fuel_liters: "", noFuelLiters: false, fuel_price: "", noFuelPrice: false, other_costs: "", noOtherCosts: false, maintenance_cost: "", noMaintenanceCost: false, driver_daily: "", noDriverDaily: false };
+    return saved ? JSON.parse(saved) : { date: "", end_date: "", requester: "", driver_id: "", truck_id: "", prancha_id: "", destination: "", location: "", service_type: "", status: "", description: "", start_time: "", end_time: "", km_start: "", km_end: "", km_trip: "", km_per_liter: "", noKmStart: false, noKmEnd: false, fuel_liters: "", noFuelLiters: false, fuel_price: "", noFuelPrice: false, other_costs: "", noOtherCosts: false, maintenance_cost: "", noMaintenanceCost: false, driver_daily: "", noDriverDaily: false };
   });
   
   const [editing, setEditing] = useState(null);
@@ -36,6 +36,8 @@ export default function Trips() {
   const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'desc' });
   const [statusFilter, setStatusFilter] = useState("");
   const statusFilterRef = useRef(statusFilter);
+  const [locationFilter, setLocationFilter] = useState("");
+  const locationFilterRef = useRef(locationFilter);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -47,6 +49,7 @@ export default function Trips() {
   const loadTrips = (p = page, ps = pageSize) => {
     const opts = { page: p, pageSize: ps };
     if (statusFilterRef.current) opts.status = statusFilterRef.current;
+    if (locationFilterRef.current) opts.location = locationFilterRef.current;
     getViagens(opts).then((r) => {
       if (r.data) {
         setItems(r.data);
@@ -96,8 +99,9 @@ export default function Trips() {
 
   useEffect(() => {
     statusFilterRef.current = statusFilter;
+    locationFilterRef.current = locationFilter;
     loadTrips();
-  }, [statusFilter]);
+  }, [statusFilter, locationFilter]);
 
   useEffect(() => {
     loadDrivers();
@@ -226,6 +230,7 @@ export default function Trips() {
     if (!form.truck_id) errs.truck_id = "Campo obrigatório";
     if (!form.prancha_id) errs.prancha_id = "Campo obrigatório";
     if (!form.destination) errs.destination = "Campo obrigatório";
+    if (!form.location) errs.location = "Campo obrigatório";
     if (!form.service_type) errs.service_type = "Campo obrigatório";
     if (!form.status) errs.status = "Campo obrigatório";
 
@@ -317,7 +322,7 @@ export default function Trips() {
     }
     toast?.show(editing ? "Viagem atualizada" : "Viagem cadastrada", "success");
     localStorage.removeItem("trips_form_draft");
-    setForm({ date: "", end_date: "", requester: "", driver_id: "", truck_id: "", prancha_id: "", destination: "", service_type: "", status: "", description: "", start_time: "", end_time: "", km_start: "", km_end: "", km_trip: "", km_per_liter: "", noKmStart: false, noKmEnd: false, fuel_liters: "", noFuelLiters: false, fuel_price: "", noFuelPrice: false, other_costs: "", noOtherCosts: false, maintenance_cost: "", noMaintenanceCost: false, driver_daily: "", noDriverDaily: false });
+    setForm({ date: "", end_date: "", requester: "", driver_id: "", truck_id: "", prancha_id: "", destination: "", location: "", service_type: "", status: "", description: "", start_time: "", end_time: "", km_start: "", km_end: "", km_trip: "", km_per_liter: "", noKmStart: false, noKmEnd: false, fuel_liters: "", noFuelLiters: false, fuel_price: "", noFuelPrice: false, other_costs: "", noOtherCosts: false, maintenance_cost: "", noMaintenanceCost: false, driver_daily: "", noDriverDaily: false });
     setEditing(null);
     setShowForm(false);
     setShowValidation(false);
@@ -357,6 +362,7 @@ export default function Trips() {
       truck_id: it.truck_id?.toString() || "",
       prancha_id: (pranchas.find((p) => p.id === it.prancha_id)?.asset_number?.toString()) || "",
       destination: it.destination || "",
+      location: it.location || "",
       service_type: it.service_type || "",
       status: it.status || "",
       description: it.description || "",
@@ -400,6 +406,17 @@ export default function Trips() {
       {!showForm && !editing && (
         <div className="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
           <div className="flex items-center gap-2 w-full md:w-auto">
+             <select 
+               className="select w-full md:w-48" 
+               value={locationFilter} 
+               onChange={(e) => setLocationFilter(e.target.value)}
+             >
+               <option value="">Todos os Locais</option>
+               <option value="Cambuí">Cambuí</option>
+               <option value="Vale">Vale</option>
+               <option value="Panorama">Panorama</option>
+               <option value="Floresta">Floresta</option>
+             </select>
              <select 
                className="select w-full md:w-48" 
                value={statusFilter} 
@@ -455,6 +472,16 @@ export default function Trips() {
           <div className="flex flex-col">
             <input className={`input ${validationErrors.destination ? 'ring-red-500 border-red-500' : ''}`} placeholder="Destino *" value={form.destination} onChange={(e) => setForm({ ...form, destination: e.target.value })} />
             {validationErrors.destination && <span className="text-red-500 text-xs mt-1">{validationErrors.destination}</span>}
+          </div>
+          <div className="flex flex-col">
+            <select className={`select ${validationErrors.location ? 'ring-red-500 border-red-500' : ''}`} value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })}>
+              <option value="" disabled>Local *</option>
+              <option value="Cambuí">Cambuí</option>
+              <option value="Vale">Vale</option>
+              <option value="Panorama">Panorama</option>
+              <option value="Floresta">Floresta</option>
+            </select>
+            {validationErrors.location && <span className="text-red-500 text-xs mt-1">{validationErrors.location}</span>}
           </div>
           <div className="flex flex-col">
             <select className={`select ${validationErrors.service_type ? 'ring-red-500 border-red-500' : ''}`} value={form.service_type} onChange={(e) => setForm({ ...form, service_type: e.target.value })}>
@@ -636,7 +663,7 @@ export default function Trips() {
                setShowForm(false);
                setShowValidation(false);
                setForm({
-                 date: "", end_date: "", requester: "", driver_id: "", truck_id: "", prancha_id: "", destination: "", service_type: "", status: "", description: "",
+                 date: "", end_date: "", requester: "", driver_id: "", truck_id: "", prancha_id: "", destination: "", location: "", service_type: "", status: "", description: "",
                  start_time: "", end_time: "", km_start: "", km_end: "", km_trip: "", km_per_liter: "", noKmStart: false, noKmEnd: false,
                  fuel_liters: "", noFuelLiters: false, fuel_price: "", noFuelPrice: false, other_costs: "", noOtherCosts: false,
                  maintenance_cost: "", noMaintenanceCost: false, driver_daily: "", noDriverDaily: false
