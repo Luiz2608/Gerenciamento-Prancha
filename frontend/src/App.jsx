@@ -6,7 +6,6 @@ import Trips from "./pages/Trips.jsx";
 import FleetTrucks from "./pages/FleetTrucks.jsx";
 import FleetPranchas from "./pages/FleetPranchas.jsx";
 import Costs from "./pages/Costs.jsx";
-import HistoryUnified from "./pages/HistoryUnified.jsx";
 import MainLayout from "./layouts/MainLayout.jsx";
 import ExportarDados from "./pages/ExportarDados.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
