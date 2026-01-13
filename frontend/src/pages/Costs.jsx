@@ -278,7 +278,7 @@ export default function Costs() {
           {drivers.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
         </select>
         <select className="select" value={filters.location} onChange={(e) => setFilters({ ...filters, location: e.target.value })}>
-          <option value="" disabled>Unidade</option>
+          <option value="">Todas as Unidades</option>
           <option value="Cambuí">Cambuí</option>
           <option value="Vale">Vale</option>
           <option value="Panorama">Panorama</option>
@@ -296,13 +296,13 @@ export default function Costs() {
       <div className="flex items-center gap-3">
         <button className="btn btn-primary" onClick={async () => {
           const r = filteredTrips;
-          const header = ["Data","Viagem","Motorista","Caminhão","Prancha","Combustível","Manutenção","Outros","Total"];
+          const header = ["Data","Viagem","Motorista","Caminhão","Prancha","Unidade","Combustível","Manutenção","Outros","Total"];
           const lines = r.map((t) => {
             const fuel = (Number(t.fuel_liters || 0) * Number(t.fuel_price || 0)).toFixed(2);
             const maint = Number(t.maintenance_cost || 0).toFixed(2);
             const other = (Number(t.other_costs || 0) + Number(t.driver_daily || 0)).toFixed(2);
             const total = t.totalCost.toFixed(2);
-            return [t.date, t.id, drivers.find(d=>d.id===t.driver_id)?.name||t.driver_id, trucks.find(x=>x.id===t.truck_id)?.plate||t.truck_id, pranchas.find(p=>p.id===t.prancha_id)?.asset_number||t.prancha_id, fuel, maint, other, total];
+            return [t.date, t.id, drivers.find(d=>d.id===t.driver_id)?.name||t.driver_id, trucks.find(x=>x.id===t.truck_id)?.plate||t.truck_id, pranchas.find(p=>p.id===t.prancha_id)?.asset_number||t.prancha_id, t.location || "", fuel, maint, other, total];
           });
           const csv = [header.join(","), ...lines.map((l) => l.join(","))].join("\n");
           const blob = new Blob([csv], { type: "text/csv" });
@@ -317,7 +317,7 @@ export default function Costs() {
           doc.setFontSize(10);
           let y = 25;
           r.forEach((t) => { 
-            const line = `Data: ${t.date} | Viagem: ${t.id} | Total: R$ ${t.totalCost.toFixed(2)}`; 
+            const line = `Data: ${t.date} | Viagem: ${t.id} | Unidade: ${t.location || "-"} | Total: R$ ${t.totalCost.toFixed(2)}`; 
             doc.text(line, 10, y); y += 6; if (y > 280) { doc.addPage(); y = 15; } 
           });
           const blob = doc.output("blob");
