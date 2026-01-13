@@ -888,7 +888,7 @@ export default function Trips() {
                 <td>{it.status}</td>
                 <td>{it.km_rodado}</td>
                 <td>{it.horas}</td>
-                <td>{(it.total_cost ?? 0).toFixed(2)}</td>
+                <td>R$ {(it.total_cost ?? 0).toFixed(2)}</td>
                 <td className="space-x-2">
                   <button className="btn bg-slate-600 hover:bg-slate-700 text-white" onClick={() => setViewing(it)}>Ver</button>
                   <button className="btn bg-yellow-500 hover:bg-yellow-600 text-white" onClick={() => edit(it)}>Editar</button>
@@ -925,7 +925,7 @@ export default function Trips() {
             <div className="text-sm text-slate-600 dark:text-slate-300">Prancha: {pranchas.find((p) => p.id === it.prancha_id)?.identifier || it.prancha_id || ""}</div>
             <div className="mt-1 text-sm">Destino: {it.destination || "-"}</div>
             <div className="mt-1 text-sm">Tipo: {it.service_type || "-"}</div>
-            <div className="mt-1 flex gap-4 text-sm"><span>KM: {it.km_rodado}</span><span>Horas: {it.horas}</span></div>
+            <div className="mt-1 flex gap-4 text-sm"><span>KM: {it.km_rodado}</span><span>Horas: {it.horas}</span><span>Custo: R$ {(it.total_cost ?? 0).toFixed(2)}</span></div>
             <div className="mt-2 flex flex-wrap gap-2">
               <button className="btn bg-slate-600 hover:bg-slate-700 text-white" onClick={() => setViewing(it)}>Ver</button>
               <button className="btn bg-yellow-500 hover:bg-yellow-600 text-white" onClick={() => edit(it)}>Editar</button>

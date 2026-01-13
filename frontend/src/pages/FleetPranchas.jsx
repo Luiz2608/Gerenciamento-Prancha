@@ -23,7 +23,7 @@ export default function FleetPranchas() {
       localStorage.setItem("pranchas_form_draft", JSON.stringify(form));
     }
   }, [form, editing]);
-  const typeCap = { "Prancha 2 eixos": 20000, "Prancha 3 eixos": 30000, "Prancha 4 eixos": 45000, "Reboque 30 metros": 50000, "Reboque 26 metros": 40000 };
+  const typeCap = { "Prancha 2 eixos": 20000, "Prancha 3 eixos": 30000, "Prancha 4 eixos": 45000, "Reboque 30 metros": 37000, "Reboque 26 metros": 37000 };
   
   const load = () => {
     getPranchas({ page, pageSize }).then((r) => {
