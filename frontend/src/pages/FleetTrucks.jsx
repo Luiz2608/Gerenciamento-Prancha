@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { getCaminhoes, saveCaminhao, updateCaminhao, deleteCaminhao } from "../services/storageService.js";
+import { supabase } from "../services/supabaseClient.js";
 import { useToast } from "../components/ToastProvider.jsx";
 
 export default function FleetTrucks() {
@@ -55,7 +56,6 @@ export default function FleetTrucks() {
     
     let channel = null;
     const initRealtime = async () => {
-      const { supabase } = await import("../services/supabaseClient.js");
       if (supabase) {
         channel = supabase
           .channel("public:caminhoes")
@@ -67,9 +67,7 @@ export default function FleetTrucks() {
 
     return () => { 
       if (channel) {
-         import("../services/supabaseClient.js").then(({ supabase }) => {
-            if(supabase) supabase.removeChannel(channel);
-         });
+         if(supabase) supabase.removeChannel(channel);
       }
       clearInterval(interval); 
     };

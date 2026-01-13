@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { getMotoristas, saveMotorista, updateMotorista, deleteMotorista } from "../services/storageService.js";
+import { supabase } from "../services/supabaseClient.js";
 import { useToast } from "../components/ToastProvider.jsx";
 import { User, CreditCard, FileText, Search, Plus, Edit2, Trash2 } from "lucide-react";
 
@@ -43,7 +44,6 @@ export default function Drivers() {
     
     let channel = null;
     const initRealtime = async () => {
-      const { supabase } = await import("../services/supabaseClient.js");
       if (supabase) {
         channel = supabase
           .channel("public:motoristas")
@@ -55,9 +55,7 @@ export default function Drivers() {
 
     return () => { 
       if (channel) {
-         import("../services/supabaseClient.js").then(({ supabase }) => {
-            if(supabase) supabase.removeChannel(channel);
-         });
+         if(supabase) supabase.removeChannel(channel);
       }
       clearInterval(interval); 
     };

@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { dashboard } from "../services/storageService.js";
+import { supabase } from "../services/supabaseClient.js";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, LabelList, Legend, CartesianGrid } from "recharts";
 
 export default function Dashboard() {
@@ -35,7 +36,6 @@ export default function Dashboard() {
   useEffect(() => {
     let channels = [];
     const initRealtime = async () => {
-      const { supabase } = await import("../services/supabaseClient.js");
       if (supabase) {
         const ch1 = supabase.channel("public:viagens").on("postgres_changes", { event: "*", schema: "public", table: "viagens" }, () => { refreshRef.current(); }).subscribe();
         const ch2 = supabase.channel("public:motoristas").on("postgres_changes", { event: "*", schema: "public", table: "motoristas" }, () => { refreshRef.current(); }).subscribe();
@@ -49,9 +49,7 @@ export default function Dashboard() {
     const interval = setInterval(() => { refreshRef.current(); }, 10000);
     return () => {
       if (channels.length > 0) {
-        import("../services/supabaseClient.js").then(({ supabase }) => {
-           if(supabase) channels.forEach(ch => supabase.removeChannel(ch));
-        });
+        if(supabase) channels.forEach(ch => supabase.removeChannel(ch));
       }
       clearInterval(interval);
     };

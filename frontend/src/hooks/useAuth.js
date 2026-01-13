@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { supabase as sb } from "../services/supabaseClient.js";
 
 export default function useAuth() {
   const [token, setToken] = useState(localStorage.getItem("token"));
@@ -20,7 +21,6 @@ export default function useAuth() {
   useEffect(() => {
     let sub = null;
     const init = async () => {
-      const { supabase: sb } = await import("../services/supabaseClient.js");
       if (!sb) return;
 
       const { data } = await sb.auth.getSession();
@@ -42,7 +42,6 @@ export default function useAuth() {
 
   const logout = async () => {
     try { 
-      const { supabase: sb } = await import("../services/supabaseClient.js");
       if (sb) await sb.auth.signOut(); 
     } catch {}
     setToken(null);

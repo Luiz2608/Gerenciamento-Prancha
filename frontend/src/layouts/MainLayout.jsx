@@ -2,6 +2,8 @@ import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import useAuth from "../hooks/useAuth.js";
 
+import { initLoad } from "../services/storageService.js";
+
 export default function MainLayout() {
   const { logout } = useAuth();
   const loc = useLocation();
@@ -22,7 +24,6 @@ export default function MainLayout() {
       setOnline(true);
       setShowOffline(false);
       try {
-        const { initLoad } = await import("../services/storageService.js");
         await initLoad();
         setReconnected(true);
         setTimeout(() => setReconnected(false), 4000);

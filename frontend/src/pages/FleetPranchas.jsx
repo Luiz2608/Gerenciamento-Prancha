@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { getPranchas, savePrancha, updatePrancha, deletePrancha } from "../services/storageService.js";
+import { supabase } from "../services/supabaseClient.js";
 import { useToast } from "../components/ToastProvider.jsx";
 
 export default function FleetPranchas() {
@@ -55,7 +56,6 @@ export default function FleetPranchas() {
     
     let channel = null;
     const initRealtime = async () => {
-      const { supabase } = await import("../services/supabaseClient.js");
       if (supabase) {
         channel = supabase
           .channel("public:pranchas")
@@ -67,9 +67,7 @@ export default function FleetPranchas() {
 
     return () => { 
       if (channel) {
-         import("../services/supabaseClient.js").then(({ supabase }) => {
-            if(supabase) supabase.removeChannel(channel);
-         });
+         if(supabase) supabase.removeChannel(channel);
       }
       clearInterval(interval); 
     };

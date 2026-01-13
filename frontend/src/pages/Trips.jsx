@@ -111,7 +111,7 @@ export default function Trips() {
 
     let channels = [];
     const setupRealtime = async () => {
-      const { supabase } = await import("../services/supabaseClient.js");
+      // const { supabase } = await import("../services/supabaseClient.js");
       if (!supabase) return;
 
       const ch1 = supabase
@@ -138,13 +138,11 @@ export default function Trips() {
 
     const interval = setInterval(() => { loadTripsRef.current(); }, 10000);
     return () => {
-      import("../services/supabaseClient.js").then(({ supabase }) => {
-        if (supabase) {
-           channels.forEach(ch => supabase.removeChannel(ch));
-        }
-      });
-        clearInterval(interval);
-      };
+      if (supabase) {
+          channels.forEach(ch => supabase.removeChannel(ch));
+      }
+      clearInterval(interval);
+    };
   }, []);
   useEffect(() => {
     const id = new URLSearchParams(location.search).get("editId");
@@ -1011,6 +1009,11 @@ export default function Trips() {
                   <div className="text-lg">{pranchas.find((p) => p.id === viewing.prancha_id)?.asset_number || pranchas.find((p) => p.id === viewing.prancha_id)?.identifier || viewing.prancha_id}</div>
                 </div>
                 
+                <div className="space-y-1">
+                  <div className="text-sm font-medium text-slate-500 dark:text-slate-400">Unidade</div>
+                  <div className="text-lg">{viewing.location || "-"}</div>
+                </div>
+
                 <div className="space-y-1">
                   <div className="text-sm font-medium text-slate-500 dark:text-slate-400">Destino</div>
                   <div className="text-lg">{viewing.destination}</div>
