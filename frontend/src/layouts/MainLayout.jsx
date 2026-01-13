@@ -84,7 +84,6 @@ export default function MainLayout() {
           <Link onClick={closeMenuOnNavigate} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${isActive("/dashboard") ? "bg-accent/20 text-white" : "hover:bg-white/10"}`} to="/dashboard">🏠 <span>Dashboard</span></Link>
           <Link onClick={closeMenuOnNavigate} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${isActive("/viagens") ? "bg-accent/20 text-white" : "hover:bg-white/10"}`} to="/viagens">🧭 <span>Viagens</span></Link>
           <Link onClick={closeMenuOnNavigate} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${isActive("/motoristas") ? "bg-accent/20 text-white" : "hover:bg-white/10"}`} to="/motoristas">👨‍✈️ <span>Motoristas</span></Link>
-          <Link onClick={closeMenuOnNavigate} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${isActive("/historico-unificado") ? "bg-accent/20 text-white" : "hover:bg-white/10"}`} to="/historico-unificado">🗂️ <span>Histórico (Unificado)</span></Link>
           <div className="mt-2">
             <div className="px-4 py-2 text-white/80">Frota</div>
             <Link onClick={closeMenuOnNavigate} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${isActive("/frota/caminhoes") ? "bg-accent/20 text-white" : "hover:bg-white/10"}`} to="/frota/caminhoes">🚛 <span>Caminhão</span></Link>

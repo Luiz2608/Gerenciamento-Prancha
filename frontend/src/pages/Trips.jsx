@@ -394,6 +394,178 @@ export default function Trips() {
   const del = async (id) => { await deleteViagem(id); toast?.show("Viagem excluída", "success"); loadTrips(); };
   const delConfirm = async (id) => { if (!window.confirm("Confirma excluir esta viagem?")) return; await del(id); };
 
+  const exportCsvAction = async () => { 
+    const blob = await exportCsv({ status: statusFilter, location: locationFilter }); 
+    const url = URL.createObjectURL(blob); 
+    const a = document.createElement("a"); 
+    a.href = url; 
+    a.download = "viagens.csv"; 
+    a.click(); 
+    URL.revokeObjectURL(url); 
+    toast?.show("CSV exportado", "success"); 
+  };
+  
+  const exportPdfAction = async () => { 
+    const blob = await exportPdf({ status: statusFilter, location: locationFilter }); 
+    const url = URL.createObjectURL(blob); 
+    const a = document.createElement("a"); 
+    a.href = url; 
+    a.download = "viagens.pdf"; 
+    a.click(); 
+    URL.revokeObjectURL(url); 
+    toast?.show("PDF exportado", "success"); 
+  };
+
+  const handlePrintTrip = (trip) => {
+    const driver = drivers.find((d) => d.id === trip.driver_id) || {};
+    const truck = trucks.find((t) => t.id === trip.truck_id) || {};
+    const prancha = pranchas.find((p) => p.id === trip.prancha_id) || {};
+    const userName = user?.username || "Usuário do Sistema";
+    
+    const printWindow = window.open("", "_blank");
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Relatório de Viagem #${trip.id}</title>
+          <style>
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; max-width: 210mm; margin: 0 auto; color: #333; }
+            h1, h2, h3 { margin: 0 0 10px 0; }
+            .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
+            .section { margin-bottom: 20px; border: 1px solid #ddd; padding: 15px; border-radius: 4px; }
+            .section-title { font-weight: bold; font-size: 1.1em; margin-bottom: 10px; background: #f5f5f5; padding: 5px 10px; border-radius: 4px; border-left: 4px solid #333; }
+            .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+            .field { margin-bottom: 5px; }
+            .label { font-weight: bold; font-size: 0.9em; color: #555; }
+            .value { font-size: 1em; }
+            table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f5f5f5; }
+            .footer { margin-top: 40px; font-size: 0.8em; text-align: center; border-top: 1px solid #ddd; padding-top: 10px; }
+            .signatures { display: flex; justify-content: space-between; margin-top: 50px; }
+            .signature-box { width: 40%; border-top: 1px solid #333; text-align: center; padding-top: 5px; }
+            @media print {
+              body { padding: 0; }
+              .section { break-inside: avoid; }
+              button { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Gerenciamento de Prancha</h1>
+            <h2>Relatório de Viagem #${trip.id}</h2>
+            <div>Status: <strong>${trip.status}</strong> | Emissão: ${new Date().toLocaleString()}</div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">🚚 Dados da Viagem</div>
+            <div class="grid">
+              <div class="field"><span class="label">Data Início:</span> <span class="value">${trip.date}</span></div>
+              <div class="field"><span class="label">Data Término:</span> <span class="value">${trip.end_date || "-"}</span></div>
+              <div class="field"><span class="label">Destino:</span> <span class="value">${trip.destination || "-"}</span></div>
+              <div class="field"><span class="label">Local:</span> <span class="value">${trip.location || "-"}</span></div>
+              <div class="field"><span class="label">Tipo de Carga/Serviço:</span> <span class="value">${trip.service_type || "-"}</span></div>
+              <div class="field" style="grid-column: span 2"><span class="label">Observações:</span> <span class="value">${trip.description || "-"}</span></div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">🚛 Dados do Veículo</div>
+            <div class="grid">
+              <div class="field"><span class="label">Caminhão:</span> <span class="value">${truck.plate || trip.truck_id || "-"}</span></div>
+              <div class="field"><span class="label">Modelo:</span> <span class="value">${truck.model || "-"}</span></div>
+              <div class="field"><span class="label">Frota:</span> <span class="value">${truck.fleet || "-"}</span></div>
+              <div class="field"><span class="label">Prancha:</span> <span class="value">${prancha.asset_number || trip.prancha_id || "-"}</span></div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">👨‍✈️ Dados do Motorista</div>
+            <div class="grid">
+              <div class="field"><span class="label">Nome:</span> <span class="value">${driver.name || trip.driver_id || "-"}</span></div>
+              <div class="field"><span class="label">CPF:</span> <span class="value">${driver.cpf || "-"}</span></div>
+              <div class="field"><span class="label">CNH:</span> <span class="value">${driver.cnh_category || "-"}</span></div>
+              <div class="field"><span class="label">Contato:</span> <span class="value">${driver.contact || "-"}</span></div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">⏱️ Informações Operacionais</div>
+            <div class="grid">
+              <div class="field"><span class="label">Hora Saída:</span> <span class="value">${trip.start_time || "-"}</span></div>
+              <div class="field"><span class="label">Hora Chegada:</span> <span class="value">${trip.end_time || "-"}</span></div>
+              <div class="field"><span class="label">KM Inicial:</span> <span class="value">${trip.km_start || "-"}</span></div>
+              <div class="field"><span class="label">KM Final:</span> <span class="value">${trip.km_end || "-"}</span></div>
+              <div class="field"><span class="label">KM Total:</span> <span class="value">${trip.km_rodado || "0"} km</span></div>
+              <div class="field"><span class="label">Horas Totais:</span> <span class="value">${trip.horas || "0"} h</span></div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">⛽ Consumo e Custos</div>
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Valor / Qtd</th>
+                  <th>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Combustível (${trip.fuel_liters || 0} L)</td>
+                  <td>R$ ${Number(trip.fuel_price || 0).toFixed(2)} / L</td>
+                  <td>R$ ${(Number(trip.fuel_liters || 0) * Number(trip.fuel_price || 0)).toFixed(2)}</td>
+                </tr>
+                <tr>
+                  <td>Manutenção</td>
+                  <td>-</td>
+                  <td>R$ ${Number(trip.maintenance_cost || 0).toFixed(2)}</td>
+                </tr>
+                <tr>
+                  <td>Diária Motorista</td>
+                  <td>-</td>
+                  <td>R$ ${Number(trip.driver_daily || 0).toFixed(2)}</td>
+                </tr>
+                <tr>
+                  <td>Outros Custos</td>
+                  <td>-</td>
+                  <td>R$ ${Number(trip.other_costs || 0).toFixed(2)}</td>
+                </tr>
+                <tr style="font-weight: bold; background-color: #eee;">
+                  <td colspan="2">Custo Total</td>
+                  <td>R$ ${(trip.total_cost || 0).toFixed(2)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          
+          <div class="section">
+             <div class="section-title">📌 Histórico e Registros</div>
+             <div class="grid">
+               <div class="field"><span class="label">Solicitante:</span> <span class="value">${trip.requester || "-"}</span></div>
+               <div class="field"><span class="label">Responsável:</span> <span class="value">Sistema</span></div>
+             </div>
+          </div>
+
+          <div class="signatures">
+            <div class="signature-box">Assinatura do Motorista</div>
+            <div class="signature-box">Assinatura do Supervisor</div>
+          </div>
+
+          <div class="footer">
+            <p>Relatório gerado em ${new Date().toLocaleString()} por ${userName}</p>
+            <p>Gerenciamento de Prancha - Página 1 de 1</p>
+          </div>
+          <script>
+            window.onload = function() { setTimeout(function(){ window.print(); }, 500); }
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
   useEffect(() => {
     if (!editing) {
       localStorage.setItem("trips_form_draft", JSON.stringify(form));
@@ -428,7 +600,11 @@ export default function Trips() {
                <option value="Previsto">Previsto</option>
              </select>
           </div>
-          <button className="btn btn-primary w-full md:w-auto" onClick={() => setShowForm(true)}>Novo</button>
+          <div className="flex gap-2 w-full md:w-auto">
+            <button className="btn btn-secondary" onClick={exportCsvAction} title="Exportar CSV"><span className="material-icons">download</span></button>
+            <button className="btn btn-secondary" onClick={exportPdfAction} title="Exportar PDF"><span className="material-icons">picture_as_pdf</span></button>
+            <button className="btn btn-primary flex-1" onClick={() => setShowForm(true)}>Novo</button>
+          </div>
         </div>
       )}
 
@@ -709,9 +885,10 @@ export default function Trips() {
                 <td>{drivers.find((d) => d.id === it.driver_id)?.name || it.driver_id}</td>
                 <td>{trucks.find((t) => t.id === it.truck_id)?.fleet || trucks.find((t) => t.id === it.truck_id)?.plate || it.truck_id || ""}</td>
                 <td>{pranchas.find((p) => p.id === it.prancha_id)?.asset_number || pranchas.find((p) => p.id === it.prancha_id)?.identifier || it.prancha_id || ""}</td>
-                <td>{it.destination || ""}</td>
-                <td>{it.service_type || ""}</td>
-                <td>{it.status}</td>
+        <td>{it.destination || ""}</td>
+        <td>{it.location || ""}</td>
+        <td>{it.service_type || ""}</td>
+        <td>{it.status}</td>
                 <td>{it.km_rodado}</td>
                 <td>{it.horas}</td>
                 <td>{(it.total_cost ?? 0).toFixed(2)}</td>
@@ -754,6 +931,7 @@ export default function Trips() {
             <div className="mt-1 flex gap-4 text-sm"><span>KM: {it.km_rodado}</span><span>Horas: {it.horas}</span></div>
             <div className="mt-2 flex flex-wrap gap-2">
               <button className="btn bg-slate-600 hover:bg-slate-700 text-white" onClick={() => setViewing(it)}>Ver</button>
+              <button className="btn bg-blue-600 hover:bg-blue-700 text-white" onClick={() => handlePrintTrip(it)}><span className="material-icons text-sm">print</span></button>
               <button className="btn bg-yellow-500 hover:bg-yellow-600 text-white" onClick={() => edit(it)}>Editar</button>
               <button className="btn bg-red-600 hover:bg-red-700 text-white" onClick={() => delConfirm(it.id)}>Excluir</button>
             </div>

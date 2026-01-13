@@ -21,7 +21,6 @@ export default function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/motoristas" element={<Drivers />} />
             <Route path="/viagens" element={<Trips />} />
-            <Route path="/historico-unificado" element={<HistoryUnified />} />
             <Route path="/frota/caminhoes" element={<FleetTrucks />} />
             <Route path="/frota/pranchas" element={<FleetPranchas />} />
             <Route path="/custos" element={<Costs />} />
