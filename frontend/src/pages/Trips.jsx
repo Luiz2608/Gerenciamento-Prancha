@@ -25,6 +25,104 @@ export default function Trips() {
   const formRef = useRef(null);
   const lastSubmitTime = useRef(0);
 
+  const handlePrint = () => {
+    if (!viewing) return;
+    
+    const driverName = drivers.find((d) => d.id === viewing.driver_id)?.name || viewing.driver_id;
+    const truckName = trucks.find((t) => t.id === viewing.truck_id)?.fleet || trucks.find((t) => t.id === viewing.truck_id)?.plate || viewing.truck_id;
+    const pranchaName = pranchas.find((p) => p.id === viewing.prancha_id)?.asset_number || pranchas.find((p) => p.id === viewing.prancha_id)?.identifier || viewing.prancha_id;
+    
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Relatório de Viagem #${viewing.id}</title>
+          <style>
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 40px; color: #333; line-height: 1.6; }
+            h1 { text-align: center; border-bottom: 2px solid #2563eb; padding-bottom: 20px; margin-bottom: 30px; color: #1e293b; }
+            .header-info { text-align: center; margin-bottom: 40px; color: #64748b; font-size: 0.9em; }
+            .section { margin-bottom: 30px; background: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; }
+            .section-title { font-weight: bold; font-size: 1.2em; margin-bottom: 15px; color: #2563eb; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; }
+            .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+            .row { display: flex; justify-content: space-between; border-bottom: 1px dotted #cbd5e1; padding-bottom: 5px; }
+            .label { font-weight: 600; color: #475569; }
+            .value { font-weight: 400; color: #1e293b; text-align: right; }
+            .total-cost-box { background: #dcfce7; padding: 15px; border-radius: 8px; margin-top: 10px; border: 1px solid #86efac; }
+            .total-cost { font-size: 1.4em; font-weight: bold; color: #166534; text-align: right; }
+            .total-label { font-size: 1.1em; font-weight: 600; color: #15803d; }
+            @media print {
+              body { margin: 0; padding: 20px; -webkit-print-color-adjust: exact; }
+              .section { break-inside: avoid; border: 1px solid #ccc; }
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>Relatório Detalhado de Viagem #${viewing.id}</h1>
+          <div class="header-info">
+            Gerado em ${new Date().toLocaleString('pt-BR')}
+          </div>
+          
+          <div class="section">
+            <div class="section-title">Informações Gerais</div>
+            <div class="grid">
+              <div class="row"><span class="label">Data de Saída:</span> <span class="value">${viewing.date} ${viewing.start_time}</span></div>
+              <div class="row"><span class="label">Data de Retorno:</span> <span class="value">${viewing.end_date || "-"} ${viewing.end_time}</span></div>
+              <div class="row"><span class="label">Status:</span> <span class="value">${viewing.status}</span></div>
+              <div class="row"><span class="label">Solicitante:</span> <span class="value">${viewing.requester}</span></div>
+              <div class="row"><span class="label">Motorista:</span> <span class="value">${driverName}</span></div>
+              <div class="row"><span class="label">Caminhão:</span> <span class="value">${truckName}</span></div>
+              <div class="row"><span class="label">Prancha:</span> <span class="value">${pranchaName}</span></div>
+              <div class="row"><span class="label">Unidade:</span> <span class="value">${viewing.location || "-"}</span></div>
+              <div class="row"><span class="label">Destino:</span> <span class="value">${viewing.destination}</span></div>
+              <div class="row"><span class="label">Tipo de Serviço:</span> <span class="value">${viewing.service_type}</span></div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">Quilometragem</div>
+            <div class="grid">
+              <div class="row"><span class="label">KM Inicial:</span> <span class="value">${viewing.km_start != null ? viewing.km_start : "N/R"}</span></div>
+              <div class="row"><span class="label">KM Final:</span> <span class="value">${viewing.km_end != null ? viewing.km_end : "N/R"}</span></div>
+              <div class="row"><span class="label">KM Total Percorrido:</span> <span class="value" style="font-weight: bold;">${viewing.km_rodado || 0} km</span></div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">Detalhamento de Custos</div>
+            <div class="grid">
+              <div class="row">
+                <span class="label">Combustível (${viewing.fuel_liters || 0} L):</span> 
+                <span class="value">R$ ${((viewing.fuel_liters || 0) * (viewing.fuel_price || 0)).toFixed(2)}</span>
+              </div>
+              <div class="row"><span class="label">Manutenção:</span> <span class="value">R$ ${(viewing.maintenance_cost || 0).toFixed(2)}</span></div>
+              <div class="row"><span class="label">Diária Motorista:</span> <span class="value">R$ ${(viewing.driver_daily || 0).toFixed(2)}</span></div>
+              <div class="row"><span class="label">Outros Custos:</span> <span class="value">R$ ${(viewing.other_costs || 0).toFixed(2)}</span></div>
+            </div>
+            <div class="total-cost-box">
+               <div style="display: flex; justify-content: space-between; align-items: center;">
+                 <span class="total-label">Custo Total da Viagem:</span>
+                 <span class="total-cost">R$ ${(viewing.total_cost || 0).toFixed(2)}</span>
+               </div>
+            </div>
+          </div>
+
+          ${viewing.description ? `
+          <div class="section">
+            <div class="section-title">Observações</div>
+            <div style="white-space: pre-wrap; padding: 10px; background: #fff; border: 1px dashed #cbd5e1; border-radius: 4px;">${viewing.description}</div>
+          </div>
+          ` : ''}
+
+          <script>
+            window.onload = function() { window.print(); }
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
   useEffect(() => {
     if (!editing) {
       localStorage.setItem("trips_form_draft", JSON.stringify(form));
@@ -934,8 +1032,9 @@ export default function Trips() {
                 )}
               </div>
 
-              <div className="flex justify-end pt-4 border-t border-slate-200 dark:border-slate-700">
-                <button className="btn bg-gray-500 hover:bg-gray-600 text-white ml-2" onClick={() => setViewing(null)}>Fechar</button>
+              <div className="flex justify-end pt-4 border-t border-slate-200 dark:border-slate-700 gap-2">
+                <button className="btn bg-blue-600 hover:bg-blue-700 text-white" onClick={handlePrint}>Imprimir Relatório</button>
+                <button className="btn bg-gray-500 hover:bg-gray-600 text-white" onClick={() => setViewing(null)}>Fechar</button>
               </div>
             </div>
           </div>
