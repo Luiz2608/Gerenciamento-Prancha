@@ -931,7 +931,6 @@ export default function Trips() {
             <div className="mt-1 flex gap-4 text-sm"><span>KM: {it.km_rodado}</span><span>Horas: {it.horas}</span></div>
             <div className="mt-2 flex flex-wrap gap-2">
               <button className="btn bg-slate-600 hover:bg-slate-700 text-white" onClick={() => setViewing(it)}>Ver</button>
-              <button className="btn bg-blue-600 hover:bg-blue-700 text-white" onClick={() => handlePrintTrip(it)}><span className="material-icons text-sm">print</span></button>
               <button className="btn bg-yellow-500 hover:bg-yellow-600 text-white" onClick={() => edit(it)}>Editar</button>
               <button className="btn bg-red-600 hover:bg-red-700 text-white" onClick={() => delConfirm(it.id)}>Excluir</button>
             </div>
@@ -1083,14 +1082,6 @@ export default function Trips() {
               </div>
 
               <div className="flex justify-end pt-4 border-t border-slate-200 dark:border-slate-700">
-                <button className="btn btn-primary" onClick={() => {
-                   // Print logic reusing the window.print feature but specifically for this view if needed, 
-                   // or just close. The user just asked for "View".
-                   // But since we have a print feature in memory, maybe add it? 
-                   // The memory says "Unified History Print Feature... Accessible via 'View Details' -> 'Print' button."
-                   // So I should probably add a Print button here to match the memory/feature expectation.
-                   window.print(); 
-                }}>Imprimir</button>
                 <button className="btn bg-gray-500 hover:bg-gray-600 text-white ml-2" onClick={() => setViewing(null)}>Fechar</button>
               </div>
             </div>
