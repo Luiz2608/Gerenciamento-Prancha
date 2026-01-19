@@ -210,14 +210,14 @@ export default function Dashboard() {
           <div className="font-semibold mb-6 text-slate-900 dark:text-slate-100 text-lg">Horas por Mês</div>
           <div className="h-80">
             <ResponsiveContainer>
-              <LineChart data={data.hoursByMonth}>
+              <LineChart data={data.hoursByMonth} margin={{ top: 20, right: 10, left: 10, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
                 <XAxis dataKey="month" tick={{ fill: labelColor }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: labelColor }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}h`} />
-                <Tooltip contentStyle={{ backgroundColor: isDark ? '#1f2937' : '#fff', borderColor: gridColor, color: labelColor }} formatter={(v) => [`${v}h`, 'Horas Trabalhadas']} />
+                <YAxis tick={{ fill: labelColor }} axisLine={false} tickLine={false} tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : `${v}h`} />
+                <Tooltip contentStyle={{ backgroundColor: isDark ? '#1f2937' : '#fff', borderColor: gridColor, color: labelColor }} formatter={(v) => [`${formatNumber(v)}h`, 'Horas Trabalhadas']} />
                 <Legend wrapperStyle={{ color: labelColor }} />
                 <Line name="Horas Trabalhadas" type="monotone" dataKey="hours" stroke="#38bdf8" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }}>
-                  <LabelList dataKey="hours" position="top" fill={labelColor} formatter={(v) => v > 0 ? v : ''} />
+                  <LabelList dataKey="hours" position="top" fill={labelColor} formatter={(v) => v >= 1000 ? `${(v/1000).toFixed(1)}k` : (v > 0 ? v : '')} />
                 </Line>
               </LineChart>
             </ResponsiveContainer>
@@ -227,14 +227,14 @@ export default function Dashboard() {
           <div className="font-semibold mb-6 text-slate-900 dark:text-slate-100 text-lg">Custos por Mês</div>
           <div className="h-80">
             <ResponsiveContainer>
-              <BarChart data={data.costsByMonth}>
+              <BarChart data={data.costsByMonth} margin={{ top: 20, right: 10, left: 10, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
                 <XAxis dataKey="month" tick={{ fill: labelColor }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: labelColor }} axisLine={false} tickLine={false} tickFormatter={(v) => v >= 1000 ? `R$${(v/1000).toFixed(0)}k` : `R$${v}`} />
                 <Tooltip contentStyle={{ backgroundColor: isDark ? '#1f2937' : '#fff', borderColor: gridColor, color: labelColor }} formatter={(v) => [formatCurrency(v), 'Custo Total']} />
                 <Legend wrapperStyle={{ color: labelColor }} />
                 <Bar name="Custo Total" dataKey="total" fill="#ef4444" radius={[4, 4, 0, 0]}>
-                  <LabelList dataKey="total" position="top" fill={labelColor} formatter={(v) => v > 0 ? `R$${(v/1000).toFixed(1)}k` : ''} />
+                  <LabelList dataKey="total" position="top" fill={labelColor} formatter={(v) => v >= 1000 ? `R$${(v/1000).toFixed(1)}k` : (v > 0 ? `R$${v}` : '')} />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
@@ -244,14 +244,24 @@ export default function Dashboard() {
           <div className="font-semibold mb-6 text-slate-900 dark:text-slate-100 text-lg">Custos por Categoria</div>
           <div className="h-80">
             <ResponsiveContainer>
-              <BarChart data={data.costsByCategory}>
+              <BarChart data={data.costsByCategory} margin={{ top: 20, right: 10, left: 10, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
-                <XAxis dataKey="name" tick={{ fill: labelColor }} interval={0} angle={-20} height={60} axisLine={false} tickLine={false} />
+                <XAxis 
+                  dataKey="name" 
+                  tick={{ fill: labelColor, fontSize: 12 }} 
+                  interval={0} 
+                  angle={-45} 
+                  textAnchor="end"
+                  height={80} 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tickFormatter={(v) => v.length > 15 ? v.slice(0, 15) + "..." : v}
+                />
                 <YAxis tick={{ fill: labelColor }} axisLine={false} tickLine={false} tickFormatter={(v) => v >= 1000 ? `R$${(v/1000).toFixed(0)}k` : `R$${v}`} />
                 <Tooltip contentStyle={{ backgroundColor: isDark ? '#1f2937' : '#fff', borderColor: gridColor, color: labelColor }} formatter={(v) => [formatCurrency(v), 'Custo']} />
                 <Legend wrapperStyle={{ color: labelColor }} />
                 <Bar name="Custo" dataKey="value" fill="#f59e0b" radius={[4, 4, 0, 0]}>
-                  <LabelList dataKey="value" position="top" fill={labelColor} formatter={(v) => v > 0 ? formatCurrency(v) : ''} />
+                  <LabelList dataKey="value" position="top" fill={labelColor} formatter={(v) => v >= 1000 ? `R$${(v/1000).toFixed(1)}k` : (v > 0 ? `R$${v}` : '')} />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
