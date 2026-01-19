@@ -188,7 +188,11 @@ export default function FleetTrucks() {
                 <td title={it.chassis}>{it.chassis || ""}</td>
                 <td>{it.km_current ?? ""}</td>
                 <td>{it.fleet || ""}</td>
-                <td>{it.status}</td>
+                <td>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${it.status === 'Ativo' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'}`}>
+                    {it.status}
+                  </span>
+                </td>
                 <td className="space-x-2">
                   <button className="btn bg-yellow-500 hover:bg-yellow-600 text-white" onClick={() => edit(it)}>Editar</button>
                   <button className="btn bg-red-600 hover:bg-red-700 text-white" onClick={() => delConfirm(it.id)}>Excluir</button>

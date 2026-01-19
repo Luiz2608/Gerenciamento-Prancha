@@ -25,6 +25,34 @@ export default function Trips() {
   const formRef = useRef(null);
   const lastSubmitTime = useRef(0);
 
+  const calculateDuration = (d1, t1, d2, t2) => {
+    if (!d1 || !t1 || !d2 || !t2) return "-";
+    const parseDate = (d, t) => {
+      let dateObj;
+      if (d.includes("-")) {
+        const [y, m, day] = d.split("-").map(Number);
+        dateObj = new Date(y, m - 1, day);
+      } else if (d.includes("/")) {
+        const [day, m, y] = d.split("/").map(Number);
+        dateObj = new Date(y, m - 1, day);
+      } else return null;
+      const [h, min] = t.split(":").map(Number);
+      dateObj.setHours(h, min, 0, 0);
+      return dateObj;
+    };
+    const start = parseDate(d1, t1);
+    const end = parseDate(d2, t2);
+    if (!start || !end) return "-";
+    const diffMs = end - start;
+    if (diffMs < 0) return "-";
+    const totalMinutes = Math.floor(diffMs / 60000);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    if (hours > 0 && minutes > 0) return `${hours}h ${minutes}m`;
+    if (hours > 0) return `${hours}h`;
+    return `${minutes}m`;
+  };
+
   const handlePrint = () => {
     if (!viewing) return;
     
@@ -860,6 +888,10 @@ export default function Trips() {
                   <h3 className="font-semibold text-slate-800 dark:text-slate-200">#{it.id} • {it.date}</h3>
                   <div className="text-sm text-slate-500 dark:text-slate-400">
                     {it.destination || "Sem destino"}
+                    <span className="mx-2">•</span>
+                    <span className="font-medium text-blue-600 dark:text-blue-400">
+                      {calculateDuration(it.date, it.start_time, it.end_date, it.end_time)}
+                    </span>
                   </div>
                 </div>
                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -931,6 +963,7 @@ export default function Trips() {
                   <td className="p-4 text-slate-600 dark:text-slate-400">{drivers.find((d) => d.id === it.driver_id)?.name || it.driver_id}</td>
                   <td className="p-4 text-slate-600 dark:text-slate-400">{trucks.find((t) => t.id === it.truck_id)?.fleet || trucks.find((t) => t.id === it.truck_id)?.plate || it.truck_id || ""}</td>
                   <td className="p-4 text-slate-600 dark:text-slate-400">{pranchas.find((p) => p.id === it.prancha_id)?.asset_number || pranchas.find((p) => p.id === it.prancha_id)?.identifier || it.prancha_id || ""}</td>
+                  <td className="p-4 text-slate-600 dark:text-slate-400">{it.location || "-"}</td>
                   <td className="p-4 text-slate-600 dark:text-slate-400">{it.destination || "-"}</td>
                   <td className="p-4">
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -1015,6 +1048,12 @@ export default function Trips() {
                 <div className="space-y-1">
                   <div className="text-sm font-medium text-slate-500 dark:text-slate-400">Data de Retorno</div>
                   <div className="text-lg">{viewing.end_date || "-"} {viewing.end_time}</div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-sm font-medium text-slate-500 dark:text-slate-400">Duração</div>
+                  <div className="text-lg font-medium text-blue-600 dark:text-blue-400">
+                    {calculateDuration(viewing.date, viewing.start_time, viewing.end_date, viewing.end_time)}
+                  </div>
                 </div>
                 <div className="space-y-1">
                   <div className="text-sm font-medium text-slate-500 dark:text-slate-400">Status</div>
