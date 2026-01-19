@@ -161,7 +161,7 @@ export default function Dashboard() {
           <div className="font-semibold mb-6 text-slate-900 dark:text-slate-100 text-lg">Km por Mês</div>
           <div className="h-80">
             <ResponsiveContainer>
-              <BarChart data={data.kmByMonth} margin={{ top: 20, right: 10, left: 10, bottom: 0 }}>
+              <BarChart data={data.kmByMonth} margin={{ top: 20, right: 30, left: 50, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
                 <XAxis dataKey="month" tick={{ fill: labelColor }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: labelColor }} axisLine={false} tickLine={false} tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} />
@@ -178,7 +178,7 @@ export default function Dashboard() {
           <div className="font-semibold mb-6 text-slate-900 dark:text-slate-100 text-lg">Viagens por Motorista</div>
           <div className="h-80">
             <ResponsiveContainer>
-              <BarChart data={data.tripsByDriver} margin={{ top: 20, right: 10, left: 10, bottom: 0 }}>
+              <BarChart data={data.tripsByDriver} margin={{ top: 20, right: 30, left: 40, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
                 <XAxis 
                   dataKey="name" 
@@ -210,7 +210,7 @@ export default function Dashboard() {
           <div className="font-semibold mb-6 text-slate-900 dark:text-slate-100 text-lg">Horas por Mês</div>
           <div className="h-80">
             <ResponsiveContainer>
-              <LineChart data={data.hoursByMonth} margin={{ top: 20, right: 30, left: 20, bottom: 10 }}>
+              <LineChart data={data.hoursByMonth} margin={{ top: 20, right: 30, left: 50, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
                 <XAxis dataKey="month" tick={{ fill: labelColor }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: labelColor }} axisLine={false} tickLine={false} tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : `${v}h`} />
@@ -227,7 +227,7 @@ export default function Dashboard() {
           <div className="font-semibold mb-6 text-slate-900 dark:text-slate-100 text-lg">Custos por Mês</div>
           <div className="h-80">
             <ResponsiveContainer>
-              <BarChart data={data.costsByMonth} margin={{ top: 20, right: 30, left: 20, bottom: 10 }}>
+              <BarChart data={data.costsByMonth} margin={{ top: 20, right: 30, left: 60, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
                 <XAxis dataKey="month" tick={{ fill: labelColor }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: labelColor }} axisLine={false} tickLine={false} tickFormatter={(v) => v >= 1000 ? `R$${(v/1000).toFixed(0)}k` : `R$${v}`} />
@@ -244,7 +244,7 @@ export default function Dashboard() {
           <div className="font-semibold mb-6 text-slate-900 dark:text-slate-100 text-lg">Custos por Categoria</div>
           <div className="h-80">
             <ResponsiveContainer>
-              <BarChart data={data.costsByCategory} margin={{ top: 20, right: 30, left: 50, bottom: 10 }}>
+              <BarChart data={data.costsByCategory} margin={{ top: 20, right: 30, left: 60, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
                 <XAxis 
                   dataKey="name" 
