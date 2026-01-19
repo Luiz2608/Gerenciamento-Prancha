@@ -131,7 +131,7 @@ export default function FleetTrucks() {
   }, [form, editing]);
 
   return (
-    <div className="space-y-8 overflow-x-auto overflow-y-auto min-h-screen page" style={{ WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain', overscrollBehaviorY: 'contain', touchAction: 'pan-y' }}>
+    <div className="p-4 max-w-6xl mx-auto pb-24">
       {!showForm && !editing && (
         <div className="flex justify-end mb-4">
           <button className="btn btn-primary w-full md:w-auto" onClick={() => setShowForm(true)}>Novo</button>

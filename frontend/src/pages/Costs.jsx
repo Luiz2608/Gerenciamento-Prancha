@@ -217,7 +217,7 @@ export default function Costs() {
   }, [filteredTrips]);
 
   const lista = (
-    <div className="space-y-6 overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain', touchAction: 'pan-x' }} onKeyDown={handleEnterInContainer}>
+    <div className="space-y-6" onKeyDown={handleEnterInContainer}>
       
       {/* Dashboard Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

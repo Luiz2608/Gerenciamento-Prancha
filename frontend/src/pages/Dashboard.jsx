@@ -61,7 +61,7 @@ export default function Dashboard() {
   if (!data) return <div className="animate-fade">Carregando...</div>;
 
   return (
-    <div className="space-y-8 animate-fade overflow-x-auto overflow-y-auto min-h-screen page" style={{ WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain', overscrollBehaviorY: 'contain', touchAction: 'pan-y' }}>
+    <div className="p-4 max-w-6xl mx-auto pb-24">
       <div className="card sticky top-0 z-10 p-4 flex flex-col md:flex-row md:items-center gap-3">
         <div className="font-semibold">Período</div>
         <select className="select" value={period.month} onChange={(e) => { const p = { ...period, month: e.target.value }; setPeriod(p); refresh(p); }}>
