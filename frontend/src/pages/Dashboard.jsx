@@ -161,14 +161,14 @@ export default function Dashboard() {
           <div className="font-semibold mb-6 text-slate-900 dark:text-slate-100 text-lg">Km por Mês</div>
           <div className="h-80">
             <ResponsiveContainer>
-              <BarChart data={data.kmByMonth}>
+              <BarChart data={data.kmByMonth} margin={{ top: 20, right: 10, left: 10, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
                 <XAxis dataKey="month" tick={{ fill: labelColor }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: labelColor }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}km`} />
-                <Tooltip contentStyle={{ backgroundColor: isDark ? '#1f2937' : '#fff', borderColor: gridColor, color: labelColor }} formatter={(v) => [`${v} km`, 'KM Rodados']} />
+                <YAxis tick={{ fill: labelColor }} axisLine={false} tickLine={false} tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} />
+                <Tooltip contentStyle={{ backgroundColor: isDark ? '#1f2937' : '#fff', borderColor: gridColor, color: labelColor }} formatter={(v) => [`${formatNumber(v)} km`, 'KM Rodados']} />
                 <Legend wrapperStyle={{ color: labelColor }} />
                 <Bar name="KM Rodados" dataKey="km" fill="#2563eb" radius={[4, 4, 0, 0]}>
-                  <LabelList dataKey="km" position="top" fill={labelColor} formatter={(v) => v > 0 ? v : ''} />
+                  <LabelList dataKey="km" position="top" fill={labelColor} formatter={(v) => v >= 1000 ? `${(v/1000).toFixed(1)}k` : v} />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
@@ -178,9 +178,24 @@ export default function Dashboard() {
           <div className="font-semibold mb-6 text-slate-900 dark:text-slate-100 text-lg">Viagens por Motorista</div>
           <div className="h-80">
             <ResponsiveContainer>
-              <BarChart data={data.tripsByDriver}>
+              <BarChart data={data.tripsByDriver} margin={{ top: 20, right: 10, left: 10, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
-                <XAxis dataKey="name" tick={{ fill: labelColor }} interval={0} angle={-20} height={60} axisLine={false} tickLine={false} />
+                <XAxis 
+                  dataKey="name" 
+                  tick={{ fill: labelColor, fontSize: 12 }} 
+                  interval={0} 
+                  angle={-45} 
+                  textAnchor="end"
+                  height={80} 
+                  axisLine={false} 
+                  tickLine={false}
+                  tickFormatter={(v) => {
+                    if (!v) return "";
+                    const parts = v.split(" ");
+                    if (parts.length >= 2) return `${parts[0]} ${parts[parts.length-1].slice(0,1)}.`;
+                    return v.slice(0, 10) + (v.length > 10 ? "." : "");
+                  }}
+                />
                 <YAxis tick={{ fill: labelColor }} axisLine={false} tickLine={false} allowDecimals={false} />
                 <Tooltip contentStyle={{ backgroundColor: isDark ? '#1f2937' : '#fff', borderColor: gridColor, color: labelColor }} formatter={(v) => [v, 'Viagens']} />
                 <Legend wrapperStyle={{ color: labelColor }} />
