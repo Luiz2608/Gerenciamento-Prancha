@@ -944,7 +944,9 @@ export default function Trips() {
                 <th className="p-4">Motorista</th>
                 <th className="p-4">Caminhão</th>
                 <th className="p-4">Prancha</th>
+                <th className="p-4">Unidade</th>
                 <th className="p-4">Destino</th>
+                <th className="p-4">Duração</th>
                 <th className="p-4">Status</th>
                 <th className="p-4">Custo</th>
                 <th className="p-4 text-right">Ações</th>
