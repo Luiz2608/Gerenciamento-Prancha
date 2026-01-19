@@ -258,32 +258,34 @@ export default function FleetPranchas() {
           </tbody>
         </table>
       </div>
-      <div className="space-y-3 md:hidden">
-        {items.slice(0, pageSize).map((it) => (
-          <div key={it.id} className="card p-4">
-            <div className="flex justify-between items-center">
-              <div className="font-semibold">
-                {it.asset_number || "Reboque"}
-                {it.is_set && it.asset_number2 && <span className="text-sm font-normal text-slate-500 ml-2">/ {it.asset_number2}</span>}
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden md:hidden">
+        <div className="divide-y divide-slate-100 dark:divide-slate-700">
+          {items.slice(0, pageSize).map((it) => (
+            <div key={it.id} className="p-4 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+              <div className="flex justify-between items-start mb-2">
+                <div>
+                  <div className="font-semibold text-slate-800 dark:text-slate-200">
+                    {it.asset_number || "Reboque"}
+                    {it.is_set && it.asset_number2 && <span className="text-sm font-normal text-slate-500 ml-2">/ {it.asset_number2}</span>}
+                  </div>
+                  <div className="text-sm text-slate-500 dark:text-slate-400">{it.type || "-"}</div>
+                </div>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${it.status === 'Ativo' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'}`}>
+                  {it.status}
+                </span>
               </div>
-              <div className="text-sm">{it.status}</div>
+              <div className="text-sm text-slate-500 dark:text-slate-400 mt-2 space-y-1">
+                <div className="flex justify-between"><span>Placa:</span> <span className="font-medium">{it.plate || "-"}</span></div>
+                {it.is_set && it.plate2 && <div className="flex justify-between"><span>Placa 2:</span> <span className="font-medium">{it.plate2}</span></div>}
+                <div className="flex justify-between"><span>Conjunto:</span> <span className="font-medium">{it.conjunto || "-"}</span></div>
+              </div>
+              <div className="flex justify-end gap-2 mt-3">
+                <button className="p-2 text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20 rounded-lg transition-colors" onClick={() => edit(it)}><span className="material-icons text-lg">edit</span></button>
+                <button className="p-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 rounded-lg transition-colors" onClick={() => del(it.id)}><span className="material-icons text-lg">delete</span></button>
+              </div>
             </div>
-            <div className="text-sm text-slate-600 dark:text-slate-300">Conjunto: {it.conjunto || "-"}</div>
-            <div className="text-sm text-slate-600 dark:text-slate-300">Tipo: {it.type || "-"}</div>
-            <div className="text-sm text-slate-600 dark:text-slate-300">Ano: {it.year ?? "-"}</div>
-            <div className="text-sm text-slate-600 dark:text-slate-300">Capacidade: {it.capacity ?? "-"}</div>
-            <div className="text-sm text-slate-600 dark:text-slate-300">
-              Placa: {it.plate || "-"} {it.is_set && it.plate2 ? ` / ${it.plate2}` : ""}
-            </div>
-            <div className="text-sm text-slate-600 dark:text-slate-300">
-              Chassi: {it.chassis || "-"} {it.is_set && it.chassis2 ? ` / ${it.chassis2}` : ""}
-            </div>
-            <div className="mt-2 flex flex-wrap gap-2">
-              <button className="btn bg-yellow-500 hover:bg-yellow-600 text-white" onClick={() => edit(it)}>Editar</button>
-              <button className="btn bg-red-600 hover:bg-red-700 text-white" onClick={() => del(it.id)}>Excluir</button>
-            </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
       <div className="flex items-center justify-between mt-4 p-2 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-100 dark:border-slate-700">

@@ -132,11 +132,14 @@ export default function FleetTrucks() {
 
   return (
     <div className="p-4 max-w-6xl mx-auto pb-24">
-      {!showForm && !editing && (
-        <div className="flex justify-end mb-4">
-          <button className="btn btn-primary w-full md:w-auto" onClick={() => setShowForm(true)}>Novo</button>
-        </div>
-      )}
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Gerenciar Caminhões</h1>
+        {!showForm && !editing && (
+          <button className="btn btn-primary flex items-center gap-2" onClick={() => setShowForm(true)}>
+            <span className="material-icons text-sm">add</span> Novo
+          </button>
+        )}
+      </div>
 
       {(showForm || editing) && (
         <div ref={formRef} className="card p-6 animate-fade">
@@ -195,23 +198,30 @@ export default function FleetTrucks() {
           </tbody>
         </table>
       </div>
-      <div className="space-y-3 md:hidden">
-        {items.slice(0, pageSize).map((it) => (
-          <div key={it.id} className="card p-4">
-            <div className="flex justify-between items-center">
-              <div className="font-semibold">{it.model || "Caminhão"}</div>
-              <div className="text-sm">{it.status}</div>
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden md:hidden">
+        <div className="divide-y divide-slate-100 dark:divide-slate-700">
+          {items.slice(0, pageSize).map((it) => (
+            <div key={it.id} className="p-4 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+              <div className="flex justify-between items-start mb-2">
+                <div>
+                  <div className="font-semibold text-slate-800 dark:text-slate-200">{it.model || "Caminhão"}</div>
+                  <div className="text-sm text-slate-500 dark:text-slate-400">{it.plate || "Sem placa"}</div>
+                </div>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${it.status === 'Ativo' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'}`}>
+                  {it.status}
+                </span>
+              </div>
+              <div className="text-sm text-slate-500 dark:text-slate-400 mt-2 space-y-1">
+                <div className="flex justify-between"><span>Frota:</span> <span className="font-medium">{it.fleet || "-"}</span></div>
+                <div className="flex justify-between"><span>KM:</span> <span className="font-medium">{it.km_current ?? "-"}</span></div>
+              </div>
+              <div className="flex justify-end gap-2 mt-3">
+                <button className="p-2 text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20 rounded-lg transition-colors" onClick={() => edit(it)}><span className="material-icons text-lg">edit</span></button>
+                <button className="p-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 rounded-lg transition-colors" onClick={() => delConfirm(it.id)}><span className="material-icons text-lg">delete</span></button>
+              </div>
             </div>
-            <div className="text-sm text-slate-600 dark:text-slate-300">Placa: {it.plate || ""}</div>
-            <div className="text-sm text-slate-600 dark:text-slate-300">Chassi: {it.chassis || ""}</div>
-            <div className="text-sm text-slate-600 dark:text-slate-300">Frota: {it.fleet || ""}</div>
-            <div className="text-sm text-slate-600 dark:text-slate-300">KM: {it.km_current ?? ""}</div>
-            <div className="mt-2 flex flex-wrap gap-2">
-              <button className="btn bg-yellow-500 hover:bg-yellow-600 text-white" onClick={() => edit(it)}>Editar</button>
-              <button className="btn bg-red-600 hover:bg-red-700 text-white" onClick={() => delConfirm(it.id)}>Excluir</button>
-            </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
       <div className="flex items-center justify-between mt-4 p-2 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-100 dark:border-slate-700">

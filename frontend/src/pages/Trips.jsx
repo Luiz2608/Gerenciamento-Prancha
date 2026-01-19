@@ -571,8 +571,8 @@ export default function Trips() {
     <div className="p-4 max-w-6xl mx-auto pb-24">
       
       {!showForm && !editing && (
-        <div className="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
-          <div className="flex items-center gap-2 w-full md:w-auto">
+        <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+          <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
              <select 
                className="select w-full md:w-48" 
                value={locationFilter} 
@@ -598,7 +598,9 @@ export default function Trips() {
           <div className="flex gap-2 w-full md:w-auto">
             <button className="btn btn-secondary" onClick={exportCsvAction} title="Exportar CSV"><span className="material-icons">download</span></button>
             <button className="btn btn-secondary" onClick={exportPdfAction} title="Exportar PDF"><span className="material-icons">picture_as_pdf</span></button>
-            <button className="btn btn-primary flex-1" onClick={() => setShowForm(true)}>Novo</button>
+            <button className="btn btn-primary flex-1 flex items-center justify-center gap-2" onClick={() => setShowForm(true)}>
+              <span className="material-icons text-sm">add</span> Novo
+            </button>
           </div>
         </div>
       )}
@@ -845,89 +847,119 @@ export default function Trips() {
       </div>
       )}
       
-      <div className="card p-6 animate-fade overflow-x-auto hidden md:block">
-        <table className="table min-w-[1100px]">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Data</th>
-              <th>Motorista</th>
-              <th>Caminhão</th>
-              <th>Prancha</th>
-              <th>Destino</th>
-              <th>Unidade</th>
-              <th>Tipo</th>
-              <th>Status</th>
-              <th>KM</th>
-              <th>Horas</th>
-              <th>Custo</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sortedItems.length === 0 && (
-              <tr>
-                <td colSpan="13" className="text-center p-4 text-gray-500">Nenhuma viagem encontrada.</td>
-              </tr>
-            )}
-            {sortedItems.slice(0, pageSize).map((it, idx) => (
-              <tr key={it.id} className={`${idx % 2 === 0 ? 'bg-slate-50 dark:bg-slate-800' : 'bg-white dark:bg-slate-700'} hover:bg-slate-100 dark:hover:bg-slate-600`}>
-                <td>#{it.id}</td>
-                <td>{it.date}</td>
-                <td>{drivers.find((d) => d.id === it.driver_id)?.name || it.driver_id}</td>
-                <td>{trucks.find((t) => t.id === it.truck_id)?.fleet || trucks.find((t) => t.id === it.truck_id)?.plate || it.truck_id || ""}</td>
-                <td>{pranchas.find((p) => p.id === it.prancha_id)?.asset_number || pranchas.find((p) => p.id === it.prancha_id)?.identifier || it.prancha_id || ""}</td>
-                <td>{it.destination || ""}</td>
-                <td>{it.location || ""}</td>
-                <td>{it.service_type || ""}</td>
-                <td>{it.status}</td>
-                <td>{it.km_rodado}</td>
-                <td>{it.horas}</td>
-                <td>R$ {(it.total_cost ?? 0).toFixed(2)}</td>
-                <td className="space-x-2">
-                  <button className="btn bg-slate-600 hover:bg-slate-700 text-white" onClick={() => setViewing(it)}>Ver</button>
-                  <button className="btn bg-yellow-500 hover:bg-yellow-600 text-white" onClick={() => edit(it)}>Editar</button>
-                  <button className="btn bg-red-600 hover:bg-red-700 text-white" onClick={() => delConfirm(it.id)}>Excluir</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="space-y-3 md:hidden">
-        <div className="flex justify-between items-center px-1">
-          <span className="text-sm font-semibold text-gray-600 dark:text-gray-300">Ordenar por:</span>
-          <div className="flex gap-2">
-            <button className={`px-3 py-1 rounded text-sm border ${sortConfig.key === 'id' ? 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900 dark:text-blue-100 dark:border-blue-700 font-bold' : 'bg-white text-gray-600 border-gray-200 dark:bg-slate-700 dark:text-gray-300 dark:border-slate-600'}`} onClick={() => handleSort('id')}>
-              ID {sortConfig.key === 'id' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-            </button>
-            <button className={`px-3 py-1 rounded text-sm border ${sortConfig.key === 'date' ? 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900 dark:text-blue-100 dark:border-blue-700 font-bold' : 'bg-white text-gray-600 border-gray-200 dark:bg-slate-700 dark:text-gray-300 dark:border-slate-600'}`} onClick={() => handleSort('date')}>
-              Data {sortConfig.key === 'date' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-            </button>
-          </div>
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+        {/* Mobile List */}
+        <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-700">
+          {sortedItems.length === 0 && (
+            <div className="p-8 text-center text-slate-500 dark:text-slate-400">Nenhuma viagem encontrada.</div>
+          )}
+          {sortedItems.slice(0, pageSize).map((it) => (
+            <div key={it.id} className="p-4 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+              <div className="flex justify-between items-start mb-2">
+                <div>
+                  <h3 className="font-semibold text-slate-800 dark:text-slate-200">#{it.id} • {it.date}</h3>
+                  <div className="text-sm text-slate-500 dark:text-slate-400">
+                    {it.destination || "Sem destino"}
+                  </div>
+                </div>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  it.status === 'Finalizado' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                  it.status === 'Em Andamento' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                  'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                }`}>
+                  {it.status}
+                </span>
+              </div>
+              
+              <div className="space-y-1 text-sm text-slate-600 dark:text-slate-300 mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="material-icons text-base text-slate-400">person</span>
+                  {drivers.find((d) => d.id === it.driver_id)?.name || it.driver_id}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="material-icons text-base text-slate-400">local_shipping</span>
+                  {trucks.find((t) => t.id === it.truck_id)?.fleet || trucks.find((t) => t.id === it.truck_id)?.plate || it.truck_id || "-"}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between text-sm pt-2 border-t border-slate-100 dark:border-slate-700">
+                <div className="font-medium text-slate-700 dark:text-slate-300">
+                  R$ {(it.total_cost ?? 0).toFixed(2)}
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => setViewing(it)} className="p-2 text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20 rounded-lg transition-colors" title="Ver Detalhes">
+                    <span className="material-icons text-lg">visibility</span>
+                  </button>
+                  <button onClick={() => edit(it)} className="p-2 text-yellow-600 hover:bg-yellow-50 dark:text-yellow-400 dark:hover:bg-yellow-900/20 rounded-lg transition-colors" title="Editar">
+                    <span className="material-icons text-lg">edit</span>
+                  </button>
+                  <button onClick={() => delConfirm(it.id)} className="p-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Excluir">
+                    <span className="material-icons text-lg">delete</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
-        {sortedItems.length === 0 && (
-          <div className="text-center p-4 text-gray-500 card">Nenhuma viagem encontrada.</div>
-        )}
-        {sortedItems.slice(0, pageSize).map((it) => (
-          <div key={it.id} className="card p-4">
-            <div className="flex justify-between items-center">
-              <div className="font-semibold">#{it.id} • {it.date}{it.end_date ? ` → ${it.end_date}` : ''}</div>
-              <div className="text-sm">{it.status}</div>
-            </div>
-            <div className="text-sm text-slate-600 dark:text-slate-300">Motorista: {drivers.find((d) => d.id === it.driver_id)?.name || it.driver_id}</div>
-            <div className="text-sm text-slate-600 dark:text-slate-300">Caminhão: {trucks.find((t) => t.id === it.truck_id)?.fleet || trucks.find((t) => t.id === it.truck_id)?.plate || it.truck_id || ""}</div>
-            <div className="text-sm text-slate-600 dark:text-slate-300">Prancha: {pranchas.find((p) => p.id === it.prancha_id)?.identifier || it.prancha_id || ""}</div>
-            <div className="mt-1 text-sm">Destino: {it.destination || "-"}</div>
-            <div className="mt-1 text-sm">Tipo: {it.service_type || "-"}</div>
-            <div className="mt-1 flex gap-4 text-sm"><span>KM: {it.km_rodado}</span><span>Horas: {it.horas}</span><span>Custo: R$ {(it.total_cost ?? 0).toFixed(2)}</span></div>
-            <div className="mt-2 flex flex-wrap gap-2">
-              <button className="btn bg-slate-600 hover:bg-slate-700 text-white" onClick={() => setViewing(it)}>Ver</button>
-              <button className="btn bg-yellow-500 hover:bg-yellow-600 text-white" onClick={() => edit(it)}>Editar</button>
-              <button className="btn bg-red-600 hover:bg-red-700 text-white" onClick={() => delConfirm(it.id)}>Excluir</button>
-            </div>
-          </div>
-        ))}
+
+        {/* Desktop Table */}
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full text-left">
+            <thead className="bg-slate-50 dark:bg-slate-700/50 text-slate-600 dark:text-slate-400 font-semibold text-sm">
+              <tr>
+                <th className="p-4">ID</th>
+                <th className="p-4">Data</th>
+                <th className="p-4">Motorista</th>
+                <th className="p-4">Caminhão</th>
+                <th className="p-4">Prancha</th>
+                <th className="p-4">Destino</th>
+                <th className="p-4">Status</th>
+                <th className="p-4">Custo</th>
+                <th className="p-4 text-right">Ações</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-700 text-sm">
+              {sortedItems.length === 0 && (
+                <tr>
+                  <td colSpan="9" className="text-center p-8 text-slate-500 dark:text-slate-400">Nenhuma viagem encontrada.</td>
+                </tr>
+              )}
+              {sortedItems.slice(0, pageSize).map((it) => (
+                <tr key={it.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                  <td className="p-4 font-medium text-slate-800 dark:text-slate-200">#{it.id}</td>
+                  <td className="p-4 text-slate-600 dark:text-slate-400">{it.date}</td>
+                  <td className="p-4 text-slate-600 dark:text-slate-400">{drivers.find((d) => d.id === it.driver_id)?.name || it.driver_id}</td>
+                  <td className="p-4 text-slate-600 dark:text-slate-400">{trucks.find((t) => t.id === it.truck_id)?.fleet || trucks.find((t) => t.id === it.truck_id)?.plate || it.truck_id || ""}</td>
+                  <td className="p-4 text-slate-600 dark:text-slate-400">{pranchas.find((p) => p.id === it.prancha_id)?.asset_number || pranchas.find((p) => p.id === it.prancha_id)?.identifier || it.prancha_id || ""}</td>
+                  <td className="p-4 text-slate-600 dark:text-slate-400">{it.destination || "-"}</td>
+                  <td className="p-4">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      it.status === 'Finalizado' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                      it.status === 'Em Andamento' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                      'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                    }`}>
+                      {it.status}
+                    </span>
+                  </td>
+                  <td className="p-4 font-medium text-slate-700 dark:text-slate-300">R$ {(it.total_cost ?? 0).toFixed(2)}</td>
+                  <td className="p-4 text-right">
+                    <div className="flex justify-end gap-2">
+                      <button onClick={() => setViewing(it)} className="p-2 text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20 rounded-lg transition-colors" title="Ver Detalhes">
+                        <span className="material-icons text-lg">visibility</span>
+                      </button>
+                      <button onClick={() => edit(it)} className="p-2 text-yellow-600 hover:bg-yellow-50 dark:text-yellow-400 dark:hover:bg-yellow-900/20 rounded-lg transition-colors" title="Editar">
+                        <span className="material-icons text-lg">edit</span>
+                      </button>
+                      <button onClick={() => delConfirm(it.id)} className="p-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Excluir">
+                        <span className="material-icons text-lg">delete</span>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div className="flex items-center justify-between mt-4 p-2 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-100 dark:border-slate-700">

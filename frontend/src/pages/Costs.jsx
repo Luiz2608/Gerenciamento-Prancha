@@ -324,64 +324,93 @@ export default function Costs() {
           const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "custos_viagens.pdf"; a.click(); URL.revokeObjectURL(url); toast?.show("PDF exportado", "success");
         }}><span className="material-icons">picture_as_pdf</span> PDF</button>
       </div>
-      <div className="card p-6 animate-fade overflow-x-auto hidden md:block">
-        <table className="table min-w-[1100px]">
-          <thead>
-            <tr>
-              <th>Data</th>
-              <th>Viagem</th>
-              <th>Motorista</th>
-              <th>Caminhão</th>
-              <th>Prancha</th>
-              <th>Combustível</th>
-              <th>Manutenção</th>
-              <th>Outros</th>
-              <th>Total</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredTrips.slice((filters.page - 1) * filters.pageSize, filters.page * filters.pageSize).map((t, idx) => {
-              const fuelCost = Number(t.fuel_liters || 0) * Number(t.fuel_price || 0);
-              const maintCost = Number(t.maintenance_cost || 0);
-              const otherCost = Number(t.other_costs || 0) + Number(t.driver_daily || 0);
-              return (
-              <tr key={t.id} className={`${idx % 2 === 0 ? 'bg-slate-50 dark:bg-slate-800' : 'bg-white dark:bg-slate-700'} hover:bg-slate-100 dark:hover:bg-slate-600`}>
-                <td>{t.date ? String(t.date).slice(0,10) : "-"}</td>
-                <td>#{t.id}</td>
-                <td>{drivers.find((d) => String(d.id) === String(t.driver_id))?.name || t.driver_id || ""}</td>
-                <td>{trucks.find((x) => String(x.id) === String(t.truck_id))?.plate || t.truck_id || ""}</td>
-                <td>{pranchas.find((p) => String(p.id) === String(t.prancha_id))?.asset_number || t.prancha_id || ""}</td>
-                <td>R$ {fuelCost.toFixed(2)}</td>
-                <td>R$ {maintCost.toFixed(2)}</td>
-                <td>R$ {otherCost.toFixed(2)}</td>
-                <td className="font-bold">R$ {t.totalCost.toFixed(2)}</td>
-                <td className="space-x-2">
-                  <button className="btn bg-slate-600 hover:bg-slate-700 text-white" onClick={() => setViewing(t)}>Ver</button>
-                </td>
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+        {/* Mobile List */}
+        <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-700">
+          {filteredTrips.slice((filters.page - 1) * filters.pageSize, filters.page * filters.pageSize).map((t) => {
+            const fuelCost = Number(t.fuel_liters || 0) * Number(t.fuel_price || 0);
+            return (
+              <div key={t.id} className="p-4 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <h3 className="font-semibold text-slate-800 dark:text-slate-200">#{t.id} • {t.date}</h3>
+                    <div className="text-sm text-slate-500 dark:text-slate-400">
+                      Motorista: {drivers.find((d) => String(d.id) === String(t.driver_id))?.name || t.driver_id || ""}
+                    </div>
+                  </div>
+                  <span className="font-bold text-slate-700 dark:text-slate-300">
+                    R$ {t.totalCost.toFixed(2)}
+                  </span>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-2 text-sm text-slate-600 dark:text-slate-300 mb-3">
+                   <div>Combustível: <span className="font-medium">R$ {fuelCost.toFixed(2)}</span></div>
+                   <div>Manutenção: <span className="font-medium">R$ {Number(t.maintenance_cost || 0).toFixed(2)}</span></div>
+                </div>
+
+                <div className="flex justify-end pt-2 border-t border-slate-100 dark:border-slate-700">
+                  <button onClick={() => setViewing(t)} className="p-2 text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20 rounded-lg transition-colors flex items-center gap-1">
+                    <span className="material-icons text-lg">visibility</span>
+                    <span className="text-sm font-medium">Ver Detalhes</span>
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+          {filteredTrips.length === 0 && (
+             <div className="p-8 text-center text-slate-500 dark:text-slate-400">Nenhum registro encontrado</div>
+          )}
+        </div>
+
+        {/* Desktop Table */}
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full text-left">
+            <thead className="bg-slate-50 dark:bg-slate-700/50 text-slate-600 dark:text-slate-400 font-semibold text-sm">
+              <tr>
+                <th className="p-4">Data</th>
+                <th className="p-4">Viagem</th>
+                <th className="p-4">Motorista</th>
+                <th className="p-4">Caminhão</th>
+                <th className="p-4">Prancha</th>
+                <th className="p-4">Combustível</th>
+                <th className="p-4">Manutenção</th>
+                <th className="p-4">Outros</th>
+                <th className="p-4">Total</th>
+                <th className="p-4 text-right">Ações</th>
               </tr>
-            )})}
-            {filteredTrips.length === 0 && <tr><td colSpan="10" className="text-center p-4">Nenhum registro encontrado</td></tr>}
-          </tbody>
-        </table>
-      </div>
-      <div className="space-y-3 md:hidden">
-        {filteredTrips.slice((filters.page - 1) * filters.pageSize, filters.page * filters.pageSize).map((t) => {
-          const fuelCost = Number(t.fuel_liters || 0) * Number(t.fuel_price || 0);
-          return (
-          <div key={t.id} className="card p-4">
-            <div className="flex justify-between items-center">
-              <div className="font-semibold">{t.date}</div>
-              <div className="text-sm">Viagem #{t.id}</div>
-            </div>
-            <div className="text-sm text-slate-600 dark:text-slate-300">Motorista: {drivers.find((d) => String(d.id) === String(t.driver_id))?.name || t.driver_id || ""}</div>
-            <div className="mt-2 font-bold text-lg">Total: R$ {t.totalCost.toFixed(2)}</div>
-            <div className="text-xs text-slate-500">Combustível: R$ {fuelCost.toFixed(2)}</div>
-            <div className="mt-2 flex flex-wrap gap-2">
-              <button className="btn bg-slate-600 hover:bg-slate-700 text-white" onClick={() => setViewing(t)}>Ver Detalhes</button>
-            </div>
-          </div>
-        )})}
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-700 text-sm">
+              {filteredTrips.slice((filters.page - 1) * filters.pageSize, filters.page * filters.pageSize).map((t) => {
+                const fuelCost = Number(t.fuel_liters || 0) * Number(t.fuel_price || 0);
+                const maintCost = Number(t.maintenance_cost || 0);
+                const otherCost = Number(t.other_costs || 0) + Number(t.driver_daily || 0);
+                return (
+                  <tr key={t.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                    <td className="p-4 text-slate-600 dark:text-slate-400">{t.date ? String(t.date).slice(0,10) : "-"}</td>
+                    <td className="p-4 font-medium text-slate-800 dark:text-slate-200">#{t.id}</td>
+                    <td className="p-4 text-slate-600 dark:text-slate-400">{drivers.find((d) => String(d.id) === String(t.driver_id))?.name || t.driver_id || ""}</td>
+                    <td className="p-4 text-slate-600 dark:text-slate-400">{trucks.find((x) => String(x.id) === String(t.truck_id))?.plate || t.truck_id || ""}</td>
+                    <td className="p-4 text-slate-600 dark:text-slate-400">{pranchas.find((p) => String(p.id) === String(t.prancha_id))?.asset_number || t.prancha_id || ""}</td>
+                    <td className="p-4 text-slate-600 dark:text-slate-400">R$ {fuelCost.toFixed(2)}</td>
+                    <td className="p-4 text-slate-600 dark:text-slate-400">R$ {maintCost.toFixed(2)}</td>
+                    <td className="p-4 text-slate-600 dark:text-slate-400">R$ {otherCost.toFixed(2)}</td>
+                    <td className="p-4 font-bold text-slate-800 dark:text-slate-200">R$ {t.totalCost.toFixed(2)}</td>
+                    <td className="p-4 text-right">
+                      <button onClick={() => setViewing(t)} className="p-2 text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20 rounded-lg transition-colors" title="Ver">
+                        <span className="material-icons text-lg">visibility</span>
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+              {filteredTrips.length === 0 && (
+                <tr>
+                  <td colSpan="10" className="text-center p-8 text-slate-500 dark:text-slate-400">Nenhum registro encontrado</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
       <div className="flex items-center justify-between mt-4 p-2 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-100 dark:border-slate-700">
         <div className="text-sm text-slate-500 dark:text-slate-400">
