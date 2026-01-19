@@ -22,8 +22,26 @@ body { @apply bg-bg text-text dark:bg-[#0f172a] dark:text-[#f1f5f9]; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(8px);} to { opacity: 1; transform: translateY(0);} }
 .animate-fade { animation: fadeIn 0.5s ease-out both; }
 
-html, body { height: auto !important; overflow-x: hidden; overflow-y: auto; }
-#root, .app-root { min-height: calc(var(--vh, 1vh) * 100); overflow-y: auto; }
-.container, .page, .content { overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
-* { touch-action: pan-y; }
-.min-h-screen { min-height: calc(var(--vh, 1vh) * 100) !important; }
+html, body { 
+  overflow-x: hidden; 
+  /* Remover height auto forçado e overflow-y explícito para permitir comportamento nativo */
+}
+
+#root, .app-root { 
+  min-height: 100vh; 
+  /* Remover overflow-y: auto do root para evitar scroll duplo ou travamento */
+}
+
+.container, .page, .content { 
+  /* Remover overflow-y: auto para deixar o container crescer e o body rolar */
+  -webkit-overflow-scrolling: touch; 
+}
+
+* { 
+  /* Remover touch-action global que pode bloquear scroll */
+  /* touch-action: pan-y; */
+}
+
+.min-h-screen { 
+  min-height: 100vh !important; 
+}
