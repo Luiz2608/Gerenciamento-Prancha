@@ -50,7 +50,7 @@ export default function MainLayout() {
   const isActive = (p) => (loc.pathname === p || loc.pathname.startsWith(p));
   const closeMenuOnNavigate = () => setOpen(false);
   return (
-    <div className="min-h-screen flex bg-bg text-text dark:bg-[#0f172a] dark:text-[#f1f5f9]">
+    <div className="min-h-screen md:flex bg-bg text-text dark:bg-[#0f172a] dark:text-[#f1f5f9]">
       {showOffline && (
         <div className="fixed top-0 left-0 right-0 z-50">
           <div className="m-3 rounded-xl bg-yellow-500 text-white px-4 py-3 shadow-lg">
@@ -110,7 +110,7 @@ export default function MainLayout() {
             </div>
           </div>
         </header>
-        <main className="p-6 overflow-x-hidden page">
+        <main className="p-6 page">
           <Outlet />
         </main>
       </div>

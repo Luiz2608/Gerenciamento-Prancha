@@ -24,7 +24,8 @@ body { @apply bg-bg text-text dark:bg-[#0f172a] dark:text-[#f1f5f9]; }
 
 html, body { 
   overflow-x: hidden; 
-  /* Remover height auto forçado e overflow-y explícito para permitir comportamento nativo */
+  overflow-y: auto;
+  min-height: 100%;
 }
 
 #root, .app-root { 
