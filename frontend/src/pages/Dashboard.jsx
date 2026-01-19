@@ -78,7 +78,7 @@ export default function Dashboard() {
         <div className="text-xs text-slate-500">Preparado para futuro intervalo personalizado</div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-10 mb-10">
         <div className="card card-hover p-6 border-t-4 border-accent">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
