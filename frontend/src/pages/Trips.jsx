@@ -967,6 +967,7 @@ export default function Trips() {
                   <td className="p-4 text-slate-600 dark:text-slate-400">{pranchas.find((p) => p.id === it.prancha_id)?.asset_number || pranchas.find((p) => p.id === it.prancha_id)?.identifier || it.prancha_id || ""}</td>
                   <td className="p-4 text-slate-600 dark:text-slate-400">{it.location || "-"}</td>
                   <td className="p-4 text-slate-600 dark:text-slate-400">{it.destination || "-"}</td>
+                  <td className="p-4 text-slate-600 dark:text-slate-400 font-medium">{calculateDuration(it.date, it.start_time, it.end_date, it.end_time)}</td>
                   <td className="p-4">
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                       it.status === 'Finalizado' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
