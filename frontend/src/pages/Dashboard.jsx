@@ -244,7 +244,7 @@ export default function Dashboard() {
           <div className="font-semibold mb-6 text-slate-900 dark:text-slate-100 text-lg">Custos por Categoria</div>
           <div className="h-80">
             <ResponsiveContainer>
-              <BarChart data={data.costsByCategory} margin={{ top: 20, right: 30, left: 20, bottom: 10 }}>
+              <BarChart data={data.costsByCategory} margin={{ top: 20, right: 30, left: 50, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
                 <XAxis 
                   dataKey="name" 
