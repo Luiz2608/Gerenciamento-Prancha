@@ -937,7 +937,7 @@ export default function Trips() {
         {/* Desktop Table */}
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left">
-            <thead className="bg-slate-50 dark:bg-slate-700/50 text-slate-600 dark:text-slate-400 font-semibold text-sm">
+            <thead className="bg-slate-50 dark:bg-slate-700/50 text-slate-600 dark:text-slate-400 font-bold text-sm">
               <tr>
                 <th className="p-4">ID</th>
                 <th className="p-4">Data</th>
