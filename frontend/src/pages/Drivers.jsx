@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { getMotoristas, saveMotorista, updateMotorista, deleteMotorista } from "../services/storageService.js";
 import { supabase } from "../services/supabaseClient.js";
 import { useToast } from "../components/ToastProvider.jsx";
-import { User, CreditCard, FileText, Search, Plus, Edit2, Trash2 } from "lucide-react";
+import { User, CreditCard, FileText, Search, Plus } from "lucide-react";
 
 export default function Drivers() {
   const toast = useToast();
@@ -257,15 +257,15 @@ export default function Drivers() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => edit(item)}
-                    className="p-2 text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                    className="p-2 text-yellow-600 hover:bg-yellow-50 dark:text-yellow-400 dark:hover:bg-yellow-900/20 rounded-lg transition-colors"
                   >
-                    <Edit2 size={18} />
+                    <span className="material-icons text-lg">edit</span>
                   </button>
                   <button
                     onClick={() => remove(item.id)}
                     className="p-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                   >
-                    <Trash2 size={18} />
+                    <span className="material-icons text-lg">delete</span>
                   </button>
                 </div>
               </div>
@@ -309,17 +309,17 @@ export default function Drivers() {
                     <div className="flex justify-end gap-2">
                       <button
                         onClick={() => edit(item)}
-                        className="p-2 text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                        className="p-2 text-yellow-600 hover:bg-yellow-50 dark:text-yellow-400 dark:hover:bg-yellow-900/20 rounded-lg transition-colors"
                         title="Editar"
                       >
-                        <Edit2 size={18} />
+                        <span className="material-icons text-lg">edit</span>
                       </button>
                       <button
                         onClick={() => remove(item.id)}
                         className="p-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                         title="Excluir"
                       >
-                        <Trash2 size={18} />
+                        <span className="material-icons text-lg">delete</span>
                       </button>
                     </div>
                   </td>

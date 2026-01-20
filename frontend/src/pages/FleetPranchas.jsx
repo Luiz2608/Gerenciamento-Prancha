@@ -248,14 +248,26 @@ export default function FleetPranchas() {
                   <div>{it.chassis || "-"}</div>
                   {it.is_set && it.chassis2 && <div className="text-xs text-slate-500 dark:text-slate-400">{it.chassis2}</div>}
                 </td>
-                <td>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${it.status === 'Ativo' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'}`}>
+                <td className="p-4">
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      it.status === "Ativo"
+                        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                        : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400"
+                    }`}
+                  >
                     {it.status}
                   </span>
                 </td>
-                <td className="space-x-2">
-                  <button className="btn bg-yellow-500 hover:bg-yellow-600 text-white" onClick={() => edit(it)}>Editar</button>
-                  <button className="btn bg-red-600 hover:bg-red-700 text-white" onClick={() => del(it.id)}>Excluir</button>
+                <td className="p-4 text-right">
+                  <div className="flex justify-end gap-2">
+                    <button onClick={() => edit(it)} className="p-2 text-yellow-600 hover:bg-yellow-50 dark:text-yellow-400 dark:hover:bg-yellow-900/20 rounded-lg transition-colors" title="Editar">
+                      <span className="material-icons text-lg">edit</span>
+                    </button>
+                    <button onClick={() => delConfirm(it.id)} className="p-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Excluir">
+                      <span className="material-icons text-lg">delete</span>
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -274,7 +286,13 @@ export default function FleetPranchas() {
                   </div>
                   <div className="text-sm text-slate-500 dark:text-slate-400">{it.type || "-"}</div>
                 </div>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${it.status === 'Ativo' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'}`}>
+                <span
+                  className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    it.status === "Ativo"
+                      ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                      : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400"
+                  }`}
+                >
                   {it.status}
                 </span>
               </div>
@@ -284,8 +302,8 @@ export default function FleetPranchas() {
                 <div className="flex justify-between"><span>Conjunto:</span> <span className="font-medium">{it.conjunto || "-"}</span></div>
               </div>
               <div className="flex justify-end gap-2 mt-3">
-                <button className="p-2 text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20 rounded-lg transition-colors" onClick={() => edit(it)}><span className="material-icons text-lg">edit</span></button>
-                <button className="p-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 rounded-lg transition-colors" onClick={() => del(it.id)}><span className="material-icons text-lg">delete</span></button>
+                <button className="p-2 text-yellow-600 hover:bg-yellow-50 dark:text-yellow-400 dark:hover:bg-yellow-900/20 rounded-lg transition-colors" onClick={() => edit(it)}><span className="material-icons text-lg">edit</span></button>
+                <button className="p-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 rounded-lg transition-colors" onClick={() => delConfirm(it.id)}><span className="material-icons text-lg">delete</span></button>
               </div>
             </div>
           ))}

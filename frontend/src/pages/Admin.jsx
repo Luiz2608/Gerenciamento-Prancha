@@ -54,7 +54,9 @@ export default function Admin() {
             {dest.map((d) => (
               <li key={d.id} className="flex justify-between items-center border p-3 rounded-xl">
                 <span>{d.name}</span>
-                <button className="btn bg-red-600 hover:bg-red-700 text-white" onClick={() => delDest(d.id)}>Excluir</button>
+                <button onClick={() => delDest(d.id)} className="p-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Excluir">
+                  <span className="material-icons text-lg">delete</span>
+                </button>
               </li>
             ))}
           </ul>
@@ -69,7 +71,9 @@ export default function Admin() {
             {svc.map((s) => (
               <li key={s.id} className="flex justify-between items-center border p-3 rounded-xl">
                 <span>{s.name}</span>
-                <button className="btn bg-red-600 hover:bg-red-700 text-white" onClick={() => delSvc(s.id)}>Excluir</button>
+                <button onClick={() => delSvc(s.id)} className="p-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Excluir">
+                  <span className="material-icons text-lg">delete</span>
+                </button>
               </li>
             ))}
           </ul>

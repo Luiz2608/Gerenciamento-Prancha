@@ -349,9 +349,8 @@ export default function Costs() {
                 </div>
 
                 <div className="flex justify-end pt-2 border-t border-slate-100 dark:border-slate-700">
-                  <button onClick={() => setViewing(t)} className="p-2 text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20 rounded-lg transition-colors flex items-center gap-1">
+                  <button onClick={() => setViewing(t)} className="p-2 text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20 rounded-lg transition-colors" title="Ver Detalhes">
                     <span className="material-icons text-lg">visibility</span>
-                    <span className="text-sm font-medium">Ver Detalhes</span>
                   </button>
                 </div>
               </div>
@@ -396,7 +395,7 @@ export default function Costs() {
                     <td className="p-4 text-slate-600 dark:text-slate-400">R$ {otherCost.toFixed(2)}</td>
                     <td className="p-4 font-bold text-slate-800 dark:text-slate-200">R$ {t.totalCost.toFixed(2)}</td>
                     <td className="p-4 text-right">
-                      <button onClick={() => setViewing(t)} className="p-2 text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20 rounded-lg transition-colors" title="Ver">
+                      <button onClick={() => setViewing(t)} className="p-2 text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20 rounded-lg transition-colors" title="Ver Detalhes">
                         <span className="material-icons text-lg">visibility</span>
                       </button>
                     </td>
