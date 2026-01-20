@@ -26,23 +26,35 @@ export default function Trips() {
   const lastSubmitTime = useRef(0);
 
   const calculateDuration = (d1, t1, d2, t2) => {
-    if (!d1 || !t1 || !d2 || !t2) return "-";
+    if (!d1 || !t1) return "-";
+    // Se não tiver hora fim, considera em andamento
+    if (!t2) return "-";
+
+    // Fallback: se não tiver data fim, usa a data de início
+    const finalD2 = d2 || d1;
+
     const parseDate = (d, t) => {
+      if (!d) return null;
+      // Remove parte de tempo se vier ISO (YYYY-MM-DDTHH:mm:ss)
+      const datePart = d.includes("T") ? d.split("T")[0] : d;
+      
       let dateObj;
-      if (d.includes("-")) {
-        const [y, m, day] = d.split("-").map(Number);
+      if (datePart.includes("-")) {
+        const [y, m, day] = datePart.split("-").map(Number);
         dateObj = new Date(y, m - 1, day);
-      } else if (d.includes("/")) {
-        const [day, m, y] = d.split("/").map(Number);
+      } else if (datePart.includes("/")) {
+        const [day, m, y] = datePart.split("/").map(Number);
         dateObj = new Date(y, m - 1, day);
       } else return null;
+
       const [h, min] = t.split(":").map(Number);
       dateObj.setHours(h, min, 0, 0);
       return dateObj;
     };
     const start = parseDate(d1, t1);
-    const end = parseDate(d2, t2);
+    const end = parseDate(finalD2, t2);
     if (!start || !end) return "-";
+
     const diffMs = end - start;
     if (diffMs < 0) return "-";
     const totalMinutes = Math.floor(diffMs / 60000);
