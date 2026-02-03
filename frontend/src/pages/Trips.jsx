@@ -18,9 +18,7 @@ export default function Trips() {
   const [routePreview, setRoutePreview] = useState(null);
   const [selectedRoute, setSelectedRoute] = useState(null);
   const tipoOptions = ["Máquinas Agrícolas","Máquinas de Construção","Equipamentos Industriais","Veículos Pesados","Veículos Leves"];
-  const [form, setForm] = useState(() => {
-    const saved = localStorage.getItem("trips_form_draft");
-    return saved ? JSON.parse(saved) : { 
+  const INITIAL_FORM_STATE = { 
       date: "", end_date: "", requester: "", driver_id: "", truck_id: "", prancha_id: "", 
       destination: "", origin: "Cambuí - MG", location: "", service_type: "", cargo_qty: "",
       status: "Previsto", description: "", start_time: "", end_time: "", 
@@ -31,8 +29,12 @@ export default function Trips() {
       tolls: "", freight_value: "", freight_type: "Fechado",
       planned_km: "", planned_duration: "", planned_fuel_liters: "", planned_toll_cost: "", 
       planned_driver_cost: "", planned_total_cost: "", planned_maintenance: "",
-      trip_type: "one_way" // "one_way" or "round_trip"
+      trip_type: "one_way"
     };
+
+  const [form, setForm] = useState(() => {
+    const saved = localStorage.getItem("trips_form_draft");
+    return saved ? JSON.parse(saved) : INITIAL_FORM_STATE;
   });
   
   const [financials, setFinancials] = useState(null);
@@ -123,6 +125,26 @@ export default function Trips() {
   
   const [editing, setEditing] = useState(null);
   const [viewing, setViewing] = useState(null);
+  const [viewingRoute, setViewingRoute] = useState(null);
+
+  useEffect(() => {
+    if (viewing) {
+      setViewingRoute(null);
+      const origin = viewing.origin || viewing.location || "Cambuí - MG";
+      const destination = viewing.destination;
+      
+      if (origin && destination) {
+        getRouteData(origin, destination)
+          .then(data => {
+            if (data && data.geometry) {
+              setViewingRoute(data);
+            }
+          })
+          .catch(err => console.error("Error fetching details route:", err));
+      }
+    }
+  }, [viewing]);
+
   const [showForm, setShowForm] = useState(false);
   const [kmMode, setKmMode] = useState("KM Caminhão");
   const [showValidation, setShowValidation] = useState(false);
@@ -952,7 +974,13 @@ export default function Trips() {
           <div className="flex gap-2 w-full md:w-auto">
             <button className="btn btn-secondary" onClick={exportCsvAction} title="Exportar CSV"><span className="material-icons">download</span></button>
             <button className="btn btn-secondary" onClick={exportPdfAction} title="Exportar PDF"><span className="material-icons">picture_as_pdf</span></button>
-            <button className="btn btn-primary flex-1 flex items-center justify-center gap-2" onClick={() => setShowForm(true)}>
+            <button className="btn btn-primary flex-1 flex items-center justify-center gap-2" onClick={() => {
+              localStorage.removeItem("trips_form_draft");
+              setForm(INITIAL_FORM_STATE);
+              setRoutePreview(null);
+              setSelectedRoute(null);
+              setShowForm(true);
+            }}>
               <span className="material-icons text-sm">add</span> Novo
             </button>
           </div>
@@ -1558,6 +1586,17 @@ export default function Trips() {
                   <div className="text-sm font-medium text-slate-500 dark:text-slate-400">Tipo de Serviço</div>
                   <div className="text-lg">{viewing.service_type}</div>
                 </div>
+
+                {viewingRoute && (
+                  <div className="col-span-full border-t border-slate-200 dark:border-slate-700 pt-4">
+                    <h3 className="font-semibold text-lg mb-4 text-secondary flex items-center gap-2">
+                       <span className="material-icons">map</span> Rota da Viagem
+                    </h3>
+                    <div className="h-64 w-full rounded-lg overflow-hidden border border-slate-300 dark:border-slate-600 shadow-sm relative z-0">
+                       <RouteViewer routeData={viewingRoute} inline={true} />
+                    </div>
+                  </div>
+                )}
 
                 <div className="col-span-full border-t border-slate-200 dark:border-slate-700 pt-4">
                   <h3 className="font-semibold text-lg mb-4 text-secondary">Quilometragem</h3>
