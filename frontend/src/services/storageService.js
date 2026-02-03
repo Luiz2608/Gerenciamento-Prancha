@@ -158,6 +158,7 @@ async function syncPending() {
               truck_id: src.truck_id != null ? Number(mapCaminhoes[src.truck_id] || src.truck_id) : null,
               prancha_id: src.prancha_id != null ? Number(mapPranchas[src.prancha_id] || src.prancha_id) : null,
               destination: src.destination || null,
+              location: src.location || null,
               service_type: src.service_type || null,
               description: src.description || null,
               start_time: src.start_time || null,
@@ -174,6 +175,7 @@ async function syncPending() {
       requester: src.requester || null,
       origin: src.origin || null,
       cargo_qty: src.cargo_qty || null,
+      trip_type: src.trip_type || 'one_way',
       status: computeStatus(src.end_time, src.km_end)
             };
             const row = await processInsert("viagens", p);
@@ -208,6 +210,7 @@ async function syncPending() {
       requester: src.requester || null,
       origin: src.origin || null,
       cargo_qty: src.cargo_qty || null,
+      trip_type: src.trip_type || 'one_way',
       status: computeStatus(src.end_time, src.km_end)
             };
             await processUpdate("viagens", "id", id, p);
@@ -604,6 +607,7 @@ export async function saveViagem(data) { await initLoad(); if (API_URL) { const 
       freight_value: data.freight_value != null ? Number(data.freight_value) : 0,
       origin: data.origin || null,
       cargo_qty: data.cargo_qty || null,
+      trip_type: data.trip_type || 'one_way',
       planned_km: data.planned_km != null ? Number(data.planned_km) : 0,
       planned_duration: data.planned_duration || null,
       planned_fuel_liters: data.planned_fuel_liters != null ? Number(data.planned_fuel_liters) : 0,
@@ -647,6 +651,7 @@ export async function updateViagem(id, data) { await initLoad(); if (API_URL) { 
       freight_value: data.freight_value != null ? Number(data.freight_value) : 0,
       origin: data.origin || null,
       cargo_qty: data.cargo_qty || null,
+      trip_type: data.trip_type || 'one_way',
       planned_km: data.planned_km != null ? Number(data.planned_km) : 0,
       planned_duration: data.planned_duration || null,
       planned_fuel_liters: data.planned_fuel_liters != null ? Number(data.planned_fuel_liters) : 0,

@@ -30,7 +30,8 @@ export default function Trips() {
       driver_daily: "", noDriverDaily: false,
       tolls: "", freight_value: "", freight_type: "Fechado",
       planned_km: "", planned_duration: "", planned_fuel_liters: "", planned_toll_cost: "", 
-      planned_driver_cost: "", planned_total_cost: "", planned_maintenance: ""
+      planned_driver_cost: "", planned_total_cost: "", planned_maintenance: "",
+      trip_type: "one_way" // "one_way" or "round_trip"
     };
   });
   
@@ -152,6 +153,27 @@ export default function Trips() {
 
     return () => clearTimeout(timer);
   }, [form.origin, form.destination]);
+
+  const handleRouteSelect = (route) => {
+    if (!route) return;
+    setSelectedRoute(route);
+    
+    // Apply logic for trip type (round trip doubles distance/duration)
+    const multiplier = form.trip_type === "round_trip" ? 2 : 1;
+    
+    setForm(prev => ({
+        ...prev,
+        planned_km: (route.distance / 1000 * multiplier).toFixed(1),
+        planned_duration: formatDuration((route.duration / 60) * multiplier)
+    }));
+  };
+  
+  // Re-calculate when trip type changes
+  useEffect(() => {
+    if (selectedRoute) {
+        handleRouteSelect(selectedRoute);
+    }
+  }, [form.trip_type]);
 
   const calculateDuration = (d1, t1, d2, t2) => {
     if (!d1 || !t1) return "-";
@@ -470,6 +492,7 @@ export default function Trips() {
       location: it.location || "",
       service_type: it.service_type || "",
       cargo_qty: it.cargo_qty || "",
+      trip_type: it.trip_type || "one_way",
       status: it.status || "Previsto",
       description: it.description || "",
       start_time: it.start_time || "",
@@ -586,15 +609,11 @@ export default function Trips() {
     
     try {
       // 1. Rota e Distância
-      let route = null;
-      if (selectedRoute && selectedRoute._origin === form.origin && selectedRoute._destination === form.destination) {
-        route = selectedRoute;
-      } else {
-        route = await getRouteData(form.origin, form.destination);
-      }
+      const route = selectedRoute || await getRouteData(form.origin, form.destination);
+      const multiplier = form.trip_type === "round_trip" ? 2 : 1;
       
-      const km = Number(route.distanceKm);
-      const durationHours = route.durationMinutes / 60;
+      const km = Number(route.distanceKm) * multiplier;
+      const durationHours = (route.durationMinutes / 60) * multiplier;
       
       // 2. Preço Diesel (Default SP se não especificado)
       const diesel = await getDieselPrice("SP");
@@ -602,6 +621,7 @@ export default function Trips() {
 
       // 3. Pedágios
       const tolls = await getTollCost(form.origin, form.destination, 6); // 6 eixos default
+      const totalTolls = tolls.cost * multiplier;
       
       // 4. Consumo Caminhão
       const truck = trucks.find(t => String(t.id) === String(form.truck_id));
@@ -623,20 +643,20 @@ export default function Trips() {
       const maintenancePerKm = 1.20; 
       const maintenanceCost = km * maintenancePerKm;
 
-      const total = fuelCost + tolls.cost + driverCost + maintenanceCost;
+      const total = fuelCost + totalTolls + driverCost + maintenanceCost;
 
       setForm(prev => ({
         ...prev,
         planned_km: km,
         planned_duration: `${Math.floor(durationHours)}h ${Math.round((durationHours % 1)*60)}m`,
         planned_fuel_liters: fuelLiters.toFixed(1),
-        planned_toll_cost: tolls.cost.toFixed(2),
+        planned_toll_cost: totalTolls.toFixed(2),
         planned_driver_cost: driverCost.toFixed(2),
         planned_maintenance: maintenanceCost.toFixed(2),
         planned_total_cost: total.toFixed(2),
         // Auto-fill execution fields if empty
         km_trip: prev.km_trip ? prev.km_trip : km.toString(),
-        tolls: prev.tolls ? prev.tolls : tolls.cost.toFixed(2),
+        tolls: prev.tolls ? prev.tolls : totalTolls.toFixed(2),
         fuel_price: prev.fuel_price ? prev.fuel_price : dieselPrice.toFixed(2)
       }));
       
@@ -662,11 +682,14 @@ export default function Trips() {
         route = await getRouteData(form.origin, form.destination);
       }
 
-      const km = Number(route.distanceKm || 0);
+      const multiplier = form.trip_type === "round_trip" ? 2 : 1;
+      const km = (Number(route.distanceKm || 0) * multiplier).toFixed(1);
+      
       const kmStartNum = Number(String(form.km_start || "").replace(",", "."));
-      const newEnd = form.km_start !== "" ? String(kmStartNum + km) : form.km_end;
+      const newEnd = form.km_start !== "" ? String((kmStartNum + Number(km)).toFixed(0)) : form.km_end;
+      
       setForm(prev => ({ ...prev, km_trip: String(km), km_end: newEnd }));
-      toast?.show(`KM preenchido automaticamente: ${km} km`, "success");
+      toast?.show(`KM preenchido automaticamente: ${km} km (${form.trip_type === "round_trip" ? "Ida e Volta" : "Somente Ida"})`, "success");
     } catch (e) {
       toast?.show("Não foi possível obter o KM da rota", "error");
     }
@@ -996,6 +1019,23 @@ export default function Trips() {
               {pranchas.map((p) => <option key={p.id} value={p.asset_number || ''}>{p.asset_number || "Reboque"}{p.is_set && p.asset_number2 ? ` / ${p.asset_number2}` : ""}</option>)}
             </select>
             {validationErrors.prancha_id && <span className="text-red-500 text-xs mt-1">{validationErrors.prancha_id}</span>}
+          </div>
+          <div className="flex flex-col">
+            <span className="label-text text-xs mb-1 font-semibold text-slate-500 uppercase">Trajeto</span>
+            <div className="flex gap-4 p-2 bg-base-100 rounded border border-base-300">
+                <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="trip_type" className="radio radio-primary radio-sm" 
+                           checked={form.trip_type === "one_way"} 
+                           onChange={() => setForm({...form, trip_type: "one_way"})} />
+                    <span className="text-sm">Somente Ida</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="trip_type" className="radio radio-primary radio-sm" 
+                           checked={form.trip_type === "round_trip"} 
+                           onChange={() => setForm({...form, trip_type: "round_trip"})} />
+                    <span className="text-sm">Ida e Volta (x2)</span>
+                </label>
+            </div>
           </div>
           <div className="flex flex-col">
             <div className="flex gap-2">
