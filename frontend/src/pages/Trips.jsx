@@ -156,16 +156,29 @@ export default function Trips() {
 
   const handleRouteSelect = (route) => {
     if (!route) return;
-    setSelectedRoute(route);
+    // Ensure we keep metadata
+    const enriched = { ...route, _origin: form.origin, _destination: form.destination };
+    setSelectedRoute(enriched);
     
     // Apply logic for trip type (round trip doubles distance/duration)
     const multiplier = form.trip_type === "round_trip" ? 2 : 1;
-    
+    const distVal = Number(route.distanceKm || 0);
+    const durVal = Number(route.durationMinutes || 0);
+
+    const totalKm = (distVal * multiplier).toFixed(1);
+    const totalMinutes = durVal * multiplier;
+
     setForm(prev => ({
         ...prev,
-        planned_km: (route.distance / 1000 * multiplier).toFixed(1),
-        planned_duration: formatDuration((route.duration / 60) * multiplier)
+        planned_km: String(totalKm),
+        planned_duration: `${Math.floor(totalMinutes / 60)}h ${Math.round(totalMinutes % 60)}m`
     }));
+    
+    const msg = multiplier === 2 
+      ? `Rota de ${distVal} km selecionada (x2 Ida e Volta = ${totalKm} km)`
+      : `Rota de ${distVal} km selecionada`;
+      
+    toast?.show(msg, "info");
   };
   
   // Re-calculate when trip type changes
@@ -584,20 +597,7 @@ export default function Trips() {
     return `${String(d).padStart(2,"0")}/${String(m).padStart(2,"0")}/${y}`;
   };
 
-  const handleRouteSelect = (route) => {
-    if (!route) return;
-    // Ensure we keep metadata
-    const enriched = { ...route, _origin: form.origin, _destination: form.destination };
-    setSelectedRoute(enriched);
-    
-    // Auto-update planning fields
-    setForm(prev => ({
-        ...prev,
-        planned_km: String(route.distanceKm),
-        planned_duration: `${Math.floor(route.durationMinutes / 60)}h ${Math.round(route.durationMinutes % 60)}m`
-    }));
-    toast?.show(`Rota de ${route.distanceKm} km selecionada`, "info");
-  };
+// Duplicate handleRouteSelect removed
 
   const simulateCosts = async () => {
     if (!form.origin || !form.destination) {
