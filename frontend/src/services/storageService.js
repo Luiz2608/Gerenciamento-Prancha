@@ -1,4 +1,15 @@
-import { supabase as sb } from "./supabaseClient.js";
+let sb = null;
+const getSupabase = async () => {
+  if (sb) return sb;
+  try {
+    const mod = await import("./supabaseClient.js");
+    sb = mod.supabase;
+  } catch (e) {
+    console.warn("Dynamic import of supabaseClient failed", e);
+    sb = null;
+  }
+  return sb;
+};
 
 const KEY = "prancha_json_db";
 
@@ -47,6 +58,7 @@ function enqueue(op) { const q = getQueue(); q.push({ ...op, id: uuid(), when: n
 async function syncPending() {
   if (syncing) return; syncing = true;
   try {
+    const sb = await getSupabase();
     if (!sb || !isOnline()) { syncing = false; return; }
     let q = getQueue();
     if (!Array.isArray(q) || q.length === 0) { syncing = false; return; }
@@ -285,6 +297,7 @@ async function migrateCostsFromTrips(db) {
   const migrated = localStorage.getItem("costs_migrated_v2");
   if (migrated === "true") return;
   
+  const sb = await getSupabase();
   if (sb && isOnline()) {
      // Check if remote already has costs to avoid duplicates if local is fresh
      // This is complex, so we skip if migrated flag is not set but maybe we should set it
@@ -297,6 +310,7 @@ async function migrateCostsFromTrips(db) {
 }
 
 export async function initLoad() {
+  await getSupabase();
   const existing = getDB();
   if (existing) {
     const db = existing;
@@ -371,6 +385,7 @@ export async function login(username, password) {
     localStorage.setItem("user", JSON.stringify(user));
     return { token, user };
   }
+  const sb = await getSupabase();
   if (sb && isOnline()) {
     const { data, error } = await sb.auth.signInWithPassword({ email: String(username), password: String(password) });
     if (error) throw error;
@@ -410,6 +425,7 @@ export async function registerUser(username, password, role = "user") {
     if (!r.ok) throw new Error(j?.error || "Erro ao registrar");
     return j;
   }
+  const sb = await getSupabase();
   if (sb && isOnline()) {
     const { data, error } = await sb.auth.signUp({ email: String(username), password: String(password) });
     if (error) throw error;

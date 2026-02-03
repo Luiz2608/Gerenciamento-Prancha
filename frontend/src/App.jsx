@@ -11,6 +11,7 @@ import ExportarDados from "./pages/ExportarDados.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 
 export default function App() {
+  console.log("App Version: 1.0.2 - Fixed Storage Import");
   return (
     <HashRouter>
       <Routes>
