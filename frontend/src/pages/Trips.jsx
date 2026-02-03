@@ -1,8 +1,11 @@
 import { useEffect, useState, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { getMotoristas, getViagens, getViagem, saveViagem, updateViagem, deleteViagem, getCaminhoes, getPranchas, getCustos } from "../services/storageService.js";
+import { getRouteData, getDieselPrice, getTollCost } from "../services/integrationService.js";
 import { useToast } from "../components/ToastProvider.jsx";
 import { supabase } from "../services/supabaseClient.js";
+import MapModal from "../components/MapModal.jsx";
+import RouteViewer from "../components/RouteViewer.jsx";
 
 export default function Trips() {
   const toast = useToast();
@@ -11,19 +14,144 @@ export default function Trips() {
   const [trucks, setTrucks] = useState([]);
   const [pranchas, setPranchas] = useState([]);
   const [items, setItems] = useState([]);
+  const [mapModal, setMapModal] = useState({ isOpen: false, target: null, initial: "" });
+  const [routePreview, setRoutePreview] = useState(null);
+  const [selectedRoute, setSelectedRoute] = useState(null);
   const tipoOptions = ["Máquinas Agrícolas","Máquinas de Construção","Equipamentos Industriais","Veículos Pesados","Veículos Leves"];
   const [form, setForm] = useState(() => {
     const saved = localStorage.getItem("trips_form_draft");
-    return saved ? JSON.parse(saved) : { date: "", end_date: "", requester: "", driver_id: "", truck_id: "", prancha_id: "", destination: "", location: "", service_type: "", status: "", description: "", start_time: "", end_time: "", km_start: "", km_end: "", km_trip: "", km_per_liter: "", noKmStart: false, noKmEnd: false, fuel_liters: "", noFuelLiters: false, fuel_price: "", noFuelPrice: false, other_costs: "", noOtherCosts: false, maintenance_cost: "", noMaintenanceCost: false, driver_daily: "", noDriverDaily: false };
+    return saved ? JSON.parse(saved) : { 
+      date: "", end_date: "", requester: "", driver_id: "", truck_id: "", prancha_id: "", 
+      destination: "", origin: "Cambuí - MG", location: "", service_type: "", cargo_qty: "",
+      status: "Previsto", description: "", start_time: "", end_time: "", 
+      km_start: "", km_end: "", km_trip: "", km_per_liter: "", noKmStart: false, noKmEnd: false, 
+      fuel_liters: "", noFuelLiters: false, fuel_price: "", noFuelPrice: false, 
+      other_costs: "", noOtherCosts: false, maintenance_cost: "", noMaintenanceCost: false, 
+      driver_daily: "", noDriverDaily: false,
+      tolls: "", freight_value: "", freight_type: "Fechado",
+      planned_km: "", planned_duration: "", planned_fuel_liters: "", planned_toll_cost: "", 
+      planned_driver_cost: "", planned_total_cost: "", planned_maintenance: ""
+    };
   });
+  
+  const [financials, setFinancials] = useState(null);
+
+  // Financial Calculation Logic
+  useEffect(() => {
+    if (!form.truck_id || !form.driver_id) {
+      setFinancials(null);
+      return;
+    }
+
+    const truck = trucks.find(t => String(t.id) === String(form.truck_id));
+    const driver = drivers.find(d => String(d.id) === String(form.driver_id));
+
+    if (!truck || !driver) return;
+
+    // 1. Distância
+    const dist = Number(form.km_trip) || 0;
+    
+    // 2. Receita
+    const revenue = Number(form.freight_value) || 0;
+
+    // 3. Custos Variáveis
+    // Combustível Real
+    const fuelCost = (Number(form.fuel_liters) || 0) * (Number(form.fuel_price) || 0);
+    // Se não tiver abastecimento real, estimar: (Dist / Consumo) * Preço Médio (ex: 6.00)
+    // Mas vamos usar o real se tiver, ou 0.
+    
+    const tolls = Number(form.tolls) || 0;
+    const other = Number(form.other_costs) || 0;
+    const maintenanceVariable = Number(form.maintenance_cost) || 0;
+
+    // Diária Motorista (se for variável)
+    // Aqui assumimos que o form.driver_daily é o custo da viagem específico (ex: diárias de alimentação)
+    const driverVariable = Number(form.driver_daily) || 0;
+
+    // 4. Custos Fixos Proporcionalizados (Estimativa)
+    // Depreciação Caminhão: (Valor - Residual) / Vida Útil
+    const truckValue = Number(truck.vehicle_value) || 0;
+    const residual = Number(truck.residual_value) || 0;
+    const usefulLife = Number(truck.useful_life_km) || 1000000;
+    const depreciationPerKm = (truckValue - residual) / usefulLife;
+
+    // Custos Fixos Anuais Caminhão (Seguro + IPVA + Manut. Fixa) / KM Anual
+    const annualFixed = (Number(truck.annual_insurance)||0) + (Number(truck.annual_taxes)||0) + (Number(truck.annual_maintenance)||0);
+    const annualKm = Number(truck.annual_km) || 120000;
+    const fixedPerKm = annualFixed / annualKm;
+
+    const truckFixedCost = (depreciationPerKm + fixedPerKm) * dist;
+
+    // Custo Fixo Motorista (Salário + Encargos) / Dias da Viagem
+    // Se não tiver dias calculados, usa 1
+    let days = 1;
+    // Tentar calcular dias
+    if (form.date && form.start_time && form.end_date && form.end_time) {
+        // ... logic reuse from calculateDuration if needed, or simple diff
+    }
+    // Custo Diário Motorista (Salário)
+    const driverDailySalary = Number(driver.daily_cost) || 0;
+    const driverFixedCost = driverDailySalary * days; // Simplificação
+
+    const totalVariable = fuelCost + tolls + other + maintenanceVariable + driverVariable;
+    const totalFixed = truckFixedCost + driverFixedCost;
+    const totalCost = totalVariable + totalFixed;
+    
+    const profit = revenue - totalCost;
+    const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
+    const costPerKm = dist > 0 ? totalCost / dist : 0;
+
+    setFinancials({
+      revenue,
+      totalVariable,
+      totalFixed,
+      totalCost,
+      profit,
+      margin,
+      costPerKm,
+      details: {
+        fuel: fuelCost,
+        tolls,
+        driver: driverVariable + driverFixedCost,
+        truck: truckFixedCost + maintenanceVariable,
+        other
+      }
+    });
+
+  }, [form, trucks, drivers]);
   
   const [editing, setEditing] = useState(null);
   const [viewing, setViewing] = useState(null);
   const [showForm, setShowForm] = useState(false);
-  const [kmMode, setKmMode] = useState("");
+  const [kmMode, setKmMode] = useState("KM Caminhão");
   const [showValidation, setShowValidation] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const formRef = useRef(null);
   const lastSubmitTime = useRef(0);
+
+  // Route Preview Effect
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (form.origin && form.destination && form.origin.length > 3 && form.destination.length > 3) {
+         getRouteData(form.origin, form.destination)
+           .then(data => {
+             if (data && data.geometry) {
+               data._origin = form.origin;
+               data._destination = form.destination;
+               setRoutePreview(data);
+               setSelectedRoute(data);
+             }
+           })
+           .catch(err => {
+             console.error("Error fetching route preview:", err);
+           });
+      } else {
+        setRoutePreview(null);
+      }
+    }, 1500); 
+
+    return () => clearTimeout(timer);
+  }, [form.origin, form.destination]);
 
   const calculateDuration = (d1, t1, d2, t2) => {
     if (!d1 || !t1) return "-";
@@ -329,34 +457,64 @@ export default function Trips() {
       clearInterval(interval);
     };
   }, []);
+  const mapTripToForm = (it) => {
+    return {
+      date: it.date ? fromIsoDate(it.date) : "",
+      end_date: it.end_date ? fromIsoDate(it.end_date) : "",
+      requester: it.requester || "",
+      driver_id: it.driver_id?.toString() || "",
+      truck_id: it.truck_id?.toString() || "",
+      prancha_id: (pranchas.find((p) => p.id === it.prancha_id)?.asset_number?.toString()) || (it.prancha_id ? String(it.prancha_id) : ""), 
+      destination: it.destination || "",
+      origin: it.origin || "Cambuí - MG",
+      location: it.location || "",
+      service_type: it.service_type || "",
+      cargo_qty: it.cargo_qty || "",
+      status: it.status || "Previsto",
+      description: it.description || "",
+      start_time: it.start_time || "",
+      end_time: it.end_time || "",
+      
+      km_start: it.km_start != null ? String(it.km_start) : "",
+      km_end: it.km_end != null ? String(it.km_end) : "",
+      km_trip: (it.km_rodado != null ? String(it.km_rodado) : ((it.km_start != null && it.km_end != null) ? String(Math.max(0, Number(it.km_end) - Number(it.km_start))) : "")),
+      km_per_liter: "",
+      noKmStart: it.km_start === null,
+      noKmEnd: it.km_end === null,
+
+      fuel_liters: it.fuel_liters ? String(it.fuel_liters) : "",
+      noFuelLiters: !it.fuel_liters,
+      fuel_price: it.fuel_price ? String(it.fuel_price) : "",
+      noFuelPrice: !it.fuel_price,
+      other_costs: it.other_costs ? String(it.other_costs) : "",
+      noOtherCosts: !it.other_costs,
+      maintenance_cost: it.maintenance_cost ? String(it.maintenance_cost) : "",
+      noMaintenanceCost: !it.maintenance_cost,
+      driver_daily: it.driver_daily ? String(it.driver_daily) : "",
+      noDriverDaily: !it.driver_daily,
+      tolls: it.tolls ? String(it.tolls) : "",
+      freight_value: it.freight_value ? String(it.freight_value) : "",
+      freight_type: it.freight_type || "Fechado",
+      
+      planned_km: it.planned_km ? String(it.planned_km) : "",
+      planned_duration: it.planned_duration || "",
+      planned_fuel_liters: it.planned_fuel_liters ? String(it.planned_fuel_liters) : "",
+      planned_toll_cost: it.planned_toll_cost ? String(it.planned_toll_cost) : "",
+      planned_driver_cost: it.planned_driver_cost ? String(it.planned_driver_cost) : "",
+      planned_total_cost: it.planned_total_cost ? String(it.planned_total_cost) : "",
+      planned_maintenance: it.planned_maintenance ? String(it.planned_maintenance) : ""
+    };
+  };
+
   useEffect(() => {
     const id = new URLSearchParams(location.search).get("editId");
     if (id) {
       getViagem(id).then((it) => {
         setEditing(it);
-        setForm({
-          date: it.date ? fromIsoDate(it.date) : "",
-          end_date: it.end_date ? fromIsoDate(it.end_date) : "",
-          requester: it.requester || "",
-          driver_id: it.driver_id?.toString() || "",
-          truck_id: it.truck_id?.toString() || "",
-          prancha_id: it.prancha_id?.toString() || "",
-          destination: it.destination || "",
-          service_type: it.service_type || "",
-          description: it.description || "",
-          start_time: it.start_time || "",
-          end_time: it.end_time || "",
-          km_start: it.km_start?.toString() || "",
-          km_end: it.km_end?.toString() || "",
-          noKmStart: false,
-          noKmEnd: false,
-          fuel_liters: it.fuel_liters?.toString() || "",
-          fuel_price: it.fuel_price?.toString() || "",
-          other_costs: it.other_costs?.toString() || ""
-        });
+        setForm(mapTripToForm(it));
       });
     }
-  }, [location.search]);
+  }, [location.search, pranchas]);
 
   const maskDate = (v) => {
     const digits = v.replace(/\D/g, "").slice(0,8);
@@ -403,6 +561,117 @@ export default function Trips() {
     return `${String(d).padStart(2,"0")}/${String(m).padStart(2,"0")}/${y}`;
   };
 
+  const handleRouteSelect = (route) => {
+    if (!route) return;
+    // Ensure we keep metadata
+    const enriched = { ...route, _origin: form.origin, _destination: form.destination };
+    setSelectedRoute(enriched);
+    
+    // Auto-update planning fields
+    setForm(prev => ({
+        ...prev,
+        planned_km: String(route.distanceKm),
+        planned_duration: `${Math.floor(route.durationMinutes / 60)}h ${Math.round(route.durationMinutes % 60)}m`
+    }));
+    toast?.show(`Rota de ${route.distanceKm} km selecionada`, "info");
+  };
+
+  const simulateCosts = async () => {
+    if (!form.origin || !form.destination) {
+      toast?.show("Defina Origem e Destino para simular", "warning");
+      return;
+    }
+    
+    toast?.show("Calculando rota e custos...", "info");
+    
+    try {
+      // 1. Rota e Distância
+      let route = null;
+      if (selectedRoute && selectedRoute._origin === form.origin && selectedRoute._destination === form.destination) {
+        route = selectedRoute;
+      } else {
+        route = await getRouteData(form.origin, form.destination);
+      }
+      
+      const km = Number(route.distanceKm);
+      const durationHours = route.durationMinutes / 60;
+      
+      // 2. Preço Diesel (Default SP se não especificado)
+      const diesel = await getDieselPrice("SP");
+      const dieselPrice = diesel.price;
+
+      // 3. Pedágios
+      const tolls = await getTollCost(form.origin, form.destination, 6); // 6 eixos default
+      
+      // 4. Consumo Caminhão
+      const truck = trucks.find(t => String(t.id) === String(form.truck_id));
+      const avgConsumption = truck ? (Number(truck.avg_consumption) || 2.5) : 2.5;
+      const fuelLiters = km / avgConsumption;
+      const fuelCost = fuelLiters * dieselPrice;
+
+      // 5. Motorista
+      const driver = drivers.find(d => String(d.id) === String(form.driver_id));
+      const dailyCost = driver ? (Number(driver.daily_cost) || 0) : 0;
+      // Dias de viagem (mínimo 1)
+      const days = Math.ceil(durationHours / 8); // 8h condução por dia
+      const driverCost = dailyCost * days;
+
+      // 6. Manutenção Estimada
+      // R$ 1.50/km (pneu, óleo, desgaste) se não tiver no caminhão
+      // Vamos tentar pegar do caminhão (custo manutenção anual / km anual) + 1.00 variável?
+      // Simplificando: Manutenção Variável Estimada ~ R$ 1.20/km para prancha
+      const maintenancePerKm = 1.20; 
+      const maintenanceCost = km * maintenancePerKm;
+
+      const total = fuelCost + tolls.cost + driverCost + maintenanceCost;
+
+      setForm(prev => ({
+        ...prev,
+        planned_km: km,
+        planned_duration: `${Math.floor(durationHours)}h ${Math.round((durationHours % 1)*60)}m`,
+        planned_fuel_liters: fuelLiters.toFixed(1),
+        planned_toll_cost: tolls.cost.toFixed(2),
+        planned_driver_cost: driverCost.toFixed(2),
+        planned_maintenance: maintenanceCost.toFixed(2),
+        planned_total_cost: total.toFixed(2),
+        // Auto-fill execution fields if empty
+        km_trip: prev.km_trip ? prev.km_trip : km.toString(),
+        tolls: prev.tolls ? prev.tolls : tolls.cost.toFixed(2),
+        fuel_price: prev.fuel_price ? prev.fuel_price : dieselPrice.toFixed(2)
+      }));
+      
+      toast?.show(`Simulação concluída! Custo Est.: R$ ${total.toFixed(2)}`, "success");
+      
+    } catch (error) {
+      console.error(error);
+      toast?.show("Erro na simulação: " + error.message, "error");
+    }
+  };
+
+  const autoFillKmByRoute = async () => {
+    try {
+      if (!form.origin || !form.destination) {
+        toast?.show("Informe Origem e Destino para obter KM", "warning");
+        return;
+      }
+      
+      let route = null;
+      if (selectedRoute && selectedRoute._origin === form.origin && selectedRoute._destination === form.destination) {
+        route = selectedRoute;
+      } else {
+        route = await getRouteData(form.origin, form.destination);
+      }
+
+      const km = Number(route.distanceKm || 0);
+      const kmStartNum = Number(String(form.km_start || "").replace(",", "."));
+      const newEnd = form.km_start !== "" ? String(kmStartNum + km) : form.km_end;
+      setForm(prev => ({ ...prev, km_trip: String(km), km_end: newEnd }));
+      toast?.show(`KM preenchido automaticamente: ${km} km`, "success");
+    } catch (e) {
+      toast?.show("Não foi possível obter o KM da rota", "error");
+    }
+  };
+
   const getErrors = () => {
     const errs = {};
     if (!form.date) errs.date = "Campo obrigatório";
@@ -440,77 +709,118 @@ export default function Trips() {
   };
   const validationErrors = showValidation ? getErrors() : {};
 
+  const applyPlanningToReal = () => {
+    if (!form.planned_total_cost || Number(form.planned_total_cost) === 0) {
+      toast?.show("Não há dados de planejamento para aplicar", "warning");
+      return;
+    }
+    setForm(prev => ({
+      ...prev,
+      fuel_liters: prev.planned_fuel_liters || prev.fuel_liters,
+      tolls: prev.planned_toll_cost || prev.tolls,
+      maintenance_cost: prev.planned_maintenance || prev.maintenance_cost,
+      driver_daily: prev.planned_driver_cost || prev.driver_daily
+    }));
+    toast?.show("Planejamento aplicado aos custos reais", "success");
+    if (!showAdvanced) setShowAdvanced(true);
+  };
+
   const submit = async (e) => {
     e.preventDefault();
     
-    setShowValidation(true);
-    const errs = getErrors();
-    if (Object.keys(errs).length > 0) {
-        toast?.show("Verifique os campos obrigatórios", "error");
-        if (formRef.current) formRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
-        return;
-    }
-
-    const now = Date.now();
-    if (now - lastSubmitTime.current < 3000) {
-      toast?.show("Aguarde um momento antes de enviar novamente", "warning");
-      return;
-    }
-    lastSubmitTime.current = now;
-
-    const payload = {
-      ...form,
-      date: isValidDate(form.date) ? toIsoDate(form.date) : "",
-      end_date: isValidDate(form.end_date) ? toIsoDate(form.end_date) : (isValidDate(form.date) ? toIsoDate(form.date) : ""),
-      driver_id: form.driver_id ? Number(form.driver_id) : null,
-      truck_id: form.truck_id ? Number(form.truck_id) : null,
-      prancha_id: form.prancha_id ? (pranchas.find((p) => String(p.asset_number || "") === String(form.prancha_id))?.id ?? null) : null,
-      km_start: form.noKmStart ? null : (form.km_start !== "" ? Number(form.km_start) : null),
-      km_end: form.noKmEnd ? null : (form.km_end !== "" ? Number(form.km_end) : null),
-      fuel_liters: form.fuel_liters !== "" ? Number(form.fuel_liters) : 0,
-      fuel_price: form.fuel_price !== "" ? Number(form.fuel_price) : 0,
-      other_costs: form.other_costs !== "" ? Number(form.other_costs) : 0
-    };
-    if (form.km_trip !== "" && form.km_per_liter !== "") {
-      const kmTripNum = Number(form.km_trip);
-      const perLNum = Number(String(form.km_per_liter).replace(",", "."));
-      if (perLNum > 0) payload.fuel_liters = Number((kmTripNum / perLNum).toFixed(2));
-      else toast?.show("KM por litro inválido", "warning");
-    }
-    
-    payload.requester = form.requester;
-    payload.status = form.status;
-    if (editing) {
-      await updateViagem(editing.id, payload);
-    } else {
-      if (payload.truck_id && payload.km_start) {
-        const { data: activeTrips } = await getViagens({ truckId: payload.truck_id, status: "Em Andamento" });
-        if (activeTrips && activeTrips.length > 0) {
-          const lastTrip = activeTrips[0];
-          const lastKmStart = lastTrip.km_start != null ? Number(lastTrip.km_start) : 0;
-          if (lastTrip.km_start != null && payload.km_start < lastKmStart) {
-            toast?.show(`KM inicial (${payload.km_start}) não pode ser menor que o KM inicial da viagem pendente (${lastKmStart})`, "error");
-            return;
-          }
-          await updateViagem(lastTrip.id, {
-            ...lastTrip,
-            km_end: payload.km_start,
-            status: "Finalizado",
-            end_date: payload.date
-          });
-          toast?.show("Viagem anterior finalizada e KM atualizado", "info");
-        }
+    try {
+      setShowValidation(true);
+      const errs = getErrors();
+      if (Object.keys(errs).length > 0) {
+          toast?.show("Verifique os campos obrigatórios", "error");
+          if (formRef.current) formRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+          return;
       }
-      await saveViagem(payload);
+
+      const now = Date.now();
+      if (now - lastSubmitTime.current < 3000) {
+        toast?.show("Aguarde um momento antes de enviar novamente", "warning");
+        return;
+      }
+      lastSubmitTime.current = now;
+
+      const payload = {
+        ...form,
+        date: isValidDate(form.date) ? toIsoDate(form.date) : "",
+        end_date: isValidDate(form.end_date) ? toIsoDate(form.end_date) : (isValidDate(form.date) ? toIsoDate(form.date) : ""),
+        driver_id: form.driver_id ? Number(form.driver_id) : null,
+        truck_id: form.truck_id ? Number(form.truck_id) : null,
+        prancha_id: form.prancha_id ? (pranchas.find((p) => String(p.asset_number || "") === String(form.prancha_id))?.id ?? null) : null,
+        km_start: form.noKmStart ? null : (form.km_start !== "" ? Number(form.km_start) : null),
+        km_end: form.noKmEnd ? null : (form.km_end !== "" ? Number(form.km_end) : null),
+        fuel_liters: form.fuel_liters !== "" ? Number(form.fuel_liters) : 0,
+        fuel_price: form.fuel_price !== "" ? Number(form.fuel_price) : 0,
+        other_costs: form.other_costs !== "" ? Number(form.other_costs) : 0,
+        maintenance_cost: form.maintenance_cost !== "" ? Number(form.maintenance_cost) : 0,
+        driver_daily: form.driver_daily !== "" ? Number(form.driver_daily) : 0,
+        tolls: form.tolls !== "" ? Number(form.tolls) : 0,
+        freight_value: form.freight_value !== "" ? Number(form.freight_value) : 0,
+        origin: form.origin,
+        cargo_qty: form.cargo_qty,
+        // Planned costs
+        planned_km: form.planned_km !== "" ? Number(form.planned_km) : 0,
+        planned_duration: form.planned_duration,
+        planned_fuel_liters: form.planned_fuel_liters !== "" ? Number(form.planned_fuel_liters) : 0,
+        planned_toll_cost: form.planned_toll_cost !== "" ? Number(form.planned_toll_cost) : 0,
+        planned_driver_cost: form.planned_driver_cost !== "" ? Number(form.planned_driver_cost) : 0,
+        planned_maintenance: form.planned_maintenance !== "" ? Number(form.planned_maintenance) : 0,
+        planned_total_cost: form.planned_total_cost !== "" ? Number(form.planned_total_cost) : 0
+      };
+      if (form.km_trip !== "" && form.km_per_liter !== "") {
+        const kmTripNum = Number(form.km_trip);
+        const perLNum = Number(String(form.km_per_liter).replace(",", "."));
+        if (perLNum > 0) payload.fuel_liters = Number((kmTripNum / perLNum).toFixed(2));
+        else toast?.show("KM por litro inválido", "warning");
+      }
+      
+      payload.requester = form.requester;
+      payload.status = form.status;
+      if (editing) {
+        await updateViagem(editing.id, payload);
+      } else {
+        if (payload.truck_id && payload.km_start) {
+          const { data: activeTrips } = await getViagens({ truckId: payload.truck_id, status: "Em Andamento" });
+          if (activeTrips && activeTrips.length > 0) {
+            const lastTrip = activeTrips[0];
+            const lastKmStart = lastTrip.km_start != null ? Number(lastTrip.km_start) : 0;
+            if (lastTrip.km_start != null && payload.km_start < lastKmStart) {
+              toast?.show(`KM inicial (${payload.km_start}) não pode ser menor que o KM inicial da viagem pendente (${lastKmStart})`, "error");
+              return;
+            }
+            await updateViagem(lastTrip.id, {
+              ...lastTrip,
+              km_end: payload.km_start,
+              status: "Finalizado",
+              end_date: payload.date
+            });
+            toast?.show("Viagem anterior finalizada e KM atualizado", "info");
+          }
+        }
+        await saveViagem(payload);
+      }
+      toast?.show(editing ? "Viagem atualizada" : "Viagem cadastrada", "success");
+      localStorage.removeItem("trips_form_draft");
+      setForm({ date: "", end_date: "", requester: "", driver_id: "", truck_id: "", prancha_id: "", destination: "", origin: "", location: "", service_type: "", cargo_qty: "", status: "", description: "", start_time: "", end_time: "", km_start: "", km_end: "", km_trip: "", km_per_liter: "", noKmStart: false, noKmEnd: false, fuel_liters: "", noFuelLiters: false, fuel_price: "", noFuelPrice: false, other_costs: "", noOtherCosts: false, maintenance_cost: "", noMaintenanceCost: false, driver_daily: "", noDriverDaily: false, tolls: "", freight_value: "" });
+      setEditing(null);
+      setShowForm(false);
+      setShowValidation(false);
+      loadTrips();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (error) {
+      console.error("Erro ao salvar viagem:", error);
+      let msg = "Erro desconhecido";
+      if (typeof error === "string") msg = error;
+      else if (error?.message) msg = error.message;
+      else if (error?.error_description) msg = error.error_description;
+      else if (error?.details) msg = error.details;
+      else msg = JSON.stringify(error);
+      toast?.show(`Erro ao salvar: ${msg}`, "error");
     }
-    toast?.show(editing ? "Viagem atualizada" : "Viagem cadastrada", "success");
-    localStorage.removeItem("trips_form_draft");
-    setForm({ date: "", end_date: "", requester: "", driver_id: "", truck_id: "", prancha_id: "", destination: "", location: "", service_type: "", status: "", description: "", start_time: "", end_time: "", km_start: "", km_end: "", km_trip: "", km_per_liter: "", noKmStart: false, noKmEnd: false, fuel_liters: "", noFuelLiters: false, fuel_price: "", noFuelPrice: false, other_costs: "", noOtherCosts: false, maintenance_cost: "", noMaintenanceCost: false, driver_daily: "", noDriverDaily: false });
-    setEditing(null);
-    setShowForm(false);
-    setShowValidation(false);
-    loadTrips();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleFormKeyDown = (e) => {
@@ -537,41 +847,22 @@ export default function Trips() {
       setKmMode("KM Caminhão"); // Default
     }
 
-    setForm({
-      date: it.date ? fromIsoDate(it.date) : "",
-      end_date: it.end_date ? fromIsoDate(it.end_date) : "",
-      requester: it.requester || "",
-      driver_id: it.driver_id?.toString() || "",
-      truck_id: it.truck_id?.toString() || "",
-      prancha_id: (pranchas.find((p) => p.id === it.prancha_id)?.asset_number?.toString()) || "",
-      destination: it.destination || "",
-      location: it.location || "",
-      service_type: it.service_type || "",
-      status: it.status || "",
-      description: it.description || "",
-      start_time: it.start_time || "",
-      end_time: it.end_time || "",
-      km_start: it.km_start != null ? String(it.km_start) : "",
-      km_end: it.km_end != null ? String(it.km_end) : "",
-      km_trip: (it.km_rodado != null ? String(it.km_rodado) : ((it.km_start != null && it.km_end != null) ? String(Math.max(0, Number(it.km_end) - Number(it.km_start))) : "")),
-      noKmStart: it.km_start === null,
-      noKmEnd: it.km_end === null,
-      fuel_liters: it.fuel_liters ? String(it.fuel_liters) : "",
-      noFuelLiters: !it.fuel_liters,
-      fuel_price: it.fuel_price ? String(it.fuel_price) : "",
-      noFuelPrice: !it.fuel_price,
-      other_costs: it.other_costs ? String(it.other_costs) : "",
-      noOtherCosts: !it.other_costs,
-      maintenance_cost: it.maintenance_cost ? String(it.maintenance_cost) : "",
-      noMaintenanceCost: !it.maintenance_cost,
-      driver_daily: it.driver_daily ? String(it.driver_daily) : "",
-      noDriverDaily: !it.driver_daily
-    });
+    setForm(mapTripToForm(it));
     toast?.show("Edição carregada", "info");
     setTimeout(() => {
       if (formRef.current) formRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
       else window.scrollTo({ top: 0, behavior: "smooth" });
     }, 100);
+  };
+
+  const openMap = (target) => {
+    setMapModal({ isOpen: true, target, initial: form[target] });
+  };
+
+  const handleMapSelect = (address) => {
+    if (mapModal.target) {
+      setForm(prev => ({ ...prev, [mapModal.target]: address }));
+    }
   };
 
   const del = async (id) => { await deleteViagem(id); toast?.show("Viagem excluída", "success"); loadTrips(); };
@@ -646,9 +937,33 @@ export default function Trips() {
       )}
 
       {(showForm || editing) && (
-      <div ref={formRef} className="card p-6 animate-fade">
-        <div className="font-semibold mb-4 text-secondary text-xl">Cadastro de Viagens</div>
-        <form onSubmit={submit} onKeyDown={handleFormKeyDown} className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade overflow-y-auto">
+        <div ref={formRef} className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-7xl relative flex flex-col max-h-[90vh] overflow-y-auto border border-slate-200 dark:border-slate-700">
+          <div className="p-6">
+            <div className="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-700 pb-4">
+              <div>
+                <div className="font-bold text-2xl text-slate-800 dark:text-white flex items-center gap-2">
+                  <span className="material-icons text-primary">local_shipping</span> 
+                  {editing ? `Editar Viagem #${editing.id}` : "Nova Viagem"}
+                </div>
+                <div className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                  Preencha os dados abaixo para registrar ou editar uma viagem
+                </div>
+              </div>
+              <button 
+                onClick={() => { setShowForm(false); setEditing(null); }} 
+                className="btn btn-ghost btn-circle text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700"
+              >
+                <span className="material-icons">close</span>
+              </button>
+            </div>
+
+            <div className="mb-4 text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg border border-slate-100 dark:border-slate-700 flex items-center gap-2">
+              <span className="material-icons text-blue-500 text-sm">info</span>
+              Passos: 1) Dados básicos • 2) Simular custos • 3) Conferir • 4) Salvar
+            </div>
+
+            <form onSubmit={submit} onKeyDown={handleFormKeyDown} className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="flex flex-col">
             <input className={`input ${validationErrors.date ? 'ring-red-500 border-red-500' : ''}`} placeholder="Data (DD/MM/YY) *" value={form.date} onChange={(e) => setForm({ ...form, date: maskDate(e.target.value) })} />
             {validationErrors.date && <span className="text-red-500 text-xs mt-1">{validationErrors.date}</span>}
@@ -683,9 +998,36 @@ export default function Trips() {
             {validationErrors.prancha_id && <span className="text-red-500 text-xs mt-1">{validationErrors.prancha_id}</span>}
           </div>
           <div className="flex flex-col">
-            <input className={`input ${validationErrors.destination ? 'ring-red-500 border-red-500' : ''}`} placeholder="Destino *" value={form.destination} onChange={(e) => setForm({ ...form, destination: e.target.value })} />
+            <div className="flex gap-2">
+              <input className={`input flex-1 ${validationErrors.origin ? 'ring-red-500 border-red-500' : ''}`} placeholder="Origem *" value={form.origin} onChange={(e) => setForm({ ...form, origin: e.target.value })} />
+              <button type="button" className="btn btn-square btn-outline btn-secondary" onClick={() => openMap('origin')} title="Selecionar no Mapa">
+                <span className="material-icons">map</span>
+              </button>
+            </div>
+            {validationErrors.origin && <span className="text-red-500 text-xs mt-1">{validationErrors.origin}</span>}
+          </div>
+          <div className="flex flex-col">
+            <div className="flex gap-2">
+              <input className={`input flex-1 ${validationErrors.destination ? 'ring-red-500 border-red-500' : ''}`} placeholder="Destino *" value={form.destination} onChange={(e) => setForm({ ...form, destination: e.target.value })} />
+              <button type="button" className="btn btn-square btn-outline btn-secondary" onClick={() => openMap('destination')} title="Selecionar no Mapa">
+                <span className="material-icons">map</span>
+              </button>
+            </div>
             {validationErrors.destination && <span className="text-red-500 text-xs mt-1">{validationErrors.destination}</span>}
           </div>
+
+          {routePreview && (
+            <div className="col-span-1 md:col-span-4 mt-2 animate-fade">
+              <div className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-2 flex items-center gap-2">
+                <span className="material-icons text-primary">alt_route</span>
+                Rota Sugerida: {selectedRoute?.distanceKm || routePreview.distanceKm} km • {Math.floor((selectedRoute?.durationMinutes || routePreview.durationMinutes) / 60)}h {Math.round((selectedRoute?.durationMinutes || routePreview.durationMinutes) % 60)}m
+              </div>
+              <div className="h-64 w-full rounded-lg overflow-hidden border border-slate-300 dark:border-slate-600 shadow-sm relative z-0">
+                 <RouteViewer routeData={routePreview} inline={true} onRouteSelect={handleRouteSelect} />
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-col">
             <select className={`select ${validationErrors.location ? 'ring-red-500 border-red-500' : ''}`} value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })}>
               <option value="" disabled>Unidade *</option>
@@ -711,6 +1053,58 @@ export default function Trips() {
               <option value="Finalizado">Finalizado</option>
             </select>
             {validationErrors.status && <span className="text-red-500 text-xs mt-1">{validationErrors.status}</span>}
+          </div>
+
+          <div className="md:col-span-4 grid grid-cols-1 md:grid-cols-3 gap-4 border p-4 rounded-lg bg-base-200">
+            <div className="col-span-full flex items-center justify-between">
+               <h3 className="font-bold text-lg text-secondary">Planejamento da Viagem</h3>
+               <div className="flex gap-2">
+                 <button type="button" onClick={simulateCosts} className="btn btn-sm btn-primary">
+                   <span className="material-icons text-sm">calculate</span> Simular Custos
+                 </button>
+                 {(Number(form.planned_total_cost) > 0) && (
+                   <button type="button" onClick={applyPlanningToReal} className="btn btn-sm btn-secondary" title="Copiar valores planejados para os custos reais">
+                     <span className="material-icons text-sm">content_copy</span> Aplicar
+                   </button>
+                 )}
+               </div>
+            </div>
+            {(Number(form.planned_total_cost) > 0) && (
+              <>
+                <div className="stats shadow bg-base-100">
+                  <div className="stat p-2">
+                    <div className="stat-title text-xs">Distância Est.</div>
+                    <div className="stat-value text-lg">{form.planned_km} km</div>
+                    <div className="stat-desc">{form.planned_duration}</div>
+                  </div>
+                </div>
+                <div className="stats shadow bg-base-100">
+                  <div className="stat p-2">
+                    <div className="stat-title text-xs">Custo Total Est.</div>
+                    <div className="stat-value text-lg text-primary">R$ {form.planned_total_cost}</div>
+                    <div className="stat-desc">Diesel + Pedágio + Outros</div>
+                  </div>
+                </div>
+                 <div className="col-span-full grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mt-2 bg-base-100 p-3 rounded shadow-sm">
+                    <div className="flex flex-col">
+                      <span className="text-xs opacity-70">Diesel Est.</span>
+                      <span className="font-semibold">{form.planned_fuel_liters} L (R$ {(Number(form.planned_fuel_liters) * (Number(form.fuel_price) || 6.15)).toFixed(2)})</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-xs opacity-70">Pedágio Est.</span>
+                      <span className="font-semibold">R$ {form.planned_toll_cost}</span>
+                    </div>
+                     <div className="flex flex-col">
+                      <span className="text-xs opacity-70">Manutenção Est.</span>
+                      <span className="font-semibold">R$ {form.planned_maintenance}</span>
+                    </div>
+                     <div className="flex flex-col">
+                      <span className="text-xs opacity-70">Motorista Est.</span>
+                      <span className="font-semibold">R$ {form.planned_driver_cost}</span>
+                    </div>
+                 </div>
+              </>
+            )}
           </div>
           <div className="flex flex-col md:col-span-4">
             <input className="input" placeholder="Descrição" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
@@ -759,6 +1153,9 @@ export default function Trips() {
                     }} disabled={form.noKmEnd || !(form.status === 'Em Andamento' || form.status === 'Finalizado')} />
                     <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={form.noKmEnd} onChange={(e) => setForm({ ...form, noKmEnd: e.target.checked, km_end: e.target.checked ? '' : form.km_end })} /> Não registrado</label>
                   </div>
+                  <button type="button" className="btn btn-xs btn-secondary mt-1 w-full" onClick={autoFillKmByRoute} title="Calcular KM Final baseado na rota">
+                    <span className="material-icons text-xs">near_me</span> Preencher KM Final pela Rota
+                  </button>
                   {validationErrors.km_end && <span className="text-red-500 text-xs mt-1">{validationErrors.km_end}</span>}
                 </div>
               </div>
@@ -766,15 +1163,20 @@ export default function Trips() {
             {kmMode === 'KM da Viagem' && (
               <div className="mt-3 space-y-3">
                 <div className="flex flex-col">
-                  <input className={`input ${validationErrors.km_trip ? 'ring-red-500 border-red-500' : ''}`} placeholder="KM da Viagem" inputMode="decimal" maxLength={10} value={form.km_trip} onChange={(e) => {
-                    const val = e.target.value.replace(/[^0-9.,]/g, '').slice(0, 10);
-                    const kmStartNum = Number((form.km_start || '').replace(',', '.'));
-                    const vNum = Number(val.replace(',', '.') || '');
-                    const newEnd = form.km_start !== '' ? String(kmStartNum + vNum) : form.km_end;
-                    const perLNum = Number(String(form.km_per_liter || '').replace(',', '.'));
-                    const autoLiters = perLNum > 0 && vNum >= 0 ? String((vNum / perLNum).toFixed(2)) : form.fuel_liters;
-                    setForm({ ...form, km_trip: val, km_end: newEnd, fuel_liters: autoLiters });
-                  }} />
+                  <div className="flex gap-2">
+                    <input className={`input flex-1 ${validationErrors.km_trip ? 'ring-red-500 border-red-500' : ''}`} placeholder="KM da Viagem" inputMode="decimal" maxLength={10} value={form.km_trip} onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9.,]/g, '').slice(0, 10);
+                      const kmStartNum = Number((form.km_start || '').replace(',', '.'));
+                      const vNum = Number(val.replace(',', '.') || '');
+                      const newEnd = form.km_start !== '' ? String(kmStartNum + vNum) : form.km_end;
+                      const perLNum = Number(String(form.km_per_liter || '').replace(',', '.'));
+                      const autoLiters = perLNum > 0 && vNum >= 0 ? String((vNum / perLNum).toFixed(2)) : form.fuel_liters;
+                      setForm({ ...form, km_trip: val, km_end: newEnd, fuel_liters: autoLiters });
+                    }} />
+                    <button type="button" className="btn btn-secondary whitespace-nowrap" onClick={autoFillKmByRoute}>
+                      <span className="material-icons text-sm">near_me</span> Preencher pela Rota
+                    </button>
+                  </div>
                   {validationErrors.km_trip && <span className="text-red-500 text-xs mt-1">{validationErrors.km_trip}</span>}
                 </div>
                 <input className="input" placeholder="KM por Litro (Consumo do Caminhão)" inputMode="decimal" value={form.km_per_liter} onChange={(e) => {
@@ -788,102 +1190,113 @@ export default function Trips() {
               </div>
             )}
           </div>
-          <div className="flex flex-col">
-            <div className="flex items-center gap-2">
-              <input className="input flex-1 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-500" placeholder="Combustível (litros)" value={form.fuel_liters} onChange={(e) => setForm({ ...form, fuel_liters: e.target.value })} disabled={form.noFuelLiters} />
-              <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={form.noFuelLiters} onChange={(e) => setForm({ ...form, noFuelLiters: e.target.checked, fuel_liters: e.target.checked ? '' : form.fuel_liters })} /> Não registrado</label>
+          <div className="md:col-span-4 border p-4 rounded-lg">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-lg text-secondary">Execução / Custos Reais</h3>
+              <button type="button" className="btn btn-sm btn-secondary" onClick={() => setShowAdvanced(!showAdvanced)}>
+                {showAdvanced ? "Ocultar" : "Mostrar"}
+              </button>
             </div>
-          </div>
-          <div className="flex flex-col">
-            <div className="flex gap-2">
-              <div className="flex-1 flex items-center gap-2">
-                <input className="input flex-1 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-500" placeholder="Valor combustível (R$/litro)" value={form.fuel_price} onChange={(e) => setForm({ ...form, fuel_price: e.target.value })} disabled={form.noFuelPrice} />
-                <label className="flex items-center gap-1 text-sm whitespace-nowrap"><input type="checkbox" checked={form.noFuelPrice} onChange={(e) => setForm({ ...form, noFuelPrice: e.target.checked, fuel_price: e.target.checked ? '' : form.fuel_price })} /> N/R</label>
+            {showAdvanced && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-2">
+                    <input className="input flex-1 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-500" placeholder="Combustível (litros)" value={form.fuel_liters} onChange={(e) => setForm({ ...form, fuel_liters: e.target.value })} disabled={form.noFuelLiters} />
+                    <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={form.noFuelLiters} onChange={(e) => setForm({ ...form, noFuelLiters: e.target.checked, fuel_liters: e.target.checked ? '' : form.fuel_liters })} /> Não registrado</label>
+                  </div>
+                </div>
+                <div className="flex flex-col">
+                  <div className="flex gap-2">
+                    <div className="flex-1 flex items-center gap-2">
+                      <input className="input flex-1 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-500" placeholder="Valor combustível (R$/litro)" value={form.fuel_price} onChange={(e) => setForm({ ...form, fuel_price: e.target.value })} disabled={form.noFuelPrice} />
+                      <label className="flex items-center gap-1 text-sm whitespace-nowrap"><input type="checkbox" checked={form.noFuelPrice} onChange={(e) => setForm({ ...form, noFuelPrice: e.target.checked, fuel_price: e.target.checked ? '' : form.fuel_price })} /> N/R</label>
+                    </div>
+                    <button type="button" className="btn btn-secondary" onClick={async () => {
+                      try {
+                        const petroUrl = "https://precos.petrobras.com.br/sele%C3%A7%C3%A3o-de-estados-diesel";
+                        const extract = (html) => {
+                          const txt = String(html || "");
+                          const m = txt.match(/Pre\s?ço\s?M[ée]dio\s?do\s?Brasil[^\n]*?R\$\s*([0-9]{1,2}[\.,][0-9]{2})/i);
+                          if (m) return Number(m[1].replace(/\./g, "").replace(",", "."));
+                          const m2 = txt.match(/Diesel\s*S-?10[^\n]*?R\$\s*([0-9]{1,2}[\.,][0-9]{2})/i);
+                          if (m2) return Number(m2[1].replace(/\./g, "").replace(",", "."));
+                          return 0;
+                        };
+                        let v = 0;
+                        try {
+                          const rJina = `https://r.jina.ai/http://${petroUrl.replace(/^https?:\/\//, "")}`;
+                          const r1 = await fetch(rJina);
+                          if (r1.ok) { const t1 = await r1.text(); v = extract(t1) || 0; }
+                        } catch {}
+                        if (!v) {
+                          try {
+                            const proxyGet = `https://api.allorigins.win/get?url=${encodeURIComponent(petroUrl)}`;
+                            const r2 = await fetch(proxyGet);
+                            if (r2.ok) { const j2 = await r2.json(); v = extract(j2.contents) || 0; }
+                          } catch {}
+                        }
+                        if (!v) {
+                          try {
+                            const proxyRaw = `https://api.allorigins.win/raw?url=${encodeURIComponent(petroUrl)}`;
+                            const r3 = await fetch(proxyRaw);
+                            if (r3.ok) { const t3 = await r3.text(); v = extract(t3) || 0; }
+                          } catch {}
+                        }
+                        if (v > 0) { setForm({ ...form, fuel_price: String(v.toFixed(2)) }); toast?.show("Preço obtido do site da Petrobras", "success"); return; }
+                        const apiUrl = import.meta?.env?.VITE_FUEL_API_URL;
+                        if (apiUrl) {
+                          const resp = await fetch(apiUrl);
+                          const json = await resp.json();
+                          const v2 = Number(json?.diesel ?? json?.gasolina ?? json?.fuel_price ?? 0);
+                          if (v2 > 0) { setForm({ ...form, fuel_price: String(v2.toFixed(2)) }); toast?.show("Preço obtido pela API", "success"); return; }
+                        }
+                        const custos = await getCustos({ page: 1, pageSize: 200 });
+                        const lastCusto = custos.data.find((c) => Number(c.valorLitro || 0) > 0);
+                        if (lastCusto) { setForm({ ...form, fuel_price: String(Number(lastCusto.valorLitro).toFixed(2)) }); toast?.show("Preço preenchido com último custo", "info"); return; }
+                        const r = await getViagens({ page: 1, pageSize: 1000 });
+                        const lastTrip = r.data.find((t) => Number(t.fuel_price || 0) > 0);
+                        if (lastTrip) { setForm({ ...form, fuel_price: String(Number(lastTrip.fuel_price).toFixed(2)) }); toast?.show("Preço preenchido com última viagem", "info"); return; }
+                        setForm({ ...form, fuel_price: String(Number(6.0).toFixed(2)) });
+                        toast?.show("Preço padrão aplicado (R$ 6,00)", "info");
+                      } catch { toast?.show("Não foi possível obter preço", "error"); }
+                    }}>Buscar preço</button>
+                  </div>
+                </div>
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-2">
+                    <input className="input flex-1 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-500" placeholder="Outros custos (R$)" value={form.other_costs} onChange={(e) => setForm({ ...form, other_costs: e.target.value })} disabled={form.noOtherCosts} />
+                    <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={form.noOtherCosts} onChange={(e) => setForm({ ...form, noOtherCosts: e.target.checked, other_costs: e.target.checked ? '' : form.other_costs })} /> Não registrado</label>
+                  </div>
+                </div>
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-2">
+                    <input className="input flex-1 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-500" placeholder="Manutenção (R$)" value={form.maintenance_cost} onChange={(e) => setForm({ ...form, maintenance_cost: e.target.value })} disabled={form.noMaintenanceCost} />
+                    <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={form.noMaintenanceCost} onChange={(e) => setForm({ ...form, noMaintenanceCost: e.target.checked, maintenance_cost: e.target.checked ? '' : form.maintenance_cost })} /> Não registrado</label>
+                  </div>
+                </div>
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-2">
+                    <input className="input flex-1 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-500" placeholder="Diária do motorista (R$)" value={form.driver_daily} onChange={(e) => setForm({ ...form, driver_daily: e.target.value })} disabled={form.noDriverDaily} />
+                    <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={form.noDriverDaily} onChange={(e) => setForm({ ...form, noDriverDaily: e.target.checked, driver_daily: e.target.checked ? '' : form.driver_daily })} /> Não registrado</label>
+                  </div>
+                </div>
               </div>
-              <button type="button" className="btn btn-secondary" onClick={async () => {
-                try {
-                  const petroUrl = "https://precos.petrobras.com.br/sele%C3%A7%C3%A3o-de-estados-diesel";
-                  const extract = (html) => {
-                    const txt = String(html || "");
-                    const m = txt.match(/Pre\s?ço\s?M[ée]dio\s?do\s?Brasil[^\n]*?R\$\s*([0-9]{1,2}[\.,][0-9]{2})/i);
-                    if (m) return Number(m[1].replace(/\./g, "").replace(",", "."));
-                    const m2 = txt.match(/Diesel\s*S-?10[^\n]*?R\$\s*([0-9]{1,2}[\.,][0-9]{2})/i);
-                    if (m2) return Number(m2[1].replace(/\./g, "").replace(",", "."));
-                    return 0;
-                  };
-                  let v = 0;
-                  try {
-                    const rJina = `https://r.jina.ai/http://${petroUrl.replace(/^https?:\/\//, "")}`;
-                    const r1 = await fetch(rJina);
-                    if (r1.ok) { const t1 = await r1.text(); v = extract(t1) || 0; }
-                  } catch {}
-                  if (!v) {
-                    try {
-                      const proxyGet = `https://api.allorigins.win/get?url=${encodeURIComponent(petroUrl)}`;
-                      const r2 = await fetch(proxyGet);
-                      if (r2.ok) { const j2 = await r2.json(); v = extract(j2.contents) || 0; }
-                    } catch {}
-                  }
-                  if (!v) {
-                    try {
-                      const proxyRaw = `https://api.allorigins.win/raw?url=${encodeURIComponent(petroUrl)}`;
-                      const r3 = await fetch(proxyRaw);
-                      if (r3.ok) { const t3 = await r3.text(); v = extract(t3) || 0; }
-                    } catch {}
-                  }
-                  if (v > 0) { setForm({ ...form, fuel_price: String(v.toFixed(2)) }); toast?.show("Preço obtido do site da Petrobras", "success"); return; }
-                  const apiUrl = import.meta?.env?.VITE_FUEL_API_URL;
-                  if (apiUrl) {
-                    const resp = await fetch(apiUrl);
-                    const json = await resp.json();
-                    const v2 = Number(json?.diesel ?? json?.gasolina ?? json?.fuel_price ?? 0);
-                    if (v2 > 0) { setForm({ ...form, fuel_price: String(v2.toFixed(2)) }); toast?.show("Preço obtido pela API", "success"); return; }
-                  }
-                  const custos = await getCustos({ page: 1, pageSize: 200 });
-                  const lastCusto = custos.data.find((c) => Number(c.valorLitro || 0) > 0);
-                  if (lastCusto) { setForm({ ...form, fuel_price: String(Number(lastCusto.valorLitro).toFixed(2)) }); toast?.show("Preço preenchido com último custo", "info"); return; }
-                  const r = await getViagens({ page: 1, pageSize: 1000 });
-                  const lastTrip = r.data.find((t) => Number(t.fuel_price || 0) > 0);
-                  if (lastTrip) { setForm({ ...form, fuel_price: String(Number(lastTrip.fuel_price).toFixed(2)) }); toast?.show("Preço preenchido com última viagem", "info"); return; }
-                  setForm({ ...form, fuel_price: String(Number(6.0).toFixed(2)) });
-                  toast?.show("Preço padrão aplicado (R$ 6,00)", "info");
-                } catch { toast?.show("Não foi possível obter preço", "error"); }
-              }}>Buscar preço</button>
-            </div>
+            )}
           </div>
-          <div className="flex flex-col">
-            <div className="flex items-center gap-2">
-              <input className="input flex-1 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-500" placeholder="Outros custos (R$)" value={form.other_costs} onChange={(e) => setForm({ ...form, other_costs: e.target.value })} disabled={form.noOtherCosts} />
-              <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={form.noOtherCosts} onChange={(e) => setForm({ ...form, noOtherCosts: e.target.checked, other_costs: e.target.checked ? '' : form.other_costs })} /> Não registrado</label>
-            </div>
-          </div>
-          <div className="flex flex-col">
-            <div className="flex items-center gap-2">
-              <input className="input flex-1 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-500" placeholder="Manutenção (R$)" value={form.maintenance_cost} onChange={(e) => setForm({ ...form, maintenance_cost: e.target.value })} disabled={form.noMaintenanceCost} />
-              <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={form.noMaintenanceCost} onChange={(e) => setForm({ ...form, noMaintenanceCost: e.target.checked, maintenance_cost: e.target.checked ? '' : form.maintenance_cost })} /> Não registrado</label>
-            </div>
-          </div>
-          <div className="flex flex-col">
-            <div className="flex items-center gap-2">
-              <input className="input flex-1 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-500" placeholder="Diária do motorista (R$)" value={form.driver_daily} onChange={(e) => setForm({ ...form, driver_daily: e.target.value })} disabled={form.noDriverDaily} />
-              <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={form.noDriverDaily} onChange={(e) => setForm({ ...form, noDriverDaily: e.target.checked, driver_daily: e.target.checked ? '' : form.driver_daily })} /> Não registrado</label>
-            </div>
-          </div>
-          <div className="md:col-span-4 flex gap-4">
-             <button type="submit" className="btn btn-primary">{editing ? "Salvar" : "Adicionar"}</button>
-             <button type="button" className="btn bg-gray-500 hover:bg-gray-600 text-white" onClick={() => {
+          <div className="flex flex-col md:flex-row justify-end gap-4 md:col-span-4 mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+             <button type="button" className="btn btn-ghost text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={() => {
                setEditing(null);
                setShowForm(false);
                setShowValidation(false);
-               setForm({
-                 date: "", end_date: "", requester: "", driver_id: "", truck_id: "", prancha_id: "", destination: "", location: "", service_type: "", status: "", description: "",
-                 start_time: "", end_time: "", km_start: "", km_end: "", km_trip: "", km_per_liter: "", noKmStart: false, noKmEnd: false,
-                 fuel_liters: "", noFuelLiters: false, fuel_price: "", noFuelPrice: false, other_costs: "", noOtherCosts: false,
-                 maintenance_cost: "", noMaintenanceCost: false, driver_daily: "", noDriverDaily: false
-               });
+               // Optional: Reset form if desired, or keep draft
              }}>Cancelar</button>
+            <button type="submit" className="btn btn-primary w-full md:w-auto px-8 shadow-lg hover:shadow-blue-500/30 transition-all transform active:scale-95">
+              <span className="material-icons">save</span> {editing ? "Salvar Alterações" : "Salvar Viagem"}
+            </button>
           </div>
         </form>
+          </div>
+        </div>
       </div>
       )}
       
@@ -1125,7 +1538,50 @@ export default function Trips() {
                 </div>
 
                 <div className="col-span-full border-t border-slate-200 dark:border-slate-700 pt-4">
-                  <h3 className="font-semibold text-lg mb-4 text-secondary">Custos</h3>
+                  {(Number(viewing.planned_total_cost) > 0) && (
+                    <div className="mb-6">
+                      <h3 className="font-semibold text-lg mb-4 text-secondary">Conciliação: Planejado vs Real</h3>
+                      <div className="overflow-x-auto bg-slate-50 dark:bg-slate-900 rounded-lg p-2">
+                        <table className="table w-full text-sm">
+                          <thead>
+                            <tr className="text-slate-500">
+                              <th>Item</th>
+                              <th>Planejado</th>
+                              <th>Real</th>
+                              <th>Diferença</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr>
+                              <td className="font-medium">Distância</td>
+                              <td>{viewing.planned_km} km</td>
+                              <td>{viewing.km_rodado || 0} km</td>
+                              <td className={(Number(viewing.km_rodado || 0) > Number(viewing.planned_km || 0)) ? "text-red-500 font-bold" : "text-green-600 font-bold"}>
+                                {((Number(viewing.km_rodado || 0) - Number(viewing.planned_km || 0))).toFixed(1)} km
+                              </td>
+                            </tr>
+                            <tr>
+                              <td className="font-medium">Diesel (L)</td>
+                              <td>{viewing.planned_fuel_liters} L</td>
+                              <td>{viewing.fuel_liters || 0} L</td>
+                              <td className={(Number(viewing.fuel_liters || 0) > Number(viewing.planned_fuel_liters || 0)) ? "text-red-500 font-bold" : "text-green-600 font-bold"}>
+                                {((Number(viewing.fuel_liters || 0) - Number(viewing.planned_fuel_liters || 0))).toFixed(1)} L
+                              </td>
+                            </tr>
+                            <tr>
+                              <td className="font-medium">Custo Total</td>
+                              <td>R$ {Number(viewing.planned_total_cost).toFixed(2)}</td>
+                              <td>R$ {(viewing.total_cost || 0).toFixed(2)}</td>
+                              <td className={(Number(viewing.total_cost || 0) > Number(viewing.planned_total_cost || 0)) ? "text-red-500 font-bold" : "text-green-600 font-bold"}>
+                                R$ {((Number(viewing.total_cost || 0) - Number(viewing.planned_total_cost || 0))).toFixed(2)}
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                  <h3 className="font-semibold text-lg mb-4 text-secondary">Custos Realizados</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     <div className="space-y-1">
                       <div className="text-sm font-medium text-slate-500 dark:text-slate-400">Combustível</div>
@@ -1172,6 +1628,16 @@ export default function Trips() {
           </div>
         </div>
       )}
+      
+      <MapModal 
+        isOpen={mapModal.isOpen}
+        onClose={() => setMapModal({ ...mapModal, isOpen: false })}
+        onSelect={(addr) => {
+          handleMapSelect(addr);
+          setMapModal({ ...mapModal, isOpen: false });
+        }}
+        initialAddress={mapModal.initial}
+      />
     </div>
   );
 }

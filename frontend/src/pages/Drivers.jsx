@@ -13,8 +13,25 @@ export default function Drivers() {
   const [total, setTotal] = useState(0);
   const [form, setForm] = useState(() => {
     const saved = localStorage.getItem("drivers_form_draft");
-    return saved ? JSON.parse(saved) : { name: "", cpf: "", cnh_number: "", cnh_category: "", status: "Ativo" };
+    return saved ? JSON.parse(saved) : { name: "", cpf: "", cnh_number: "", cnh_category: "", status: "Ativo", salary_base: "", charges_percent: "", daily_cost: "" };
   });
+
+  // Auto-calculate daily cost when salary or charges change
+  useEffect(() => {
+    if (form.salary_base) {
+      const sal = Number(form.salary_base);
+      const charges = form.charges_percent ? Number(form.charges_percent) : 0;
+      const totalMonthly = sal * (1 + (charges / 100));
+      // Considering 30 days average
+      const daily = totalMonthly / 30;
+      // Only update if not manually edited recently? For now, let's just update if it's empty or matching previous calc
+      // Simpler: Just update it. User can override if they want, but this effect runs on change.
+      // To avoid overwrite loop, we might need a flag, but for now let's just let user type in daily_cost if they want, 
+      // but maybe we can just have a button "Calcular Diária" or do it automatically only if daily_cost is empty.
+      // Let's do: automatic calculation.
+      setForm(prev => ({ ...prev, daily_cost: daily.toFixed(2) }));
+    }
+  }, [form.salary_base, form.charges_percent]);
 
   const [editing, setEditing] = useState(null);
   const [showForm, setShowForm] = useState(false);
@@ -68,7 +85,7 @@ export default function Drivers() {
       if (editing) { await updateMotorista(editing.id, form); toast?.show("Motorista atualizado", "success"); }
       else { await saveMotorista(form); toast?.show("Motorista cadastrado", "success"); }
       localStorage.removeItem("drivers_form_draft");
-      setForm({ name: "", cpf: "", cnh_number: "", cnh_category: "", status: "Ativo" });
+      setForm({ name: "", cpf: "", cnh_number: "", cnh_category: "", status: "Ativo", salary_base: "", charges_percent: "", daily_cost: "" });
       setEditing(null);
       setShowForm(false);
       load();
@@ -91,7 +108,7 @@ export default function Drivers() {
 
   const edit = (it) => {
     setEditing(it);
-    setForm({ name: it.name, cpf: it.cpf || "", cnh_category: it.cnh_category || "", status: it.status });
+    setForm({ name: it.name, cpf: it.cpf || "", cnh_number: it.cnh_number || "", cnh_category: it.cnh_category || "", status: it.status, salary_base: it.salary_base || "", charges_percent: it.charges_percent || "", daily_cost: it.daily_cost || "" });
     setShowForm(true);
     toast?.show("Edição carregada", "info");
     setTimeout(() => {
@@ -196,6 +213,43 @@ export default function Drivers() {
                 <option value="Férias">Férias</option>
               </select>
             </div>
+            
+            <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4 border-t pt-4 mt-2">
+                <div className="md:col-span-3 font-semibold text-slate-700 dark:text-slate-300 mb-1">Dados Financeiros (Custos)</div>
+                <div>
+                  <label className="label">Salário Base (R$)</label>
+                  <input
+                    type="number"
+                    className="input"
+                    placeholder="0.00"
+                    value={form.salary_base || ""}
+                    onChange={(e) => setForm({ ...form, salary_base: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="label">Encargos (%)</label>
+                  <input
+                    type="number"
+                    className="input"
+                    placeholder="Ex: 60"
+                    value={form.charges_percent || ""}
+                    onChange={(e) => setForm({ ...form, charges_percent: e.target.value })}
+                  />
+                  <div className="text-xs text-slate-500 mt-1">INSS, FGTS, 13º, Férias</div>
+                </div>
+                <div>
+                  <label className="label">Custo Diário (R$)</label>
+                  <input
+                    type="number"
+                    className="input bg-slate-50"
+                    placeholder="Calculado..."
+                    value={form.daily_cost || ""}
+                    onChange={(e) => setForm({ ...form, daily_cost: e.target.value })}
+                  />
+                  <div className="text-xs text-slate-500 mt-1">Custo dia efetivo</div>
+                </div>
+            </div>
+
             <div className="md:col-span-2 flex justify-end gap-2 mt-2">
               {editing && (
                 <button

@@ -57,6 +57,11 @@ export default function Dashboard() {
 
   const formatCurrency = (value) => `R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const formatNumber = (value) => Number(value).toLocaleString('pt-BR');
+  const formatDuration = (val) => {
+    const h = Math.floor(val);
+    const m = Math.round((val - h) * 60);
+    return `${h}h ${m}m`;
+  };
 
   if (!data) return <div className="animate-fade">Carregando...</div>;
 
@@ -113,6 +118,18 @@ export default function Dashboard() {
           </div>
         </div>
 
+        <div className="card card-hover p-6 border-t-4 border-indigo-500">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 text-indigo-600 flex items-center justify-center text-2xl">📉</div>
+              <div>
+                <div className="text-sm font-medium text-slate-600 dark:text-slate-400">Custo por Km</div>
+                <div className="text-3xl font-bold">{formatCurrency(data.costPerKm || 0)}<span className="text-sm font-normal text-slate-500">/km</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="card card-hover p-6 border-t-4 border-green-500">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -151,6 +168,16 @@ export default function Dashboard() {
             <div>
               <div className="text-sm font-medium text-slate-600 dark:text-slate-400">Caminhões Disponíveis</div>
               <div className="text-3xl font-bold">{data.trucksAvailable || 0} <span className="text-xs text-slate-500 font-normal">/ {data.totalTrucks || 0}</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div className="card card-hover p-6 border-t-4 border-orange-500">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-orange-500/20 text-orange-600 flex items-center justify-center text-2xl">💤</div>
+            <div>
+              <div className="text-sm font-medium text-slate-600 dark:text-slate-400">Ociosidade da Frota</div>
+              <div className="text-3xl font-bold">{Number(data.idlePercentage || 0).toFixed(1)}%</div>
             </div>
           </div>
         </div>
@@ -214,10 +241,10 @@ export default function Dashboard() {
                 <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
                 <XAxis dataKey="month" tick={{ fill: labelColor }} axisLine={false} tickLine={false} />
                 <YAxis width={65} tickMargin={10} tick={{ fill: labelColor }} axisLine={false} tickLine={false} tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : `${v}h`} />
-                <Tooltip contentStyle={{ backgroundColor: isDark ? '#1f2937' : '#fff', borderColor: gridColor, color: labelColor }} formatter={(v) => [`${formatNumber(v)}h`, 'Horas Trabalhadas']} />
+                <Tooltip contentStyle={{ backgroundColor: isDark ? '#1f2937' : '#fff', borderColor: gridColor, color: labelColor }} formatter={(v) => [formatDuration(v), 'Horas Trabalhadas']} />
                 <Legend wrapperStyle={{ color: labelColor }} />
                 <Line name="Horas Trabalhadas" type="monotone" dataKey="hours" stroke="#38bdf8" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }}>
-                  <LabelList dataKey="hours" position="top" fill={labelColor} formatter={(v) => v >= 1000 ? `${(v/1000).toFixed(1)}k` : (v > 0 ? v : '')} />
+                  <LabelList dataKey="hours" position="top" fill={labelColor} formatter={(v) => v >= 1000 ? `${(v/1000).toFixed(1)}k` : (v > 0 ? formatDuration(v) : '')} />
                 </Line>
               </LineChart>
             </ResponsiveContainer>

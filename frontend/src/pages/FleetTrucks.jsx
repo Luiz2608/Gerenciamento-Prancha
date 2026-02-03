@@ -8,7 +8,11 @@ export default function FleetTrucks() {
   const [items, setItems] = useState([]);
   const [form, setForm] = useState(() => {
     const saved = localStorage.getItem("trucks_form_draft");
-    return saved ? JSON.parse(saved) : { plate: "", model: "", year: "", chassis: "", km_current: "", fleet: "", status: "Ativo" };
+    return saved ? JSON.parse(saved) : { 
+      plate: "", model: "", year: "", chassis: "", km_current: "", fleet: "", status: "Ativo",
+      vehicle_value: "", residual_value: "", useful_life_km: "1000000", avg_consumption: "2.5",
+      annual_maintenance: "", annual_insurance: "", annual_taxes: "", annual_km: "120000"
+    };
   });
   
   const [editing, setEditing] = useState(null);
@@ -88,14 +92,22 @@ export default function FleetTrucks() {
       capacity: form.capacity ? Number(form.capacity) : null,
       km_current: form.km_current ? Number(form.km_current) : null,
       fleet: form.fleet || null,
-      status: form.status || "Ativo"
+      status: form.status || "Ativo",
+      vehicle_value: form.vehicle_value ? Number(form.vehicle_value) : 0,
+      residual_value: form.residual_value ? Number(form.residual_value) : 0,
+      useful_life_km: form.useful_life_km ? Number(form.useful_life_km) : 1000000,
+      avg_consumption: form.avg_consumption ? Number(form.avg_consumption) : 0,
+      annual_maintenance: form.annual_maintenance ? Number(form.annual_maintenance) : 0,
+      annual_insurance: form.annual_insurance ? Number(form.annual_insurance) : 0,
+      annual_taxes: form.annual_taxes ? Number(form.annual_taxes) : 0,
+      annual_km: form.annual_km ? Number(form.annual_km) : 0
     };
     if (!payload.plate || !payload.model || !payload.year) { const field = !payload.plate ? "Placa" : (!payload.model ? "Modelo" : "Ano"); toast?.show(`Erro → Aba Caminhão → Campo ${field} obrigatório`, "error"); return; }
     if (editing) await updateCaminhao(editing.id, payload);
     else await saveCaminhao(payload);
     localStorage.removeItem("trucks_form_draft");
     toast?.show(editing ? "Caminhão atualizado" : "Caminhão cadastrado", "success");
-    setForm({ plate: "", model: "", year: "", asset_number: "", capacity: "", km_current: "", fleet: "", status: "Ativo" });
+    setForm({ plate: "", model: "", year: "", asset_number: "", capacity: "", km_current: "", fleet: "", status: "Ativo", vehicle_value: "", residual_value: "", useful_life_km: "1000000", avg_consumption: "2.5", annual_maintenance: "", annual_insurance: "", annual_taxes: "", annual_km: "120000" });
     setEditing(null);
     setShowForm(false);
     load();
@@ -113,7 +125,13 @@ export default function FleetTrucks() {
   };
   const edit = (it) => { 
     setEditing(it); 
-    setForm({ plate: it.plate || "", model: it.model || "", year: it.year?.toString() || "", chassis: it.chassis || "", km_current: it.km_current?.toString() || "", fleet: it.fleet || "", status: it.status }); 
+    setForm({ 
+      plate: it.plate || "", model: it.model || "", year: it.year?.toString() || "", chassis: it.chassis || "", 
+      km_current: it.km_current?.toString() || "", fleet: it.fleet || "", status: it.status,
+      vehicle_value: it.vehicle_value || "", residual_value: it.residual_value || "", useful_life_km: it.useful_life_km || "1000000",
+      avg_consumption: it.avg_consumption || "2.5", annual_maintenance: it.annual_maintenance || "", 
+      annual_insurance: it.annual_insurance || "", annual_taxes: it.annual_taxes || "", annual_km: it.annual_km || "120000"
+    }); 
     setShowForm(true);
     toast?.show("Edição carregada", "info"); 
     setTimeout(() => {
@@ -155,9 +173,48 @@ export default function FleetTrucks() {
               <option>Ativo</option>
               <option>Manutenção</option>
             </select>
+
+            <div className="col-span-1 md:col-span-6 border-t pt-4 mt-2 mb-2">
+              <div className="font-semibold text-slate-700 dark:text-slate-300 mb-2">Custos Fixos e Operacionais</div>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                  <label className="label text-xs">Valor do Veículo (R$)</label>
+                  <input className="input" placeholder="0.00" value={form.vehicle_value} onChange={(e) => setForm({ ...form, vehicle_value: e.target.value })} />
+                </div>
+                <div>
+                  <label className="label text-xs">Valor Residual (R$)</label>
+                  <input className="input" placeholder="0.00" value={form.residual_value} onChange={(e) => setForm({ ...form, residual_value: e.target.value })} />
+                </div>
+                <div>
+                  <label className="label text-xs">Vida Útil (km)</label>
+                  <input className="input" placeholder="Ex: 1000000" value={form.useful_life_km} onChange={(e) => setForm({ ...form, useful_life_km: e.target.value })} />
+                </div>
+                <div>
+                  <label className="label text-xs">Consumo Médio (km/l)</label>
+                  <input className="input" placeholder="Ex: 2.5" value={form.avg_consumption} onChange={(e) => setForm({ ...form, avg_consumption: e.target.value })} />
+                </div>
+                <div>
+                  <label className="label text-xs">Manutenção Anual (R$)</label>
+                  <input className="input" placeholder="Orçamento anual" value={form.annual_maintenance} onChange={(e) => setForm({ ...form, annual_maintenance: e.target.value })} />
+                </div>
+                <div>
+                  <label className="label text-xs">Seguro Anual (R$)</label>
+                  <input className="input" placeholder="Prêmio anual" value={form.annual_insurance} onChange={(e) => setForm({ ...form, annual_insurance: e.target.value })} />
+                </div>
+                <div>
+                  <label className="label text-xs">Licenças/Impostos (R$)</label>
+                  <input className="input" placeholder="IPVA, Licenciamento" value={form.annual_taxes} onChange={(e) => setForm({ ...form, annual_taxes: e.target.value })} />
+                </div>
+                <div>
+                  <label className="label text-xs">KM Anual Estimado</label>
+                  <input className="input" placeholder="Para rateio" value={form.annual_km} onChange={(e) => setForm({ ...form, annual_km: e.target.value })} />
+                </div>
+              </div>
+            </div>
+
             <div className="flex gap-2 md:col-span-6">
               <button className="btn btn-primary flex-1">{editing ? "Salvar" : "Adicionar"}</button>
-              <button type="button" className="btn bg-gray-500 hover:bg-gray-600 text-white" onClick={() => { setShowForm(false); setEditing(null); localStorage.removeItem("trucks_form_draft"); setForm({ plate: "", model: "", year: "", asset_number: "", capacity: "", km_current: "", fleet: "", status: "Ativo" }); }}>Cancelar</button>
+              <button type="button" className="btn bg-gray-500 hover:bg-gray-600 text-white" onClick={() => { setShowForm(false); setEditing(null); localStorage.removeItem("trucks_form_draft"); setForm({ plate: "", model: "", year: "", asset_number: "", capacity: "", km_current: "", fleet: "", status: "Ativo", vehicle_value: "", residual_value: "", useful_life_km: "1000000", avg_consumption: "2.5", annual_maintenance: "", annual_insurance: "", annual_taxes: "", annual_km: "120000" }); }}>Cancelar</button>
             </div>
           </form>
         </div>

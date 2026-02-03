@@ -1,0 +1,258 @@
+import { useEffect, useRef, useState } from 'react';
+
+export default function MapModal({ isOpen, onClose, onSelect, initialAddress }) {
+  const mapRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const markerRef = useRef(null);
+  const [query, setQuery] = useState("");
+  const [selectedLocation, setSelectedLocation] = useState(null); // { lat, lon, display_name }
+  const [loading, setLoading] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    // Init map if not exists
+    if (!mapInstanceRef.current && mapRef.current) {
+      const L = window.L;
+      if (!L) return;
+
+      const map = L.map(mapRef.current).setView([-22.6122, -46.0575], 13); // Cambuí default
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(map);
+
+      map.on('click', async (e) => {
+        const { lat, lng } = e.latlng;
+        updateMarker(lat, lng);
+        reverseGeocode(lat, lng);
+      });
+
+      mapInstanceRef.current = map;
+    }
+
+    // Wait for map to be ready then resize
+    setTimeout(() => {
+      if (mapInstanceRef.current) mapInstanceRef.current.invalidateSize();
+    }, 100);
+
+    // If initial address provided, search it
+    if (initialAddress && initialAddress.length > 3) {
+      setQuery(initialAddress);
+      searchLocation(initialAddress);
+    }
+
+    // Cleanup function
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+    };
+  }, [isOpen]);
+
+  // Fix Leaflet icon issue
+  useEffect(() => {
+    const L = window.L;
+    if (L) {
+      delete L.Icon.Default.prototype._getIconUrl;
+      L.Icon.Default.mergeOptions({
+        iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+        iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+      });
+    }
+  }, []);
+
+  const updateMarker = (lat, lng) => {
+    const L = window.L;
+    if (!mapInstanceRef.current || !L) return;
+
+    if (markerRef.current) {
+      markerRef.current.setLatLng([lat, lng]);
+    } else {
+      markerRef.current = L.marker([lat, lng]).addTo(mapInstanceRef.current);
+    }
+    mapInstanceRef.current.panTo([lat, lng]);
+  };
+
+  const searchLocation = async (q) => {
+    if (!q) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`);
+      const data = await res.json();
+      if (data && data.length > 0) {
+        const first = data[0];
+        const lat = parseFloat(first.lat);
+        const lon = parseFloat(first.lon);
+        updateMarker(lat, lon);
+        setSelectedLocation({ lat, lon, display_name: first.display_name });
+      }
+    } catch (e) {
+      console.error("Geocoding error", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const reverseGeocode = async (lat, lon) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
+      const data = await res.json();
+      if (data) {
+        // Try to construct a shorter address
+        const addr = data.address || {};
+        const shortAddr = [
+          addr.road || addr.street,
+          addr.house_number,
+          addr.suburb || addr.neighborhood,
+          addr.city || addr.town || addr.village || addr.municipality,
+          addr.state_district || addr.state
+        ].filter(Boolean).join(", ");
+        
+        setSelectedLocation({ lat, lon, display_name: shortAddr || data.display_name, full: data });
+      }
+    } catch (e) {
+      console.error("Reverse geocoding error", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConfirm = () => {
+    if (selectedLocation) {
+      onSelect(selectedLocation.display_name);
+    }
+    onClose();
+  };
+
+  const handleLocateMe = () => {
+    if (!navigator.geolocation) return;
+    setLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        updateMarker(latitude, longitude);
+        reverseGeocode(latitude, longitude);
+        setLoading(false);
+      },
+      (err) => {
+        console.error(err);
+        setLoading(false);
+      }
+    );
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className={`fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade ${isFullscreen ? 'p-0' : 'p-4'}`}>
+      <div className={`bg-white dark:bg-slate-800 shadow-2xl flex flex-col border border-slate-200 dark:border-slate-700 overflow-hidden transition-all duration-300 ${
+        isFullscreen 
+          ? "w-screen h-screen rounded-none" 
+          : "w-full max-w-7xl h-[90vh] rounded-xl"
+      }`}>
+        
+        {/* Header */}
+        <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-white dark:bg-slate-800">
+          <div>
+             <h3 className="font-bold text-xl text-slate-800 dark:text-white flex items-center gap-2">
+               <span className="material-icons text-primary">map</span> Selecionar Localização
+             </h3>
+             <p className="text-xs text-slate-500 dark:text-slate-400">Busque um endereço ou clique no mapa</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => {
+                setIsFullscreen(!isFullscreen);
+                setTimeout(() => {
+                  if (mapInstanceRef.current) mapInstanceRef.current.invalidateSize();
+                }, 300);
+              }} 
+              className="btn btn-ghost btn-sm btn-circle text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700"
+              title={isFullscreen ? "Sair da Tela Cheia" : "Tela Cheia"}
+            >
+              <span className="material-icons">{isFullscreen ? 'fullscreen_exit' : 'fullscreen'}</span>
+            </button>
+            <button onClick={onClose} className="btn btn-ghost btn-sm btn-circle text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700">
+              <span className="material-icons">close</span>
+            </button>
+          </div>
+        </div>
+        
+        {/* Search Bar */}
+        <div className="p-4 bg-slate-50 dark:bg-slate-900/50 flex gap-2 border-b border-slate-100 dark:border-slate-700">
+          <div className="flex-1 relative">
+            <input 
+              className="input input-bordered w-full pl-10 bg-white dark:bg-slate-800 dark:border-slate-600 dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-all" 
+              placeholder="Digite o endereço (Rua, Cidade, Estado...)" 
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && searchLocation(query)}
+            />
+            <span className="material-icons absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+          </div>
+          <button 
+            className="btn btn-primary px-6" 
+            onClick={() => searchLocation(query)} 
+            disabled={loading}
+          >
+            {loading ? <span className="loading loading-spinner loading-xs"></span> : "Buscar"}
+          </button>
+          <button 
+            className="btn btn-square btn-outline btn-secondary" 
+            onClick={handleLocateMe}
+            title="Minha Localização"
+          >
+            <span className="material-icons">my_location</span>
+          </button>
+        </div>
+
+        {/* Map Area */}
+        <div className="flex-1 relative bg-slate-100 dark:bg-slate-900">
+          <div ref={mapRef} className="absolute inset-0 z-0" />
+          
+          {/* Floating info if needed, currently empty */}
+          {loading && (
+             <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-white dark:bg-slate-800 px-4 py-2 rounded-full shadow-lg z-[400] flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+               <span className="loading loading-spinner loading-xs text-primary"></span>
+               Carregando mapa...
+             </div>
+          )}
+        </div>
+
+        {/* Footer / Selection Info */}
+        <div className="p-4 border-t border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="flex-1 w-full">
+            <div className="text-xs text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider mb-1">Endereço Selecionado</div>
+            <div className={`text-sm p-3 rounded-lg border ${selectedLocation ? 'bg-blue-50 border-blue-100 text-blue-800 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-200' : 'bg-slate-50 border-slate-100 text-slate-500 dark:bg-slate-800 dark:border-slate-700'}`}>
+              {selectedLocation ? (
+                <div className="flex items-start gap-2">
+                  <span className="material-icons text-blue-500 text-sm mt-0.5">place</span>
+                  <span className="font-medium">{selectedLocation.display_name}</span>
+                </div>
+              ) : (
+                <span className="italic">Nenhum local selecionado. Clique no mapa ou busque acima.</span>
+              )}
+            </div>
+          </div>
+          
+          <div className="flex gap-3 w-full md:w-auto mt-2 md:mt-0">
+            <button className="btn btn-ghost text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 flex-1 md:flex-none" onClick={onClose}>
+              Cancelar
+            </button>
+            <button 
+              className="btn btn-success text-white px-8 flex-1 md:flex-none shadow-lg hover:shadow-green-500/30 transition-all transform active:scale-95" 
+              onClick={handleConfirm}
+              disabled={!selectedLocation}
+            >
+              <span className="material-icons">check_circle</span> Confirmar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

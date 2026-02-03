@@ -153,12 +153,16 @@ async function syncPending() {
               km_start: src.km_start != null ? Number(src.km_start) : null,
               km_end: src.km_end != null ? Number(src.km_end) : null,
               fuel_liters: src.fuel_liters != null ? Number(src.fuel_liters) : 0,
-              fuel_price: src.fuel_price != null ? Number(src.fuel_price) : 0,
-              other_costs: src.other_costs != null ? Number(src.other_costs) : 0,
-              maintenance_cost: src.maintenance_cost != null ? Number(src.maintenance_cost) : 0,
-              driver_daily: src.driver_daily != null ? Number(src.driver_daily) : 0,
-              requester: src.requester || null,
-              status: computeStatus(src.end_time, src.km_end)
+      fuel_price: src.fuel_price != null ? Number(src.fuel_price) : 0,
+      other_costs: src.other_costs != null ? Number(src.other_costs) : 0,
+      maintenance_cost: src.maintenance_cost != null ? Number(src.maintenance_cost) : 0,
+      driver_daily: src.driver_daily != null ? Number(src.driver_daily) : 0,
+      tolls: src.tolls != null ? Number(src.tolls) : 0,
+      freight_value: src.freight_value != null ? Number(src.freight_value) : 0,
+      requester: src.requester || null,
+      origin: src.origin || null,
+      cargo_qty: src.cargo_qty || null,
+      status: computeStatus(src.end_time, src.km_end)
             };
             const row = await processInsert("viagens", p);
             const oldId = it.localId;
@@ -183,12 +187,16 @@ async function syncPending() {
               km_start: src.km_start != null ? Number(src.km_start) : null,
               km_end: src.km_end != null ? Number(src.km_end) : null,
               fuel_liters: src.fuel_liters != null ? Number(src.fuel_liters) : 0,
-              fuel_price: src.fuel_price != null ? Number(src.fuel_price) : 0,
-              other_costs: src.other_costs != null ? Number(src.other_costs) : 0,
-              maintenance_cost: src.maintenance_cost != null ? Number(src.maintenance_cost) : 0,
-              driver_daily: src.driver_daily != null ? Number(src.driver_daily) : 0,
-              requester: src.requester || null,
-              status: computeStatus(src.end_time, src.km_end)
+      fuel_price: src.fuel_price != null ? Number(src.fuel_price) : 0,
+      other_costs: src.other_costs != null ? Number(src.other_costs) : 0,
+      maintenance_cost: src.maintenance_cost != null ? Number(src.maintenance_cost) : 0,
+      driver_daily: src.driver_daily != null ? Number(src.driver_daily) : 0,
+      tolls: src.tolls != null ? Number(src.tolls) : 0,
+      freight_value: src.freight_value != null ? Number(src.freight_value) : 0,
+      requester: src.requester || null,
+      origin: src.origin || null,
+      cargo_qty: src.cargo_qty || null,
+      status: computeStatus(src.end_time, src.km_end)
             };
             await processUpdate("viagens", "id", id, p);
           } else if (it.op === "delete") {
@@ -239,28 +247,36 @@ async function fetchJson(path, fallback) {
 }
 
 const computeKm = (a, b) => (a == null || b == null ? 0 : Math.max(0, Number(b) - Number(a)));
-const computeHours = (date, s, e, endDate) => {
+const computeMinutes = (date, s, e, endDate) => {
   if (!date || !s || !e) return 0;
-  const [sh, sm] = String(s).split(":").map((x) => Number(x) || 0);
-  const [eh, em] = String(e).split(":").map((x) => Number(x) || 0);
-  const startMin = sh * 60 + sm;
-  const endMin = eh * 60 + em;
-  let diffMin = endMin - startMin;
-  if (diffMin < 0) diffMin += 24 * 60;
-  if (endDate && endDate !== date) {
-    const parseIso = (iso) => {
-      const [y, m, d] = String(iso || "").split("-").map(Number);
-      if (!y || !m || !d) return null;
-      return new Date(y, (m - 1), d);
-    };
-    const d1 = parseIso(date);
-    const d2 = parseIso(endDate);
-    if (d1 && d2) {
-      const days = Math.max(0, Math.round((d2 - d1) / (24 * 60 * 60 * 1000)));
-      diffMin += days * 24 * 60;
-    }
+  
+  const parseDate = (dStr, tStr) => {
+    const [y, m, d] = String(dStr).split("-").map(Number);
+    const [h, min] = String(tStr).split(":").map(Number);
+    if (!y || !m || !d) return null;
+    return new Date(y, m - 1, d, h || 0, min || 0);
+  };
+
+  const start = parseDate(date, s);
+  // If endDate is missing/empty, default to date
+  const end = parseDate(endDate || date, e);
+
+  if (!start || !end) return 0;
+
+  // If no explicit endDate was provided (or it was same as date),
+  // and end time is before start time, assume it crossed midnight to next day.
+  // Note: If endDate was provided and distinct, we trust the date difference.
+  if ((!endDate || endDate === date) && end < start) {
+    end.setDate(end.getDate() + 1);
   }
-  return Math.round((diffMin / 60) * 100) / 100;
+
+  const diffMs = end - start;
+  return Math.max(0, Math.round(diffMs / 60000));
+};
+
+const computeHours = (date, s, e, endDate) => {
+  const min = computeMinutes(date, s, e, endDate);
+  return Math.round((min / 60) * 100) / 100;
 };
 const computeStatus = (end_time, km_end) => (!end_time || end_time === "" || km_end == null || km_end === "" ? "Em Andamento" : "Finalizado");
 
@@ -567,7 +583,21 @@ export async function getViagens(opts = {}) {
   return { data, total, page: Number(page), pageSize: Number(pageSize) };
 }
 export async function getViagem(id) { await initLoad(); if (API_URL) { const r = await api(`/api/viagens/${id}`); if (!r.ok) return null; const j = await r.json(); return { ...j, end_date: j.end_date || j.date }; } if (sb && isOnline()) { const { data: t } = await sb.from("viagens").select("*").eq("id", Number(id)).single(); if (!t) return null; return { ...t, end_date: t.end_date || t.date, km_rodado: computeKm(t.km_start, t.km_end), horas: computeHours(t.date, t.start_time, t.end_time, t.end_date || t.date) }; } const db = getDB(); const t = db.viagens.find((x) => x.id === Number(id)); if (!t) return null; return { ...t, end_date: t.end_date || t.date, km_rodado: computeKm(t.km_start, t.km_end), horas: computeHours(t.date, t.start_time, t.end_time, t.end_date || t.date) }; }
-export async function saveViagem(data) { await initLoad(); if (API_URL) { const r = await api("/api/viagens", { method: "POST", body: JSON.stringify(data) }); return await r.json(); } if (sb && isOnline()) { const status = data.status || computeStatus(data.end_time, data.km_end); const payload = { date: data.date, driver_id: Number(data.driver_id), truck_id: data.truck_id != null ? Number(data.truck_id) : null, prancha_id: data.prancha_id != null ? Number(data.prancha_id) : null, destination: data.destination || null, location: data.location || null, service_type: data.service_type || null, description: data.description || null, start_time: data.start_time || null, end_time: data.end_time || null, km_start: data.km_start != null ? Number(data.km_start) : null, km_end: data.km_end != null ? Number(data.km_end) : null, fuel_liters: data.fuel_liters != null ? Number(data.fuel_liters) : 0, fuel_price: data.fuel_price != null ? Number(data.fuel_price) : 0, other_costs: data.other_costs != null ? Number(data.other_costs) : 0, maintenance_cost: data.maintenance_cost != null ? Number(data.maintenance_cost) : 0, driver_daily: data.driver_daily != null ? Number(data.driver_daily) : 0, requester: data.requester || null, status };
+export async function saveViagem(data) { await initLoad(); if (API_URL) { const r = await api("/api/viagens", { method: "POST", body: JSON.stringify(data) }); return await r.json(); } if (sb && isOnline()) { const status = data.status || computeStatus(data.end_time, data.km_end); const payload = { date: data.date, driver_id: Number(data.driver_id), truck_id: data.truck_id != null ? Number(data.truck_id) : null, prancha_id: data.prancha_id != null ? Number(data.prancha_id) : null, destination: data.destination || null, location: data.location || null, service_type: data.service_type || null, description: data.description || null, start_time: data.start_time || null, end_time: data.end_time || null, km_start: data.km_start != null ? Number(data.km_start) : null, km_end: data.km_end != null ? Number(data.km_end) : null, fuel_liters: data.fuel_liters != null ? Number(data.fuel_liters) : 0, fuel_price: data.fuel_price != null ? Number(data.fuel_price) : 0, other_costs: data.other_costs != null ? Number(data.other_costs) : 0, maintenance_cost: data.maintenance_cost != null ? Number(data.maintenance_cost) : 0, driver_daily: data.driver_daily != null ? Number(data.driver_daily) : 0,
+      tolls: data.tolls != null ? Number(data.tolls) : 0,
+      freight_value: data.freight_value != null ? Number(data.freight_value) : 0,
+      origin: data.origin || null,
+      cargo_qty: data.cargo_qty || null,
+      planned_km: data.planned_km != null ? Number(data.planned_km) : 0,
+      planned_duration: data.planned_duration || null,
+      planned_fuel_liters: data.planned_fuel_liters != null ? Number(data.planned_fuel_liters) : 0,
+      planned_toll_cost: data.planned_toll_cost != null ? Number(data.planned_toll_cost) : 0,
+      planned_driver_cost: data.planned_driver_cost != null ? Number(data.planned_driver_cost) : 0,
+      planned_maintenance: data.planned_maintenance != null ? Number(data.planned_maintenance) : 0,
+      planned_total_cost: data.planned_total_cost != null ? Number(data.planned_total_cost) : 0,
+      requester: data.requester || null,
+      status
+    };
   const { data: row, error } = await sb.from("viagens").insert([payload]).select().single();
   if (error) throw error;
   if (row) {
@@ -575,7 +605,7 @@ export async function saveViagem(data) { await initLoad(); if (API_URL) { const 
     return { ...row, km_rodado: computeKm(row.km_start, row.km_end), horas: computeHours(row.date, row.start_time, row.end_time, row.end_date || row.date), total_cost: Number(row.fuel_liters || 0) * Number(row.fuel_price || 0) + Number(row.other_costs || 0) + Number(row.maintenance_cost || 0) + Number(row.driver_daily || 0) };
   }
 }
-const db = getDB(); const id = db.seq.viagens++; const status = data.status || computeStatus(data.end_time, data.km_end); const t = { id, date: data.date, end_date: data.end_date || data.date, driver_id: Number(data.driver_id), truck_id: data.truck_id != null ? Number(data.truck_id) : null, prancha_id: data.prancha_id != null ? Number(data.prancha_id) : null, destination: data.destination || null, location: data.location || null, service_type: data.service_type || null, description: data.description || null, start_time: data.start_time || null, end_time: data.end_time || null, km_start: data.km_start != null ? Number(data.km_start) : null, km_end: data.km_end != null ? Number(data.km_end) : null, fuel_liters: data.fuel_liters != null ? Number(data.fuel_liters) : 0, fuel_price: data.fuel_price != null ? Number(data.fuel_price) : 0, other_costs: data.other_costs != null ? Number(data.other_costs) : 0, maintenance_cost: data.maintenance_cost != null ? Number(data.maintenance_cost) : 0, driver_daily: data.driver_daily != null ? Number(data.driver_daily) : 0, requester: data.requester || null, status }; db.viagens.push(t); if (t.truck_id != null && t.km_end != null) { const ti = db.caminhoes.findIndex((d) => d.id === Number(t.truck_id)); if (ti>=0) db.caminhoes[ti] = { ...db.caminhoes[ti], km_current: Number(t.km_end) }; } setDB(db); enqueue({ table: "viagens", op: "insert", payload: t, localId: id }); return { ...t, km_rodado: computeKm(t.km_start, t.km_end), horas: computeHours(t.date, t.start_time, t.end_time, t.end_date), total_cost: Number(t.fuel_liters || 0) * Number(t.fuel_price || 0) + Number(t.other_costs || 0) + Number(t.maintenance_cost || 0) + Number(t.driver_daily || 0) }; }
+const db = getDB(); const id = db.seq.viagens++; const status = data.status || computeStatus(data.end_time, data.km_end); const t = { id, date: data.date, end_date: data.end_date || data.date, driver_id: Number(data.driver_id), truck_id: data.truck_id != null ? Number(data.truck_id) : null, prancha_id: data.prancha_id != null ? Number(data.prancha_id) : null, destination: data.destination || null, location: data.location || null, service_type: data.service_type || null, description: data.description || null, start_time: data.start_time || null, end_time: data.end_time || null, km_start: data.km_start != null ? Number(data.km_start) : null, km_end: data.km_end != null ? Number(data.km_end) : null, fuel_liters: data.fuel_liters != null ? Number(data.fuel_liters) : 0, fuel_price: data.fuel_price != null ? Number(data.fuel_price) : 0, other_costs: data.other_costs != null ? Number(data.other_costs) : 0, maintenance_cost: data.maintenance_cost != null ? Number(data.maintenance_cost) : 0, driver_daily: data.driver_daily != null ? Number(data.driver_daily) : 0, tolls: data.tolls != null ? Number(data.tolls) : 0, freight_value: data.freight_value != null ? Number(data.freight_value) : 0, origin: data.origin || null, cargo_qty: data.cargo_qty || null, planned_km: data.planned_km != null ? Number(data.planned_km) : 0, planned_duration: data.planned_duration || null, planned_fuel_liters: data.planned_fuel_liters != null ? Number(data.planned_fuel_liters) : 0, planned_toll_cost: data.planned_toll_cost != null ? Number(data.planned_toll_cost) : 0, planned_driver_cost: data.planned_driver_cost != null ? Number(data.planned_driver_cost) : 0, planned_maintenance: data.planned_maintenance != null ? Number(data.planned_maintenance) : 0, planned_total_cost: data.planned_total_cost != null ? Number(data.planned_total_cost) : 0, requester: data.requester || null, status }; db.viagens.push(t); if (t.truck_id != null && t.km_end != null) { const ti = db.caminhoes.findIndex((d) => d.id === Number(t.truck_id)); if (ti>=0) db.caminhoes[ti] = { ...db.caminhoes[ti], km_current: Number(t.km_end) }; } setDB(db); enqueue({ table: "viagens", op: "insert", payload: t, localId: id }); return { ...t, km_rodado: computeKm(t.km_start, t.km_end), horas: computeHours(t.date, t.start_time, t.end_time, t.end_date), total_cost: Number(t.fuel_liters || 0) * Number(t.fuel_price || 0) + Number(t.other_costs || 0) + Number(t.maintenance_cost || 0) + Number(t.driver_daily || 0) }; }
 export async function updateViagem(id, data) { await initLoad(); if (API_URL) { const r = await api(`/api/viagens/${id}`, { method: "PUT", body: JSON.stringify(data) }); return await r.json(); }
   if (sb && isOnline()) {
     const status = data.status || computeStatus(data.end_time, data.km_end);
@@ -597,6 +627,17 @@ export async function updateViagem(id, data) { await initLoad(); if (API_URL) { 
       other_costs: data.other_costs != null ? Number(data.other_costs) : 0,
       maintenance_cost: data.maintenance_cost != null ? Number(data.maintenance_cost) : 0,
       driver_daily: data.driver_daily != null ? Number(data.driver_daily) : 0,
+      tolls: data.tolls != null ? Number(data.tolls) : 0,
+      freight_value: data.freight_value != null ? Number(data.freight_value) : 0,
+      origin: data.origin || null,
+      cargo_qty: data.cargo_qty || null,
+      planned_km: data.planned_km != null ? Number(data.planned_km) : 0,
+      planned_duration: data.planned_duration || null,
+      planned_fuel_liters: data.planned_fuel_liters != null ? Number(data.planned_fuel_liters) : 0,
+      planned_toll_cost: data.planned_toll_cost != null ? Number(data.planned_toll_cost) : 0,
+      planned_driver_cost: data.planned_driver_cost != null ? Number(data.planned_driver_cost) : 0,
+      planned_maintenance: data.planned_maintenance != null ? Number(data.planned_maintenance) : 0,
+      planned_total_cost: data.planned_total_cost != null ? Number(data.planned_total_cost) : 0,
       requester: data.requester || null,
       status
     };
@@ -607,7 +648,7 @@ export async function updateViagem(id, data) { await initLoad(); if (API_URL) { 
     return { ...row, km_rodado: computeKm(row.km_start, row.km_end), horas: computeHours(row.date, row.start_time, row.end_time, row.end_date || row.date), total_cost: Number(row.fuel_liters || 0) * Number(row.fuel_price || 0) + Number(row.other_costs || 0) + Number(row.maintenance_cost || 0) + Number(row.driver_daily || 0) };
   }
 }
-const db = getDB(); const i = db.viagens.findIndex((t) => t.id === Number(id)); const status = data.status || computeStatus(data.end_time, data.km_end); if (i>=0) db.viagens[i] = { id: Number(id), date: data.date, end_date: data.end_date || data.date, driver_id: Number(data.driver_id), truck_id: data.truck_id != null ? Number(data.truck_id) : null, prancha_id: data.prancha_id != null ? Number(data.prancha_id) : null, destination: data.destination || null, location: data.location || null, service_type: data.service_type || null, description: data.description || null, start_time: data.start_time || null, end_time: data.end_time || null, km_start: data.km_start != null ? Number(data.km_start) : null, km_end: data.km_end != null ? Number(data.km_end) : null, fuel_liters: data.fuel_liters != null ? Number(data.fuel_liters) : 0, fuel_price: data.fuel_price != null ? Number(data.fuel_price) : 0, other_costs: data.other_costs != null ? Number(data.other_costs) : 0, maintenance_cost: data.maintenance_cost != null ? Number(data.maintenance_cost) : 0, driver_daily: data.driver_daily != null ? Number(data.driver_daily) : 0, requester: data.requester || null, status }; const t = db.viagens[i]; if (t.truck_id != null && t.km_end != null) { const ti = db.caminhoes.findIndex((d) => d.id === Number(t.truck_id)); if (ti>=0) db.caminhoes[ti] = { ...db.caminhoes[ti], km_current: Number(t.km_end) }; } setDB(db);
+const db = getDB(); const i = db.viagens.findIndex((t) => t.id === Number(id)); const status = data.status || computeStatus(data.end_time, data.km_end); if (i>=0) db.viagens[i] = { id: Number(id), date: data.date, end_date: data.end_date || data.date, driver_id: Number(data.driver_id), truck_id: data.truck_id != null ? Number(data.truck_id) : null, prancha_id: data.prancha_id != null ? Number(data.prancha_id) : null, destination: data.destination || null, location: data.location || null, service_type: data.service_type || null, description: data.description || null, start_time: data.start_time || null, end_time: data.end_time || null, km_start: data.km_start != null ? Number(data.km_start) : null, km_end: data.km_end != null ? Number(data.km_end) : null, fuel_liters: data.fuel_liters != null ? Number(data.fuel_liters) : 0, fuel_price: data.fuel_price != null ? Number(data.fuel_price) : 0, other_costs: data.other_costs != null ? Number(data.other_costs) : 0, maintenance_cost: data.maintenance_cost != null ? Number(data.maintenance_cost) : 0, driver_daily: data.driver_daily != null ? Number(data.driver_daily) : 0, tolls: data.tolls != null ? Number(data.tolls) : 0, freight_value: data.freight_value != null ? Number(data.freight_value) : 0, origin: data.origin || null, cargo_qty: data.cargo_qty || null, planned_km: data.planned_km != null ? Number(data.planned_km) : 0, planned_duration: data.planned_duration || null, planned_fuel_liters: data.planned_fuel_liters != null ? Number(data.planned_fuel_liters) : 0, planned_toll_cost: data.planned_toll_cost != null ? Number(data.planned_toll_cost) : 0, planned_driver_cost: data.planned_driver_cost != null ? Number(data.planned_driver_cost) : 0, planned_maintenance: data.planned_maintenance != null ? Number(data.planned_maintenance) : 0, planned_total_cost: data.planned_total_cost != null ? Number(data.planned_total_cost) : 0, requester: data.requester || null, status }; const t = db.viagens[i]; if (t.truck_id != null && t.km_end != null) { const ti = db.caminhoes.findIndex((d) => d.id === Number(t.truck_id)); if (ti>=0) db.caminhoes[ti] = { ...db.caminhoes[ti], km_current: Number(t.km_end) }; } setDB(db);
 enqueue({ table: "viagens", op: "update", payload: t, localId: Number(id) }); return { ...t, km_rodado: computeKm(t.km_start, t.km_end), horas: computeHours(t.date, t.start_time, t.end_time, t.end_date), total_cost: Number(t.fuel_liters || 0) * Number(t.fuel_price || 0) + Number(t.other_costs || 0) + Number(t.maintenance_cost || 0) + Number(t.driver_daily || 0) };
 }
 export async function deleteViagem(id) { await initLoad(); if (API_URL) { await api(`/api/viagens/${id}`, { method: "DELETE" }); return { ok: true }; } if (sb && isOnline()) { await sb.from("viagens").delete().eq("id", Number(id)); return { ok: true }; } const db = getDB(); db.viagens = db.viagens.filter((t) => t.id !== Number(id)); setDB(db); enqueue({ table: "viagens", op: "delete", localId: Number(id) }); return { ok: true }; }
@@ -1052,7 +1093,9 @@ export async function dashboard(opts = {}) {
   const monthTrips = viagens.filter((t) => t.date >= start && t.date <= end);
   const totalTrips = monthTrips.length;
   const totalKm = monthTrips.reduce((a, t) => a + computeKm(t.km_start, t.km_end), 0);
-  const totalHours = monthTrips.reduce((a, t) => a + computeHours(t.date, t.start_time, t.end_time, t.end_date), 0);
+  const totalMinutes = monthTrips.reduce((a, t) => a + computeMinutes(t.date, t.start_time, t.end_time, t.end_date), 0);
+  const totalHoursVal = totalMinutes / 60;
+  const totalHours = `${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}m`;
   
   const calcCost = (t) => Number(t.fuel_liters || 0) * Number(t.fuel_price || 0) + Number(t.other_costs || 0) + Number(t.maintenance_cost || 0) + Number(t.driver_daily || 0);
   const totalCostsMonth = monthTrips.reduce((a, t) => a + calcCost(t), 0);
@@ -1122,7 +1165,12 @@ export async function dashboard(opts = {}) {
     const total = rows.reduce((a, t) => a + calcCost(t), 0);
     costsByMonth.push({ month: m2, total });
   }
-  return { totalTrips, totalKm, totalHours, totalCompleted, topDriver, topDestination, kmByMonth, hoursByMonth, tripsByDriver, totalCostsMonth, totalDrivers, totalTrucks, totalPranchas, totalCustos, costsByCategory, costsByMonth, pendingTrips, trucksAvailable, trucksInTrip, trends };
+
+  const costPerKm = totalKm > 0 ? (totalCostsMonth / totalKm) : 0;
+  const potentialHours = totalTrucks * 220; // Standard 220h/month
+  const idlePercentage = potentialHours > 0 ? Math.max(0, 100 - ((totalHoursVal / potentialHours) * 100)) : 0;
+
+  return { totalTrips, totalKm, totalHours, totalCompleted, topDriver, topDestination, kmByMonth, hoursByMonth, tripsByDriver, totalCostsMonth, totalDrivers, totalTrucks, totalPranchas, totalCustos, costsByCategory, costsByMonth, pendingTrips, trucksAvailable, trucksInTrip, trends, costPerKm, idlePercentage };
 }
 
 export async function exportCsv(filters = {}) {
