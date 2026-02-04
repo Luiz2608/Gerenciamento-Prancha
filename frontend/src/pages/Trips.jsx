@@ -310,7 +310,12 @@ export default function Trips() {
     
     if (durationMins <= 0) return null;
     
-    const arrival = new Date(start.getTime() + durationMins * 60000);
+    // Add 20% safety margin for breaks and traffic
+    // And convert to milliseconds
+    const safetyMargin = 1.2;
+    const realDurationMins = durationMins * safetyMargin;
+    
+    const arrival = new Date(start.getTime() + realDurationMins * 60000);
     
     // Format output
     const arrDay = String(arrival.getDate()).padStart(2, '0');
@@ -713,17 +718,28 @@ export default function Trips() {
       const km = Number(route.distanceKm) * multiplier;
       const durationHours = (route.durationMinutes / 60) * multiplier;
       
-      // 2. Preço Diesel (Default SP se não especificado)
-      const diesel = await getDieselPrice("SP");
-      const dieselPrice = diesel.price;
+      // 2. Preço Diesel (Default R$ 6.10 se falhar API)
+      let dieselPrice = 6.10;
+      try {
+        const diesel = await getDieselPrice("SP");
+        if (diesel && diesel.price) dieselPrice = Number(diesel.price);
+      } catch (e) {
+        console.warn("Using default diesel price", e);
+      }
 
       // 3. Pedágios
-      const tolls = await getTollCost(form.origin, form.destination, 6); // 6 eixos default
-      const totalTolls = tolls.cost * multiplier;
+      let totalTolls = 0;
+      try {
+        const tolls = await getTollCost(form.origin, form.destination, 6); // 6 eixos default
+        if (tolls && tolls.cost) totalTolls = Number(tolls.cost) * multiplier;
+      } catch (e) {
+        console.warn("Toll cost error", e);
+      }
       
       // 4. Consumo Caminhão
       const truck = trucks.find(t => String(t.id) === String(form.truck_id));
-      const avgConsumption = truck ? (Number(truck.avg_consumption) || 2.5) : 2.5;
+      // Fallback para 2.2 km/l se não definido (padrão conservador para prancha carregada)
+      const avgConsumption = truck ? (Number(truck.avg_consumption) || 2.2) : 2.2;
       const fuelLiters = km / avgConsumption;
       const fuelCost = fuelLiters * dieselPrice;
 
@@ -731,21 +747,22 @@ export default function Trips() {
       const driver = drivers.find(d => String(d.id) === String(form.driver_id));
       const dailyCost = driver ? (Number(driver.daily_cost) || 0) : 0;
       // Dias de viagem (mínimo 1)
-      const days = Math.ceil(durationHours / 8); // 8h condução por dia
+      // Considera 8h de condução por dia + margem de imprevistos (fator 1.2 na duração)
+      const realDurationHours = durationHours * 1.2;
+      const days = Math.ceil(realDurationHours / 8) || 1; 
       const driverCost = dailyCost * days;
 
       // 6. Manutenção Estimada
       // R$ 1.50/km (pneu, óleo, desgaste) se não tiver no caminhão
-      // Vamos tentar pegar do caminhão (custo manutenção anual / km anual) + 1.00 variável?
-      // Simplificando: Manutenção Variável Estimada ~ R$ 1.20/km para prancha
-      const maintenancePerKm = 1.20; 
+      // Pranchas tem custo de pneu alto, vamos usar 1.50 como base razoável
+      const maintenancePerKm = (truck && Number(truck.maintenance_per_km)) ? Number(truck.maintenance_per_km) : 1.50;
       const maintenanceCost = km * maintenancePerKm;
 
       const total = fuelCost + totalTolls + driverCost + maintenanceCost;
 
       setForm(prev => ({
         ...prev,
-        planned_km: km,
+        planned_km: km.toFixed(1),
         planned_duration: `${Math.floor(durationHours)}h ${Math.round((durationHours % 1)*60)}m`,
         planned_fuel_liters: fuelLiters.toFixed(1),
         planned_toll_cost: totalTolls.toFixed(2),
@@ -753,9 +770,11 @@ export default function Trips() {
         planned_maintenance: maintenanceCost.toFixed(2),
         planned_total_cost: total.toFixed(2),
         // Auto-fill execution fields if empty
-        km_trip: prev.km_trip ? prev.km_trip : km.toString(),
+        km_trip: prev.km_trip ? prev.km_trip : km.toFixed(1),
         tolls: prev.tolls ? prev.tolls : totalTolls.toFixed(2),
-        fuel_price: prev.fuel_price ? prev.fuel_price : dieselPrice.toFixed(2)
+        fuel_price: prev.fuel_price ? prev.fuel_price : dieselPrice.toFixed(2),
+        driver_daily: prev.driver_daily ? prev.driver_daily : driverCost.toFixed(2),
+        maintenance_cost: prev.maintenance_cost ? prev.maintenance_cost : maintenanceCost.toFixed(2)
       }));
       
       toast?.show(`Simulação concluída! Custo Est.: R$ ${total.toFixed(2)}`, "success");
