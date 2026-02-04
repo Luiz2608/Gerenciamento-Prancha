@@ -738,8 +738,8 @@ export default function Trips() {
       
       // 4. Consumo Caminhão
       const truck = trucks.find(t => String(t.id) === String(form.truck_id));
-      // Fallback para 2.2 km/l se não definido (padrão conservador para prancha carregada)
-      const avgConsumption = truck ? (Number(truck.avg_consumption) || 2.2) : 2.2;
+      // Fallback para 2.0 km/l se não definido (padrão conservador para prancha carregada)
+      const avgConsumption = truck ? (Number(truck.avg_consumption) || 2.0) : 2.0;
       const fuelLiters = km / avgConsumption;
       const fuelCost = fuelLiters * dieselPrice;
 
@@ -753,9 +753,9 @@ export default function Trips() {
       const driverCost = dailyCost * days;
 
       // 6. Manutenção Estimada
-      // R$ 1.50/km (pneu, óleo, desgaste) se não tiver no caminhão
-      // Pranchas tem custo de pneu alto, vamos usar 1.50 como base razoável
-      const maintenancePerKm = (truck && Number(truck.maintenance_per_km)) ? Number(truck.maintenance_per_km) : 1.50;
+      // R$ 15.00/km (pneu, óleo, desgaste) se não tiver no caminhão
+      // Pranchas tem custo de pneu alto, vamos usar 15.00 como base razoável
+      const maintenancePerKm = (truck && Number(truck.maintenance_per_km)) ? Number(truck.maintenance_per_km) : 15.00;
       const maintenanceCost = km * maintenancePerKm;
 
       const total = fuelCost + totalTolls + driverCost + maintenanceCost;
