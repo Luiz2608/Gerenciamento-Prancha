@@ -80,15 +80,27 @@ export default function MapModal({ isOpen, onClose, onSelect, initialAddress }) 
     const L = window.L;
     if (!mapInstanceRef.current || !L) return;
 
+    // Ensure icon options are set if they were missing
+    const defaultIcon = L.icon({
+        iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+        iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+        shadowSize: [41, 41]
+    });
+
     if (markerRef.current) {
       markerRef.current.setLatLng([lat, lng]);
+      markerRef.current.setIcon(defaultIcon); // Force icon refresh
     } else {
-      markerRef.current = L.marker([lat, lng]).addTo(mapInstanceRef.current);
+      markerRef.current = L.marker([lat, lng], { icon: defaultIcon }).addTo(mapInstanceRef.current);
     }
     mapInstanceRef.current.panTo([lat, lng]);
   };
 
-  const searchLocation = async (q) => {
+  const searchLocation = async (q, isRetry = false) => {
     if (!q) return;
     setLoading(true);
     try {
@@ -102,11 +114,33 @@ export default function MapModal({ isOpen, onClose, onSelect, initialAddress }) 
         
         const shortName = formatAddress(first.address) || first.display_name;
         setSelectedLocation({ lat, lon, display_name: shortName });
+      } else {
+        // Fallback strategy: try to search for the city/region part if exact match fails
+        if (!isRetry && q.includes(',')) {
+            // Split by comma and try the last meaningful part (usually city - state)
+            const parts = q.split(',');
+            if (parts.length > 1) {
+                // Try the part after the first comma (e.g. "Unnamed Rd,, Itumbiara - GO" -> " Itumbiara - GO")
+                const fallbackQuery = parts.slice(1).join(',').trim();
+                if (fallbackQuery.length > 3) {
+                    console.log(`Retrying search with fallback: ${fallbackQuery}`);
+                    await searchLocation(fallbackQuery, true);
+                    return; // Exit here as the recursive call handles the rest
+                }
+            }
+        }
+
+        // Simple feedback for no results (only if retry also failed or wasn't attempted)
+        const input = document.querySelector('input[placeholder*="Digite o endereço"]');
+        if (input) {
+            input.classList.add('input-error');
+            setTimeout(() => input.classList.remove('input-error'), 2000);
+        }
       }
     } catch (e) {
       console.error("Geocoding error", e);
     } finally {
-      setLoading(false);
+      if (!isRetry) setLoading(false); // Only unset loading if we're not diving into a retry
     }
   };
 

@@ -42,6 +42,7 @@ export const getRouteData = async (origin, destination) => {
 
     if (!start || !end) {
       console.warn("Could not geocode origin or destination");
+      // If geocoding fails, we can't do much but return the basic mock
       throw new Error("Geocoding failed");
     }
 
@@ -80,18 +81,39 @@ export const getRouteData = async (origin, destination) => {
 
   // Fallback to mock if API fails
   console.warn("Falling back to mock route data");
+  
+  // Try to recover coordinates if they were fetched before the error
+  let startCoords = null, endCoords = null;
+  try {
+     startCoords = await getCoordinates(origin);
+     endCoords = await getCoordinates(destination);
+  } catch (err) { console.warn("Fallback geocode failed", err); }
+
   const seed = (origin.length + destination.length) * 123;
   const mockDist = 50 + (seed % 800);
+  
+  // Create a straight line geometry if coordinates are available
+  let fallbackGeometry = null;
+  if (startCoords && endCoords) {
+      fallbackGeometry = {
+          type: "LineString",
+          coordinates: [
+              [startCoords.lon, startCoords.lat],
+              [endCoords.lon, endCoords.lat]
+          ]
+      };
+  }
+
   const mockRoute = {
     distanceKm: Math.round(mockDist),
     durationMinutes: Math.round((mockDist / 60) * 60),
-    geometry: null,
+    geometry: fallbackGeometry,
   };
 
   return {
     ...mockRoute,
     source: "MOCK_FALLBACK",
-    alternatives: [ { ...mockRoute, id: 0, summary: "Rota Estimada" } ]
+    alternatives: [ { ...mockRoute, id: 0, summary: "Rota Estimada (Linha Reta)" } ]
   };
 };
 

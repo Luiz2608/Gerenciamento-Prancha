@@ -147,7 +147,7 @@ export default function Trips() {
   }, [viewing]);
 
   const [showForm, setShowForm] = useState(false);
-  const [kmMode, setKmMode] = useState("KM Caminhão");
+  // kmMode removed
   const [showValidation, setShowValidation] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const formRef = useRef(null);
@@ -738,6 +738,8 @@ export default function Trips() {
     else if (!isValidTime(form.start_time)) errs.start_time = "Hora inválida";
 
     if (!form.noKmStart && form.km_start === "") errs.km_start = "Campo obrigatório";
+    if (!form.noKmEnd && form.km_end === "") errs.km_end = "Campo obrigatório";
+    if (form.km_trip === "") errs.km_trip = "Campo obrigatório";
     
     if (form.end_time && !isValidTime(form.end_time)) errs.end_time = "Hora inválida";
     
@@ -886,14 +888,7 @@ export default function Trips() {
     setShowForm(true);
     setShowValidation(true);
     
-    // Determinar modo de KM
-    if (it.km_start != null || it.km_end != null) {
-      setKmMode("KM Caminhão");
-    } else if (it.km_rodado != null && it.km_rodado > 0) {
-      setKmMode("KM da Viagem");
-    } else {
-      setKmMode("KM Caminhão"); // Default
-    }
+    // kmMode determination logic removed
 
     setForm(mapTripToForm(it));
     toast?.show("Edição carregada", "info");
@@ -1195,50 +1190,63 @@ export default function Trips() {
             <input className={`input ${validationErrors.end_time ? 'ring-red-500 border-red-500' : ''}`} placeholder="Hora retorno (HH:MM)" value={form.end_time} onChange={(e) => setForm({ ...form, end_time: maskTime(e.target.value), end_date: (!form.end_date && isValidDate(form.date)) ? form.date : form.end_date })} />
             {validationErrors.end_time && <span className="text-red-500 text-xs mt-1">{validationErrors.end_time}</span>}
           </div>
-          <div className="md:col-span-4">
-            <select className="select w-full max-w-sm" value={kmMode} onChange={(e) => setKmMode(e.target.value)}>
-              <option value="" disabled>Tipo de KM</option>
-              <option value="KM Caminhão">KM Caminhão</option>
-              <option value="KM da Viagem">KM da Viagem</option>
-            </select>
-            {kmMode === 'KM Caminhão' && (
-              <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="md:col-span-4 grid grid-cols-1 md:grid-cols-2 gap-6 border p-4 rounded-lg bg-slate-50 dark:bg-slate-900/50">
+             <div className="col-span-full flex items-center gap-2 mb-2 border-b border-slate-200 pb-2">
+                <span className="material-icons text-primary">speed</span>
+                <h3 className="font-bold text-lg text-slate-700 dark:text-slate-200">Quilometragem e Consumo</h3>
+             </div>
+
+             {/* KM Caminhão */}
+             <div className="flex flex-col gap-4">
+                <div className="flex justify-between items-center">
+                    <div className="text-xs font-bold uppercase text-slate-500 tracking-wider">Odômetro (Caminhão)</div>
+                </div>
+                
                 <div className="flex flex-col">
                   <div className="flex items-center gap-2">
-                    <input className={`input flex-1 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-500 ${validationErrors.km_start ? 'ring-red-500 border-red-500' : ''}`} placeholder="KM inicial *" inputMode="decimal" maxLength={10} value={form.km_start} onChange={(e) => {
+                    <input className={`input flex-1 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-500 ${validationErrors.km_start ? 'ring-red-500 border-red-500' : ''}`} placeholder="KM Inicial *" inputMode="decimal" maxLength={10} value={form.km_start} onChange={(e) => {
                       const val = e.target.value.replace(/[^0-9.,]/g, '').slice(0, 10);
                       const kmEndNum = Number((form.km_end || '').replace(',', '.'));
                       const kmStartNum = Number(val.replace(',', '.') || '');
                       const autoTrip = (form.km_trip === '' && form.km_end !== '') ? String(Math.max(0, kmEndNum - kmStartNum)) : form.km_trip;
                       setForm({ ...form, km_start: val, km_trip: autoTrip });
                     }} disabled={form.noKmStart} />
-                    <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={form.noKmStart} onChange={(e) => setForm({ ...form, noKmStart: e.target.checked, km_start: e.target.checked ? '' : form.km_start })} /> Não registrado</label>
+                    <label className="cursor-pointer label p-0 flex flex-col items-center gap-1" title="Marcar como Não Registrado">
+                        <span className="label-text text-[10px] text-slate-400">N/R</span>
+                        <input type="checkbox" className="toggle toggle-error toggle-xs" checked={form.noKmStart} onChange={() => setForm({ ...form, noKmStart: !form.noKmStart, km_start: !form.noKmStart ? '' : form.km_start })} />
+                    </label>
                   </div>
                   {validationErrors.km_start && <span className="text-red-500 text-xs mt-1">{validationErrors.km_start}</span>}
                 </div>
+
                 <div className="flex flex-col">
                   <div className="flex items-center gap-2">
-                    <input className={`input flex-1 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-500 ${validationErrors.km_end ? 'ring-red-500 border-red-500' : ''}`} placeholder="KM final" inputMode="decimal" maxLength={10} value={form.km_end} onChange={(e) => {
+                    <input className={`input flex-1 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-500 ${validationErrors.km_end ? 'ring-red-500 border-red-500' : ''}`} placeholder="KM Final *" inputMode="decimal" maxLength={10} value={form.km_end} onChange={(e) => {
                       const val = e.target.value.replace(/[^0-9.,]/g, '').slice(0, 10);
                       const kmStartNum = Number((form.km_start || '').replace(',', '.'));
                       const kmEndNum = Number(val.replace(',', '.') || '');
                       const autoTrip = (val === '' || form.km_trip === '') && (form.km_start !== '' && val !== '') ? String(Math.max(0, kmEndNum - kmStartNum)) : form.km_trip;
                       setForm({ ...form, km_end: val, km_trip: autoTrip });
                     }} disabled={form.noKmEnd || !(form.status === 'Em Andamento' || form.status === 'Finalizado')} />
-                    <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={form.noKmEnd} onChange={(e) => setForm({ ...form, noKmEnd: e.target.checked, km_end: e.target.checked ? '' : form.km_end })} /> Não registrado</label>
+                    <label className="cursor-pointer label p-0 flex flex-col items-center gap-1" title="Marcar como Não Registrado">
+                        <span className="label-text text-[10px] text-slate-400">N/R</span>
+                        <input type="checkbox" className="toggle toggle-error toggle-xs" checked={form.noKmEnd} onChange={() => setForm({ ...form, noKmEnd: !form.noKmEnd, km_end: !form.noKmEnd ? '' : form.km_end })} />
+                    </label>
                   </div>
-                  <button type="button" className="btn btn-xs btn-secondary mt-1 w-full" onClick={autoFillKmByRoute} title="Calcular KM Final baseado na rota">
-                    <span className="material-icons text-xs">near_me</span> Preencher KM Final pela Rota
+                  <button type="button" className="btn btn-xs btn-link no-underline text-blue-600 pl-0 justify-start mt-1" onClick={autoFillKmByRoute} title="Calcular KM Final baseado na rota">
+                    <span className="material-icons text-xs mr-1">near_me</span> Preencher KM Final pela Rota
                   </button>
                   {validationErrors.km_end && <span className="text-red-500 text-xs mt-1">{validationErrors.km_end}</span>}
                 </div>
-              </div>
-            )}
-            {kmMode === 'KM da Viagem' && (
-              <div className="mt-3 space-y-3">
+             </div>
+
+             {/* KM Viagem */}
+             <div className="flex flex-col gap-4">
+                <div className="text-xs font-bold uppercase text-slate-500 tracking-wider">Distância e Consumo</div>
+                
                 <div className="flex flex-col">
                   <div className="flex gap-2">
-                    <input className={`input flex-1 ${validationErrors.km_trip ? 'ring-red-500 border-red-500' : ''}`} placeholder="KM da Viagem" inputMode="decimal" maxLength={10} value={form.km_trip} onChange={(e) => {
+                    <input className={`input flex-1 ${validationErrors.km_trip ? 'ring-red-500 border-red-500' : ''}`} placeholder="KM Rodado (Viagem)" inputMode="decimal" maxLength={10} value={form.km_trip} onChange={(e) => {
                       const val = e.target.value.replace(/[^0-9.,]/g, '').slice(0, 10);
                       const kmStartNum = Number((form.km_start || '').replace(',', '.'));
                       const vNum = Number(val.replace(',', '.') || '');
@@ -1247,22 +1255,24 @@ export default function Trips() {
                       const autoLiters = perLNum > 0 && vNum >= 0 ? String((vNum / perLNum).toFixed(2)) : form.fuel_liters;
                       setForm({ ...form, km_trip: val, km_end: newEnd, fuel_liters: autoLiters });
                     }} />
-                    <button type="button" className="btn btn-secondary whitespace-nowrap" onClick={autoFillKmByRoute}>
-                      <span className="material-icons text-sm">near_me</span> Preencher pela Rota
-                    </button>
                   </div>
+                  <button type="button" className="btn btn-xs btn-link no-underline text-blue-600 pl-0 justify-start mt-1" onClick={autoFillKmByRoute}>
+                      <span className="material-icons text-xs mr-1">near_me</span> Preencher pela Rota Sugerida
+                  </button>
                   {validationErrors.km_trip && <span className="text-red-500 text-xs mt-1">{validationErrors.km_trip}</span>}
                 </div>
-                <input className="input" placeholder="KM por Litro (Consumo do Caminhão)" inputMode="decimal" value={form.km_per_liter} onChange={(e) => {
-                  const raw = e.target.value.replace(/[^0-9.,]/g, '');
-                  const norm = raw.replace(',', '.');
-                  const kmTripNum = Number(form.km_trip || 0);
-                  const perLNum = Number(norm || 0);
-                  const autoLiters = perLNum > 0 && kmTripNum >= 0 ? String((kmTripNum / perLNum).toFixed(2)) : form.fuel_liters;
-                  setForm({ ...form, km_per_liter: raw, fuel_liters: autoLiters });
-                }} onBlur={() => { const v = Number(String(form.km_per_liter || '').replace(',', '.')); if (!(v > 0)) toast?.show("KM por litro inválido", "warning"); }} />
-              </div>
-            )}
+
+                <div className="flex flex-col">
+                    <input className="input" placeholder="Consumo Médio (KM/L)" inputMode="decimal" value={form.km_per_liter} onChange={(e) => {
+                      const raw = e.target.value.replace(/[^0-9.,]/g, '');
+                      const norm = raw.replace(',', '.');
+                      const kmTripNum = Number(form.km_trip || 0);
+                      const perLNum = Number(norm || 0);
+                      const autoLiters = perLNum > 0 && kmTripNum >= 0 ? String((kmTripNum / perLNum).toFixed(2)) : form.fuel_liters;
+                      setForm({ ...form, km_per_liter: raw, fuel_liters: autoLiters });
+                    }} onBlur={() => { const v = Number(String(form.km_per_liter || '').replace(',', '.')); if (!(v > 0)) toast?.show("KM por litro inválido", "warning"); }} />
+                </div>
+             </div>
           </div>
           <div className="md:col-span-4 border p-4 rounded-lg">
             <div className="flex items-center justify-between">
