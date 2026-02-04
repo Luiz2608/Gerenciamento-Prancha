@@ -1578,7 +1578,7 @@ export default function Trips() {
                   R$ {(it.total_cost ?? 0).toFixed(2)}
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => setViewing(it)} className="p-2 text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20 rounded-lg transition-colors" title="Ver Detalhes">
+                  <button onClick={() => { setViewing(it); setViewingRouteLoading(true); }} className="p-2 text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20 rounded-lg transition-colors" title="Ver Detalhes">
                     <span className="material-icons text-lg">visibility</span>
                   </button>
                   <button onClick={() => edit(it)} className="p-2 text-yellow-600 hover:bg-yellow-50 dark:text-yellow-400 dark:hover:bg-yellow-900/20 rounded-lg transition-colors" title="Editar">
@@ -1694,6 +1694,15 @@ export default function Trips() {
       {viewing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto">
           <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto animate-fade">
+            {viewingRouteLoading ? (
+               <div className="min-h-[400px] flex flex-col items-center justify-center gap-4 p-8">
+                  <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                  <div className="text-center">
+                    <h3 className="text-lg font-bold text-slate-700 dark:text-white">Carregando detalhes da viagem...</h3>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm">Obtendo rota e informações atualizadas.</p>
+                  </div>
+               </div>
+            ) : (
             <div className="p-6 space-y-6">
               <div className="flex justify-between items-start">
                 <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Detalhes da Viagem #{viewing.id}</h2>
@@ -1884,6 +1893,7 @@ export default function Trips() {
                 <button className="btn bg-gray-500 hover:bg-gray-600 text-white" onClick={() => setViewing(null)}>Fechar</button>
               </div>
             </div>
+            )}
           </div>
         </div>
       )}

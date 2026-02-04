@@ -46,7 +46,7 @@ export const getRouteData = async (origin, destination) => {
     }
 
     // OSRM requires lon,lat;lon,lat
-    const url = `http://router.project-osrm.org/route/v1/driving/${start.lon},${start.lat};${end.lon},${end.lat}?overview=full&geometries=geojson&alternatives=true`;
+    const url = `https://router.project-osrm.org/route/v1/driving/${start.lon},${start.lat};${end.lon},${end.lat}?overview=full&geometries=geojson&alternatives=true`;
     
     const res = await fetch(url);
     const data = await res.json();
