@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-export default function RouteViewer({ isOpen, onClose, routeData, inline = false, onRouteSelect }) {
+export default function RouteViewer({ isOpen, onClose, routeData, inline = false, onRouteSelect, isLoading = false }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const routeLayersRef = useRef([]);
@@ -13,22 +13,65 @@ export default function RouteViewer({ isOpen, onClose, routeData, inline = false
 
   // Init map
   useEffect(() => {
-    if ((!isOpen && !inline) || !mapRef.current || mapInstanceRef.current) return;
+    if ((!isOpen && !inline) || !mapRef.current) return;
+    if (mapInstanceRef.current) return; // Map already initialized
 
     const L = window.L;
     if (!L) return;
 
-    const map = L.map(mapRef.current).setView([-17.8136, -50.5969], 13); // Santa Helena de Goiás default
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-    }).addTo(map);
+    try {
+        const map = L.map(mapRef.current, {
+            zoomControl: false, // Add zoom control manually if needed or keep clean
+            attributionControl: false
+        }).setView([-17.8136, -50.5969], 13); // Santa Helena de Goiás default
+        
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png', {
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
 
-    mapInstanceRef.current = map;
+        mapInstanceRef.current = map;
+
+        // Force a resize check immediately and periodically to handle modal transitions
+        const forceResize = () => {
+            if (map && map._container) {
+                map.invalidateSize();
+            }
+        };
+
+        // Multiple checks to catch animation frames
+        setTimeout(forceResize, 10);
+        setTimeout(forceResize, 100);
+        setTimeout(forceResize, 300);
+        setTimeout(forceResize, 500);
+        setTimeout(forceResize, 1000);
+
+        // ResizeObserver for robustness
+        const resizeObserver = new ResizeObserver(() => {
+            forceResize();
+        });
+        resizeObserver.observe(mapRef.current);
+        
+        // Save observer to ref for cleanup if needed, though closure handles it
+        map._resizeObserver = resizeObserver;
+
+    } catch (err) {
+        console.error("Error initializing map:", err);
+    }
 
     // Cleanup
     return () => {
       if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
+        // Stop observer
+        if (mapInstanceRef.current._resizeObserver) {
+            mapInstanceRef.current._resizeObserver.disconnect();
+        }
+        
+        // Remove map
+        try {
+            mapInstanceRef.current.remove();
+        } catch (e) {
+            console.warn("Error removing map:", e);
+        }
         mapInstanceRef.current = null;
         routeLayersRef.current = [];
       }
@@ -42,9 +85,13 @@ export default function RouteViewer({ isOpen, onClose, routeData, inline = false
     
     const L = window.L;
 
-    // Clear old layers
-    routeLayersRef.current.forEach(l => map.removeLayer(l));
-    routeLayersRef.current = [];
+    // Clear old layers safely
+    if (routeLayersRef.current) {
+        routeLayersRef.current.forEach(l => {
+            try { map.removeLayer(l); } catch(e) {}
+        });
+        routeLayersRef.current = [];
+    }
 
     const routes = routeData.alternatives || [routeData];
     
@@ -58,39 +105,51 @@ export default function RouteViewer({ isOpen, onClose, routeData, inline = false
         const weight = isActive ? 5 : 4;
         const opacity = isActive ? 0.8 : 0.5;
 
-        const layer = L.geoJSON(route.geometry, {
-            style: { color, weight, opacity }
-        }).addTo(map);
+        try {
+            const layer = L.geoJSON(route.geometry, {
+                style: { color, weight, opacity }
+            }).addTo(map);
 
-        if (isActive) {
-            layer.bringToFront();
-            try {
-                map.fitBounds(layer.getBounds(), { padding: [50, 50] });
-            } catch(e) {}
+            if (isActive) {
+                layer.bringToFront();
+                // Fit bounds with delay to ensure map size is correct
+                setTimeout(() => {
+                    try {
+                        if (map && map._container) {
+                            map.fitBounds(layer.getBounds(), { padding: [20, 20] });
+                            map.invalidateSize(); // Ensure size is correct before fitting
+                        }
+                    } catch(e) {}
+                }, 100);
+            }
+            
+            // Add click handler to layer to select it
+            layer.on('click', () => {
+                 handleRouteClick(index, route);
+            });
+
+            routeLayersRef.current.push(layer);
+        } catch (e) {
+            console.error("Error drawing route layer:", e);
         }
-        
-        // Add click handler to layer to select it
-        layer.on('click', () => {
-             handleRouteClick(index, route);
-        });
-
-        routeLayersRef.current.push(layer);
     });
     
     // Add markers for start/end
     if (routeData.waypoints) {
          routeData.waypoints.forEach((wp, i) => {
             const [lon, lat] = wp.location;
-            L.marker([lat, lon])
-             .bindPopup(i === 0 ? "Origem" : "Destino")
-             .addTo(map);
+            try {
+                L.marker([lat, lon])
+                 .bindPopup(i === 0 ? "Origem" : "Destino")
+                 .addTo(map);
+            } catch (e) {}
          });
     }
 
-    // Resize map
+    // Explicitly invalidate size after drawing
     setTimeout(() => {
-      if (map) map.invalidateSize();
-    }, 100);
+        if (map) map.invalidateSize();
+    }, 50);
 
   }, [routeData, activeRouteIndex, isOpen, inline]);
 
@@ -130,7 +189,15 @@ export default function RouteViewer({ isOpen, onClose, routeData, inline = false
       <div className="w-full h-full relative bg-slate-100 dark:bg-slate-900 group">
         <div ref={mapRef} className="absolute inset-0 z-0" />
         <Controls />
-        {!activeRoute?.geometry && (
+        {isLoading && (
+            <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm">
+                <div className="flex flex-col items-center gap-3 animate-pulse">
+                    <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                    <span className="text-slate-500 text-sm font-medium">Carregando mapa...</span>
+                </div>
+            </div>
+        )}
+        {!activeRoute?.geometry && !isLoading && (
            <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-100/80 dark:bg-slate-900/80 backdrop-blur-sm">
              <div className="text-center p-4">
                <span className="material-icons text-4xl text-slate-400 mb-2">map</span>
@@ -163,7 +230,15 @@ export default function RouteViewer({ isOpen, onClose, routeData, inline = false
         <div className="flex-1 relative bg-slate-100 dark:bg-slate-900">
            <div ref={mapRef} className="absolute inset-0 z-0" />
            <Controls />
-           {!activeRoute?.geometry && (
+           {isLoading && (
+                <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm">
+                    <div className="flex flex-col items-center gap-3 animate-pulse">
+                        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                        <span className="text-slate-500 text-sm font-medium">Carregando mapa...</span>
+                    </div>
+                </div>
+            )}
+           {!activeRoute?.geometry && !isLoading && (
               <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-100/80 dark:bg-slate-900/80 backdrop-blur-sm">
                 <div className="text-center p-4">
                   <span className="material-icons text-4xl text-slate-400 mb-2">map</span>

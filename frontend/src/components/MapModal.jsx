@@ -11,6 +11,8 @@ export default function MapModal({ isOpen, onClose, onSelect, initialAddress }) 
   const [selectedLocation, setSelectedLocation] = useState(null); // { lat, lon, display_name }
   const [loading, setLoading] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showNicknameDialog, setShowNicknameDialog] = useState(false);
+  const [nicknameValue, setNicknameValue] = useState("");
 
   useEffect(() => {
     if (!isOpen) return;
@@ -28,6 +30,8 @@ export default function MapModal({ isOpen, onClose, onSelect, initialAddress }) 
       map.on('click', async (e) => {
         const { lat, lng } = e.latlng;
         updateMarker(lat, lng);
+        // Set basic coords immediately so we have data even if geocode fails/is slow
+        setSelectedLocation({ lat, lon: lng, display_name: null });
         reverseGeocode(lat, lng);
       });
 
@@ -124,7 +128,7 @@ export default function MapModal({ isOpen, onClose, onSelect, initialAddress }) 
         updateMarker(lat, lon);
         
         const shortName = formatAddress(first.address) || first.display_name;
-        setSelectedLocation({ lat, lon, display_name: shortName });
+        setSelectedLocation({ lat, lon, display_name: shortName, full: first });
       } else {
         // Fallback strategy: try to search for the city/region part if exact match fails
         if (!isRetry && q.includes(',')) {
@@ -171,11 +175,45 @@ export default function MapModal({ isOpen, onClose, onSelect, initialAddress }) 
     }
   };
 
+  const finalizeSelection = (nameOverride) => {
+    let finalName = nameOverride;
+    
+    // Fallback to generic name if empty
+    if (!finalName || finalName.trim() === "") {
+        finalName = `Localização (${selectedLocation.lat.toFixed(5)}, ${selectedLocation.lon.toFixed(5)})`;
+    }
+
+    onSelect({
+      address: finalName,
+      lat: selectedLocation.lat,
+      lon: selectedLocation.lon
+    });
+    setShowNicknameDialog(false);
+    onClose();
+  };
+
   const handleConfirm = () => {
     if (selectedLocation) {
-      onSelect(selectedLocation.display_name);
+      let finalName = selectedLocation.display_name;
+      
+      // Check if address is specific enough (has road, street, house number, etc.)
+      const addr = selectedLocation.full?.address || {};
+      const isSpecific = addr.road || addr.street || addr.house_number || addr.amenity || addr.building || addr.leisure || addr.tourism || addr.shop;
+      
+      // Also consider it generic if the name is just coordinates or "Unnamed" or null
+      const isGenericName = !finalName || (typeof finalName === 'string' && (finalName.includes("Unnamed") || finalName.match(/^Localização \(-?\d/)));
+
+      // If generic or not specific, prompt for nickname
+      if (!isSpecific || isGenericName) {
+         setNicknameValue((finalName && !finalName.match(/^Localização \(-?\d/)) ? finalName : "");
+         setShowNicknameDialog(true);
+         return;
+      }
+
+      finalizeSelection(finalName);
+    } else {
+      onClose();
     }
-    onClose();
   };
 
   const handleLocateMe = () => {
@@ -302,6 +340,45 @@ export default function MapModal({ isOpen, onClose, onSelect, initialAddress }) 
             </button>
           </div>
         </div>
+
+        {/* Nickname Dialog Overlay */}
+        {showNicknameDialog && (
+           <div className="absolute inset-0 z-[1000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade">
+               <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-2xl max-w-md w-full border border-slate-200 dark:border-slate-700 animate-scale-up transform transition-all">
+                   <h4 className="text-lg font-bold mb-2 text-slate-800 dark:text-white flex items-center gap-2">
+                     <span className="material-icons text-primary">edit_location</span>
+                     Nomear Localização
+                   </h4>
+                   <p className="text-sm text-slate-500 dark:text-slate-400 mb-4 leading-relaxed">
+                     Este local não possui um endereço específico. Dê um nome para facilitar a identificação (ex: "Fazenda Santa Maria", "Entrada B"):
+                   </p>
+                   
+                   <input 
+                      autoFocus
+                      className="input input-bordered w-full mb-6 bg-slate-50 dark:bg-slate-900 dark:text-white dark:border-slate-600 focus:ring-2 focus:ring-primary" 
+                      value={nicknameValue} 
+                      onChange={e => setNicknameValue(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && finalizeSelection(nicknameValue)}
+                      placeholder="Digite um nome..."
+                   />
+                   
+                   <div className="flex justify-end gap-2">
+                       <button 
+                         className="btn btn-ghost text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700" 
+                         onClick={() => finalizeSelection(null)}
+                       >
+                         Usar Coordenadas
+                       </button>
+                       <button 
+                         className="btn btn-primary px-6 shadow-lg hover:shadow-primary/30" 
+                         onClick={() => finalizeSelection(nicknameValue)}
+                       >
+                         Salvar Nome
+                       </button>
+                   </div>
+               </div>
+           </div>
+        )}
       </div>
     </div>
   );

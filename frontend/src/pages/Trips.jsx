@@ -21,7 +21,7 @@ export default function Trips() {
   const tipoOptions = ["Máquinas Agrícolas","Máquinas de Construção","Equipamentos Industriais","Veículos Pesados","Veículos Leves"];
   const INITIAL_FORM_STATE = { 
       date: "", end_date: "", requester: "", driver_id: "", truck_id: "", prancha_id: "", 
-      destination: "", origin: "Santa Helena de Goiás", location: "", service_type: "", cargo_qty: "",
+      destination: "", destination_coords: "", origin: "Santa Helena de Goiás", origin_coords: "", location: "", service_type: "", cargo_qty: "",
       status: "Previsto", description: "", start_time: "", end_time: "", 
       km_start: "", km_end: "", km_trip: "", km_per_liter: "", noKmStart: false, noKmEnd: false, 
       fuel_liters: "", noFuelLiters: false, fuel_price: "", noFuelPrice: false, 
@@ -127,10 +127,12 @@ export default function Trips() {
   const [editing, setEditing] = useState(null);
   const [viewing, setViewing] = useState(null);
   const [viewingRoute, setViewingRoute] = useState(null);
+  const [viewingRouteLoading, setViewingRouteLoading] = useState(false);
 
   useEffect(() => {
     if (viewing) {
       setViewingRoute(null);
+      setViewingRouteLoading(true);
       const origin = viewing.origin || viewing.location || "Santa Helena de Goiás";
       const destination = viewing.destination;
       
@@ -141,7 +143,10 @@ export default function Trips() {
               setViewingRoute(data);
             }
           })
-          .catch(err => console.error("Error fetching details route:", err));
+          .catch(err => console.error("Error fetching details route:", err))
+          .finally(() => setViewingRouteLoading(false));
+      } else {
+        setViewingRouteLoading(false);
       }
     }
   }, [viewing]);
@@ -150,14 +155,20 @@ export default function Trips() {
   // kmMode removed
   const [showValidation, setShowValidation] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showKmBox, setShowKmBox] = useState(true);
   const formRef = useRef(null);
   const lastSubmitTime = useRef(0);
 
   // Route Preview Effect
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (form.origin && form.destination && form.origin.length > 3 && form.destination.length > 3) {
-         getRouteData(form.origin, form.destination)
+      const originParam = form.origin_coords || form.origin;
+      const destParam = form.destination_coords || form.destination;
+      const isOriginValid = form.origin_coords || (form.origin && form.origin.length > 3);
+      const isDestValid = form.destination_coords || (form.destination && form.destination.length > 3);
+
+      if (isOriginValid && isDestValid) {
+         getRouteData(originParam, destParam)
            .then(data => {
              if (data) {
                data._origin = form.origin;
@@ -175,7 +186,7 @@ export default function Trips() {
     }, 1500); 
 
     return () => clearTimeout(timer);
-  }, [form.origin, form.destination]);
+  }, [form.origin, form.destination, form.origin_coords, form.destination_coords]);
 
   const handleRouteSelect = (route) => {
     if (!route) return;
@@ -249,6 +260,66 @@ export default function Trips() {
     if (hours > 0 && minutes > 0) return `${hours}h ${minutes}m`;
     if (hours > 0) return `${hours}h`;
     return `${minutes}m`;
+  };
+
+  const calculatePredictedArrival = () => {
+    if (!form.date || !form.start_time) return null;
+    
+    // Parse start date (DD/MM/YYYY or DD/MM/YY)
+    const dateParts = form.date.split('/');
+    if (dateParts.length !== 3) return null;
+    const [day, month, year] = dateParts;
+    
+    // Parse start time (HH:MM)
+    const timeParts = form.start_time.split(':');
+    if (timeParts.length !== 2) return null;
+    const [hour, minute] = timeParts;
+    
+    if (!day || !month || !year || !hour || !minute) return null;
+
+    // Handle 2-digit year
+    const fullYear = year.length === 2 ? `20${year}` : year;
+    
+    const start = new Date(Number(fullYear), Number(month) - 1, Number(day), Number(hour), Number(minute));
+    
+    let durationMins = 0;
+    if (selectedRoute?.durationMinutes) {
+       durationMins = selectedRoute.durationMinutes;
+    } else if (routePreview?.durationMinutes) {
+       durationMins = routePreview.durationMinutes;
+    } else {
+       // Fallback to parsed string "Xh Ym"
+       const durStr = form.planned_duration || "";
+       const hMatch = durStr.match(/(\d+)h/);
+       const mMatch = durStr.match(/(\d+)m/);
+       if (hMatch) durationMins += parseInt(hMatch[1]) * 60;
+       if (mMatch) durationMins += parseInt(mMatch[1]);
+    }
+    
+    // Multiply duration if round trip
+    if (form.trip_type === "round_trip") {
+       // Note: planned_duration usually already includes the multiplier if it comes from handleRouteSelect
+       // But selectedRoute.durationMinutes is usually one-way raw data unless modified
+       // Let's rely on form.planned_duration text mostly if selectedRoute might be stale or raw
+       // Actually, handleRouteSelect updates planned_duration string.
+       // Let's stick to parsing planned_duration string as it is the source of truth for "what the user sees"
+       // The previous logic for durationMins above prioritizes selectedRoute, which might be raw one-way.
+       // Let's adjust:
+       if (!selectedRoute && !routePreview) return null;
+    }
+    
+    if (durationMins <= 0) return null;
+    
+    const arrival = new Date(start.getTime() + durationMins * 60000);
+    
+    // Format output
+    const arrDay = String(arrival.getDate()).padStart(2, '0');
+    const arrMonth = String(arrival.getMonth() + 1).padStart(2, '0');
+    const arrYear = arrival.getFullYear();
+    const arrHour = String(arrival.getHours()).padStart(2, '0');
+    const arrMin = String(arrival.getMinutes()).padStart(2, '0');
+    
+    return `${arrDay}/${arrMonth}/${arrYear} ${arrHour}:${arrMin}`;
   };
 
   const handlePrint = () => {
@@ -526,6 +597,8 @@ export default function Trips() {
       truck_id: it.truck_id?.toString() || "",
       prancha_id: (pranchas.find((p) => p.id === it.prancha_id)?.asset_number?.toString()) || (it.prancha_id ? String(it.prancha_id) : ""), 
       destination: it.destination || "",
+      origin_coords: it.origin_coords || "",
+      destination_coords: it.destination_coords || "",
       origin: it.origin || "Cambuí - MG",
       location: it.location || "",
       service_type: it.service_type || "",
@@ -902,9 +975,17 @@ export default function Trips() {
     setMapModal({ isOpen: true, target, initial: form[target] });
   };
 
-  const handleMapSelect = (address) => {
+  const handleMapSelect = (data) => {
     if (mapModal.target) {
-      setForm(prev => ({ ...prev, [mapModal.target]: address }));
+      if (typeof data === 'object' && data !== null) {
+        setForm(prev => ({ 
+          ...prev, 
+          [mapModal.target]: data.address,
+          [`${mapModal.target}_coords`]: `${data.lat},${data.lon}`
+        }));
+      } else {
+        setForm(prev => ({ ...prev, [mapModal.target]: data }));
+      }
     }
   };
 
@@ -1046,57 +1127,8 @@ export default function Trips() {
             </select>
             {validationErrors.prancha_id && <span className="text-red-500 text-xs mt-1">{validationErrors.prancha_id}</span>}
           </div>
-          <div className="flex flex-col">
-            <span className="label-text text-xs mb-1 font-semibold text-slate-500 uppercase">Trajeto</span>
-            <div className="flex gap-4 p-2 bg-base-100 rounded border border-base-300">
-                <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="radio" name="trip_type" className="radio radio-primary radio-sm" 
-                           checked={form.trip_type === "one_way"} 
-                           onChange={() => setForm({...form, trip_type: "one_way"})} />
-                    <span className="text-sm">Somente Ida</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="radio" name="trip_type" className="radio radio-primary radio-sm" 
-                           checked={form.trip_type === "round_trip"} 
-                           onChange={() => setForm({...form, trip_type: "round_trip"})} />
-                    <span className="text-sm">Ida e Volta (x2)</span>
-                </label>
-            </div>
-          </div>
-          <div className="flex flex-col">
-            <div className="flex gap-2">
-              <input className={`input flex-1 ${validationErrors.origin ? 'ring-red-500 border-red-500' : ''}`} placeholder="Origem *" value={form.origin} onChange={(e) => setForm({ ...form, origin: e.target.value })} />
-              <button type="button" className="btn btn-square btn-outline btn-secondary" onClick={() => openMap('origin')} title="Selecionar no Mapa">
-                <span className="material-icons">map</span>
-              </button>
-            </div>
-            {validationErrors.origin && <span className="text-red-500 text-xs mt-1">{validationErrors.origin}</span>}
-          </div>
-          <div className="flex flex-col">
-            <div className="flex gap-2">
-              <input list="saved-destinations" className={`input flex-1 ${validationErrors.destination ? 'ring-red-500 border-red-500' : ''}`} placeholder="Destino *" value={form.destination} onChange={(e) => setForm({ ...form, destination: e.target.value })} />
-              <datalist id="saved-destinations">
-                {savedDestinations.map((d) => <option key={d.id} value={d.name} />)}
-              </datalist>
-              <button type="button" className="btn btn-square btn-outline btn-secondary" onClick={() => openMap('destination')} title="Selecionar no Mapa">
-                <span className="material-icons">map</span>
-              </button>
-            </div>
-            {validationErrors.destination && <span className="text-red-500 text-xs mt-1">{validationErrors.destination}</span>}
-          </div>
 
-          {routePreview && (
-            <div className="col-span-1 md:col-span-4 mt-2 animate-fade">
-              <div className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-2 flex items-center gap-2">
-                <span className="material-icons text-primary">alt_route</span>
-                Rota Sugerida: {selectedRoute?.distanceKm || routePreview.distanceKm} km • {Math.floor((selectedRoute?.durationMinutes || routePreview.durationMinutes) / 60)}h {Math.round((selectedRoute?.durationMinutes || routePreview.durationMinutes) % 60)}m
-              </div>
-              <div className="h-64 w-full rounded-lg overflow-hidden border border-slate-300 dark:border-slate-600 shadow-sm relative z-0">
-                 <RouteViewer routeData={routePreview} inline={true} onRouteSelect={handleRouteSelect} />
-              </div>
-            </div>
-          )}
-
+          {/* Campos de Unidade, Tipo, Status e Observação (movidos para o topo) */}
           <div className="flex flex-col">
             <select className={`select ${validationErrors.location ? 'ring-red-500 border-red-500' : ''}`} value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })}>
               <option value="" disabled>Unidade *</option>
@@ -1123,61 +1155,49 @@ export default function Trips() {
             </select>
             {validationErrors.status && <span className="text-red-500 text-xs mt-1">{validationErrors.status}</span>}
           </div>
-
-          <div className="md:col-span-4 grid grid-cols-1 md:grid-cols-3 gap-4 border p-4 rounded-lg bg-base-200">
-            <div className="col-span-full flex items-center justify-between">
-               <h3 className="font-bold text-lg text-secondary">Planejamento da Viagem</h3>
-               <div className="flex gap-2">
-                 <button type="button" onClick={simulateCosts} className="btn btn-sm btn-primary">
-                   <span className="material-icons text-sm">calculate</span> Simular Custos
-                 </button>
-                 {(Number(form.planned_total_cost) > 0) && (
-                   <button type="button" onClick={applyPlanningToReal} className="btn btn-sm btn-secondary" title="Copiar valores planejados para os custos reais">
-                     <span className="material-icons text-sm">content_copy</span> Aplicar
-                   </button>
-                 )}
-               </div>
-            </div>
-            {(Number(form.planned_total_cost) > 0) && (
-              <>
-                <div className="stats shadow bg-base-100">
-                  <div className="stat p-2">
-                    <div className="stat-title text-xs">Distância Est.</div>
-                    <div className="stat-value text-lg">{form.planned_km} km</div>
-                    <div className="stat-desc">{form.planned_duration}</div>
-                  </div>
-                </div>
-                <div className="stats shadow bg-base-100">
-                  <div className="stat p-2">
-                    <div className="stat-title text-xs">Custo Total Est.</div>
-                    <div className="stat-value text-lg text-primary">R$ {form.planned_total_cost}</div>
-                    <div className="stat-desc">Diesel + Pedágio + Outros</div>
-                  </div>
-                </div>
-                 <div className="col-span-full grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mt-2 bg-base-100 p-3 rounded shadow-sm">
-                    <div className="flex flex-col">
-                      <span className="text-xs opacity-70">Diesel Est.</span>
-                      <span className="font-semibold">{form.planned_fuel_liters} L (R$ {(Number(form.planned_fuel_liters) * (Number(form.fuel_price) || 6.15)).toFixed(2)})</span>
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-xs opacity-70">Pedágio Est.</span>
-                      <span className="font-semibold">R$ {form.planned_toll_cost}</span>
-                    </div>
-                     <div className="flex flex-col">
-                      <span className="text-xs opacity-70">Manutenção Est.</span>
-                      <span className="font-semibold">R$ {form.planned_maintenance}</span>
-                    </div>
-                     <div className="flex flex-col">
-                      <span className="text-xs opacity-70">Motorista Est.</span>
-                      <span className="font-semibold">R$ {form.planned_driver_cost}</span>
-                    </div>
-                 </div>
-              </>
-            )}
-          </div>
-          <div className="flex flex-col md:col-span-4">
+          <div className="flex flex-col">
             <input className="input" placeholder="Descrição" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
           </div>
+          <div className="flex flex-col">
+            <span className="label-text text-xs mb-1 font-semibold text-slate-500 uppercase">Trajeto</span>
+            <div className="flex gap-4 p-2 bg-base-100 rounded border border-base-300">
+                <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="trip_type" className="radio radio-primary radio-sm" 
+                           checked={form.trip_type === "one_way"} 
+                           onChange={() => setForm({...form, trip_type: "one_way"})} />
+                    <span className="text-sm">Somente Ida</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="trip_type" className="radio radio-primary radio-sm" 
+                           checked={form.trip_type === "round_trip"} 
+                           onChange={() => setForm({...form, trip_type: "round_trip"})} />
+                    <span className="text-sm">Ida e Volta (x2)</span>
+                </label>
+            </div>
+          </div>
+          <div className="flex flex-col">
+            <div className="flex gap-2">
+              <input className={`input flex-1 ${validationErrors.origin ? 'ring-red-500 border-red-500' : ''}`} placeholder="Origem *" value={form.origin} onChange={(e) => setForm({ ...form, origin: e.target.value, origin_coords: "" })} />
+              <button type="button" className="btn btn-square btn-outline btn-secondary" onClick={() => openMap('origin')} title="Selecionar no Mapa">
+                <span className="material-icons">map</span>
+              </button>
+            </div>
+            {validationErrors.origin && <span className="text-red-500 text-xs mt-1">{validationErrors.origin}</span>}
+          </div>
+          <div className="flex flex-col">
+            <div className="flex gap-2">
+              <input list="saved-destinations" className={`input flex-1 ${validationErrors.destination ? 'ring-red-500 border-red-500' : ''}`} placeholder="Destino *" value={form.destination} onChange={(e) => setForm({ ...form, destination: e.target.value, destination_coords: "" })} />
+              <datalist id="saved-destinations">
+                {savedDestinations.map((d) => <option key={d.id} value={d.name} />)}
+              </datalist>
+              <button type="button" className="btn btn-square btn-outline btn-secondary" onClick={() => openMap('destination')} title="Selecionar no Mapa">
+                <span className="material-icons">map</span>
+              </button>
+            </div>
+            {validationErrors.destination && <span className="text-red-500 text-xs mt-1">{validationErrors.destination}</span>}
+          </div>
+
+          {/* Departure/Arrival Time Fields (moved above route preview) */}
           <div className="flex flex-col">
             <input className={`input ${validationErrors.start_time ? 'ring-red-500 border-red-500' : ''}`} placeholder="Hora saída (HH:MM) *" value={form.start_time} onChange={(e) => setForm({ ...form, start_time: maskTime(e.target.value), end_date: (!form.end_date && isValidDate(form.date)) ? form.date : form.end_date })} />
             {validationErrors.start_time && <span className="text-red-500 text-xs mt-1">{validationErrors.start_time}</span>}
@@ -1190,93 +1210,208 @@ export default function Trips() {
             <input className={`input ${validationErrors.end_time ? 'ring-red-500 border-red-500' : ''}`} placeholder="Hora retorno (HH:MM)" value={form.end_time} onChange={(e) => setForm({ ...form, end_time: maskTime(e.target.value), end_date: (!form.end_date && isValidDate(form.date)) ? form.date : form.end_date })} />
             {validationErrors.end_time && <span className="text-red-500 text-xs mt-1">{validationErrors.end_time}</span>}
           </div>
+
+          {/* Campos de Unidade, Tipo, Status e Observação movidos para cima */}
+
+
+          {routePreview && (
+            <div className="col-span-1 md:col-span-4 mt-2 animate-fade">
+              <div className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-2 flex items-center gap-2">
+                <span className="material-icons text-primary">alt_route</span>
+                Rota Sugerida: {selectedRoute?.distanceKm || routePreview.distanceKm} km • {Math.floor((selectedRoute?.durationMinutes || routePreview.durationMinutes) / 60)}h {Math.round((selectedRoute?.durationMinutes || routePreview.durationMinutes) % 60)}m
+              </div>
+              <div className="h-64 w-full rounded-lg overflow-hidden border border-slate-300 dark:border-slate-600 shadow-sm relative z-0">
+                 <RouteViewer routeData={routePreview} inline={true} onRouteSelect={handleRouteSelect} />
+              </div>
+            </div>
+          )}
+
+          <div className="md:col-span-4 grid grid-cols-1 md:grid-cols-3 gap-4 border p-4 rounded-lg bg-slate-50 dark:bg-slate-900/50">
+            <div className="col-span-full flex items-center justify-between border-b border-slate-200 pb-2 mb-2">
+               <div className="flex items-center gap-2">
+                  <span className="material-icons text-primary">analytics</span>
+                  <h3 className="font-bold text-lg text-slate-700 dark:text-slate-200">Planejamento da Viagem</h3>
+               </div>
+               <div className="flex gap-2">
+                 <button type="button" onClick={simulateCosts} className="btn btn-sm btn-primary">
+                   <span className="material-icons text-sm">calculate</span> Simular Custos
+                 </button>
+                 {(Number(form.planned_total_cost) > 0) && (
+                   <button type="button" onClick={applyPlanningToReal} className="btn btn-sm btn-secondary" title="Copiar valores planejados para os custos reais">
+                     <span className="material-icons text-sm">content_copy</span> Aplicar
+                   </button>
+                 )}
+               </div>
+            </div>
+            {/* Planning Stats & Arrival Prediction */}
+            {(Number(form.planned_total_cost) > 0 || selectedRoute || routePreview) && (
+              <>
+                <div className="col-span-full grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
+                  {/* Distance Estimation */}
+                  <div className="stats shadow bg-base-100 border border-slate-100 dark:border-slate-700">
+                    <div className="stat p-3">
+                      <div className="stat-title text-xs font-bold text-slate-400 uppercase tracking-wider">Distância Est.</div>
+                      <div className="stat-value text-xl text-slate-700 dark:text-slate-200">
+                        {form.planned_km || (Number((selectedRoute?.distanceKm || routePreview?.distanceKm || 0)) * (form.trip_type === 'round_trip' ? 2 : 1)).toFixed(1)} km
+                      </div>
+                      <div className="stat-desc text-xs mt-1 font-medium">
+                        {form.planned_duration || (() => {
+                           const mins = (selectedRoute?.durationMinutes || routePreview?.durationMinutes || 0) * (form.trip_type === 'round_trip' ? 2 : 1);
+                           return `${Math.floor(mins / 60)}h ${Math.round(mins % 60)}m`;
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Arrival Prediction */}
+                  <div className="stats shadow bg-base-100 border border-slate-100 dark:border-slate-700">
+                    <div className="stat p-3">
+                      <div className="stat-title text-xs font-bold text-slate-400 uppercase tracking-wider">Chegada Prevista</div>
+                      <div className="stat-value text-xl text-secondary">
+                        {calculatePredictedArrival() ? calculatePredictedArrival().split(' ')[1] : "--:--"}
+                      </div>
+                      <div className="stat-desc text-xs mt-1 font-medium">
+                        {calculatePredictedArrival() ? calculatePredictedArrival().split(' ')[0] : "Defina data/hora saída"}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Cost Estimation (Only if simulated) */}
+                  {(Number(form.planned_total_cost) > 0) && (
+                    <div className="stats shadow bg-base-100 border border-slate-100 dark:border-slate-700">
+                      <div className="stat p-3">
+                        <div className="stat-title text-xs font-bold text-slate-400 uppercase tracking-wider">Custo Total Est.</div>
+                        <div className="stat-value text-xl text-primary">R$ {form.planned_total_cost}</div>
+                        <div className="stat-desc text-xs mt-1 font-medium">Diesel + Pedágio + Outros</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Detailed Cost Breakdown (Only if simulated) */}
+                {(Number(form.planned_total_cost) > 0) && (
+                 <div className="col-span-full grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mt-2 bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
+                    <div className="flex flex-col border-r border-slate-100 dark:border-slate-700 last:border-0 px-2">
+                      <span className="text-xs opacity-70 mb-1">Diesel Est.</span>
+                      <span className="font-bold text-slate-700 dark:text-slate-200 text-lg">{form.planned_fuel_liters} L</span>
+                      <span className="text-xs text-slate-500">R$ {(Number(form.planned_fuel_liters) * (Number(form.fuel_price) || 6.15)).toFixed(2)}</span>
+                    </div>
+                    <div className="flex flex-col border-r border-slate-100 dark:border-slate-700 last:border-0 px-2">
+                      <span className="text-xs opacity-70 mb-1">Pedágio Est.</span>
+                      <span className="font-bold text-slate-700 dark:text-slate-200 text-lg">R$ {form.planned_toll_cost}</span>
+                    </div>
+                     <div className="flex flex-col border-r border-slate-100 dark:border-slate-700 last:border-0 px-2">
+                      <span className="text-xs opacity-70 mb-1">Manutenção Est.</span>
+                      <span className="font-bold text-slate-700 dark:text-slate-200 text-lg">R$ {form.planned_maintenance}</span>
+                    </div>
+                     <div className="flex flex-col px-2">
+                      <span className="text-xs opacity-70 mb-1">Motorista Est.</span>
+                      <span className="font-bold text-slate-700 dark:text-slate-200 text-lg">R$ {form.planned_driver_cost}</span>
+                    </div>
+                 </div>
+                )}
+              </>
+            )}
+          </div>
           <div className="md:col-span-4 grid grid-cols-1 md:grid-cols-2 gap-6 border p-4 rounded-lg bg-slate-50 dark:bg-slate-900/50">
-             <div className="col-span-full flex items-center gap-2 mb-2 border-b border-slate-200 pb-2">
+            <div className="col-span-full flex items-center justify-between mb-2 border-b border-slate-200 pb-2">
+              <div className="flex items-center gap-2">
                 <span className="material-icons text-primary">speed</span>
                 <h3 className="font-bold text-lg text-slate-700 dark:text-slate-200">Quilometragem e Consumo</h3>
-             </div>
+              </div>
+              <button type="button" className="btn btn-sm btn-secondary" onClick={() => setShowKmBox(!showKmBox)}>
+                {showKmBox ? "Ocultar" : "Mostrar"}
+              </button>
+            </div>
 
-             {/* KM Caminhão */}
-             <div className="flex flex-col gap-4">
-                <div className="flex justify-between items-center">
-                    <div className="text-xs font-bold uppercase text-slate-500 tracking-wider">Odômetro (Caminhão)</div>
-                </div>
-                
-                <div className="flex flex-col">
-                  <div className="flex items-center gap-2">
-                    <input className={`input flex-1 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-500 ${validationErrors.km_start ? 'ring-red-500 border-red-500' : ''}`} placeholder="KM Inicial *" inputMode="decimal" maxLength={10} value={form.km_start} onChange={(e) => {
-                      const val = e.target.value.replace(/[^0-9.,]/g, '').slice(0, 10);
-                      const kmEndNum = Number((form.km_end || '').replace(',', '.'));
-                      const kmStartNum = Number(val.replace(',', '.') || '');
-                      const autoTrip = (form.km_trip === '' && form.km_end !== '') ? String(Math.max(0, kmEndNum - kmStartNum)) : form.km_trip;
-                      setForm({ ...form, km_start: val, km_trip: autoTrip });
-                    }} disabled={form.noKmStart} />
-                    <label className="cursor-pointer label p-0 flex flex-col items-center gap-1" title="Marcar como Não Registrado">
-                        <span className="label-text text-[10px] text-slate-400">N/R</span>
-                        <input type="checkbox" className="toggle toggle-error toggle-xs" checked={form.noKmStart} onChange={() => setForm({ ...form, noKmStart: !form.noKmStart, km_start: !form.noKmStart ? '' : form.km_start })} />
-                    </label>
+            {showKmBox && (
+              <>
+                {/* KM Caminhão */}
+                <div className="flex flex-col gap-4">
+                  <div className="flex justify-between items-center">
+                      <div className="text-xs font-bold uppercase text-slate-500 tracking-wider">Odômetro (Caminhão)</div>
                   </div>
-                  {validationErrors.km_start && <span className="text-red-500 text-xs mt-1">{validationErrors.km_start}</span>}
-                </div>
-
-                <div className="flex flex-col">
-                  <div className="flex items-center gap-2">
-                    <input className={`input flex-1 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-500 ${validationErrors.km_end ? 'ring-red-500 border-red-500' : ''}`} placeholder="KM Final *" inputMode="decimal" maxLength={10} value={form.km_end} onChange={(e) => {
-                      const val = e.target.value.replace(/[^0-9.,]/g, '').slice(0, 10);
-                      const kmStartNum = Number((form.km_start || '').replace(',', '.'));
-                      const kmEndNum = Number(val.replace(',', '.') || '');
-                      const autoTrip = (val === '' || form.km_trip === '') && (form.km_start !== '' && val !== '') ? String(Math.max(0, kmEndNum - kmStartNum)) : form.km_trip;
-                      setForm({ ...form, km_end: val, km_trip: autoTrip });
-                    }} disabled={form.noKmEnd || !(form.status === 'Em Andamento' || form.status === 'Finalizado')} />
-                    <label className="cursor-pointer label p-0 flex flex-col items-center gap-1" title="Marcar como Não Registrado">
-                        <span className="label-text text-[10px] text-slate-400">N/R</span>
-                        <input type="checkbox" className="toggle toggle-error toggle-xs" checked={form.noKmEnd} onChange={() => setForm({ ...form, noKmEnd: !form.noKmEnd, km_end: !form.noKmEnd ? '' : form.km_end })} />
-                    </label>
+                  
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-2">
+                      <input className={`input flex-1 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-500 ${validationErrors.km_start ? 'ring-red-500 border-red-500' : ''}`} placeholder="KM Inicial *" inputMode="decimal" maxLength={10} value={form.km_start} onChange={(e) => {
+                        const val = e.target.value.replace(/[^0-9.,]/g, '').slice(0, 10);
+                        const kmEndNum = Number((form.km_end || '').replace(',', '.'));
+                        const kmStartNum = Number(val.replace(',', '.') || '');
+                        const autoTrip = (form.km_trip === '' && form.km_end !== '') ? String(Math.max(0, kmEndNum - kmStartNum)) : form.km_trip;
+                        setForm({ ...form, km_start: val, km_trip: autoTrip });
+                      }} disabled={form.noKmStart} />
+                      <label className="cursor-pointer label p-0 flex flex-col items-center gap-1" title="Marcar como Não Registrado">
+                          <span className="label-text text-[10px] text-slate-400">N/R</span>
+                          <input type="checkbox" className="toggle toggle-error toggle-xs" checked={form.noKmStart} onChange={() => setForm({ ...form, noKmStart: !form.noKmStart, km_start: !form.noKmStart ? '' : form.km_start })} />
+                      </label>
+                    </div>
+                    {validationErrors.km_start && <span className="text-red-500 text-xs mt-1">{validationErrors.km_start}</span>}
                   </div>
-                  <button type="button" className="btn btn-xs btn-link no-underline text-blue-600 pl-0 justify-start mt-1" onClick={autoFillKmByRoute} title="Calcular KM Final baseado na rota">
-                    <span className="material-icons text-xs mr-1">near_me</span> Preencher KM Final pela Rota
-                  </button>
-                  {validationErrors.km_end && <span className="text-red-500 text-xs mt-1">{validationErrors.km_end}</span>}
-                </div>
-             </div>
 
-             {/* KM Viagem */}
-             <div className="flex flex-col gap-4">
-                <div className="text-xs font-bold uppercase text-slate-500 tracking-wider">Distância e Consumo</div>
-                
-                <div className="flex flex-col">
-                  <div className="flex gap-2">
-                    <input className={`input flex-1 ${validationErrors.km_trip ? 'ring-red-500 border-red-500' : ''}`} placeholder="KM Rodado (Viagem)" inputMode="decimal" maxLength={10} value={form.km_trip} onChange={(e) => {
-                      const val = e.target.value.replace(/[^0-9.,]/g, '').slice(0, 10);
-                      const kmStartNum = Number((form.km_start || '').replace(',', '.'));
-                      const vNum = Number(val.replace(',', '.') || '');
-                      const newEnd = form.km_start !== '' ? String(kmStartNum + vNum) : form.km_end;
-                      const perLNum = Number(String(form.km_per_liter || '').replace(',', '.'));
-                      const autoLiters = perLNum > 0 && vNum >= 0 ? String((vNum / perLNum).toFixed(2)) : form.fuel_liters;
-                      setForm({ ...form, km_trip: val, km_end: newEnd, fuel_liters: autoLiters });
-                    }} />
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-2">
+                      <input className={`input flex-1 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-500 ${validationErrors.km_end ? 'ring-red-500 border-red-500' : ''}`} placeholder="KM Final *" inputMode="decimal" maxLength={10} value={form.km_end} onChange={(e) => {
+                        const val = e.target.value.replace(/[^0-9.,]/g, '').slice(0, 10);
+                        const kmStartNum = Number((form.km_start || '').replace(',', '.'));
+                        const kmEndNum = Number(val.replace(',', '.') || '');
+                        const autoTrip = (val === '' || form.km_trip === '') && (form.km_start !== '' && val !== '') ? String(Math.max(0, kmEndNum - kmStartNum)) : form.km_trip;
+                        setForm({ ...form, km_end: val, km_trip: autoTrip });
+                      }} disabled={form.noKmEnd || !(form.status === 'Em Andamento' || form.status === 'Finalizado')} />
+                      <label className="cursor-pointer label p-0 flex flex-col items-center gap-1" title="Marcar como Não Registrado">
+                          <span className="label-text text-[10px] text-slate-400">N/R</span>
+                          <input type="checkbox" className="toggle toggle-error toggle-xs" checked={form.noKmEnd} onChange={() => setForm({ ...form, noKmEnd: !form.noKmEnd, km_end: !form.noKmEnd ? '' : form.km_end })} />
+                      </label>
+                    </div>
+                    <button type="button" className="btn btn-xs btn-link no-underline text-blue-600 pl-0 justify-start mt-1" onClick={autoFillKmByRoute} title="Calcular KM Final baseado na rota">
+                      <span className="material-icons text-xs mr-1">near_me</span> Preencher KM Final pela Rota
+                    </button>
+                    {validationErrors.km_end && <span className="text-red-500 text-xs mt-1">{validationErrors.km_end}</span>}
                   </div>
-                  <button type="button" className="btn btn-xs btn-link no-underline text-blue-600 pl-0 justify-start mt-1" onClick={autoFillKmByRoute}>
-                      <span className="material-icons text-xs mr-1">near_me</span> Preencher pela Rota Sugerida
-                  </button>
-                  {validationErrors.km_trip && <span className="text-red-500 text-xs mt-1">{validationErrors.km_trip}</span>}
                 </div>
 
-                <div className="flex flex-col">
-                    <input className="input" placeholder="Consumo Médio (KM/L)" inputMode="decimal" value={form.km_per_liter} onChange={(e) => {
-                      const raw = e.target.value.replace(/[^0-9.,]/g, '');
-                      const norm = raw.replace(',', '.');
-                      const kmTripNum = Number(form.km_trip || 0);
-                      const perLNum = Number(norm || 0);
-                      const autoLiters = perLNum > 0 && kmTripNum >= 0 ? String((kmTripNum / perLNum).toFixed(2)) : form.fuel_liters;
-                      setForm({ ...form, km_per_liter: raw, fuel_liters: autoLiters });
-                    }} onBlur={() => { const v = Number(String(form.km_per_liter || '').replace(',', '.')); if (!(v > 0)) toast?.show("KM por litro inválido", "warning"); }} />
+                {/* KM Viagem */}
+                <div className="flex flex-col gap-4">
+                  <div className="text-xs font-bold uppercase text-slate-500 tracking-wider">Distância e Consumo</div>
+                  
+                  <div className="flex flex-col">
+                    <div className="flex gap-2">
+                      <input className={`input flex-1 ${validationErrors.km_trip ? 'ring-red-500 border-red-500' : ''}`} placeholder="KM Rodado (Viagem)" inputMode="decimal" maxLength={10} value={form.km_trip} onChange={(e) => {
+                        const val = e.target.value.replace(/[^0-9.,]/g, '').slice(0, 10);
+                        const kmStartNum = Number((form.km_start || '').replace(',', '.'));
+                        const vNum = Number(val.replace(',', '.') || '');
+                        const newEnd = form.km_start !== '' ? String(kmStartNum + vNum) : form.km_end;
+                        const perLNum = Number(String(form.km_per_liter || '').replace(',', '.'));
+                        const autoLiters = perLNum > 0 && vNum >= 0 ? String((vNum / perLNum).toFixed(2)) : form.fuel_liters;
+                        setForm({ ...form, km_trip: val, km_end: newEnd, fuel_liters: autoLiters });
+                      }} />
+                    </div>
+                    <button type="button" className="btn btn-xs btn-link no-underline text-blue-600 pl-0 justify-start mt-1" onClick={autoFillKmByRoute}>
+                        <span className="material-icons text-xs mr-1">near_me</span> Preencher pela Rota Sugerida
+                    </button>
+                    {validationErrors.km_trip && <span className="text-red-500 text-xs mt-1">{validationErrors.km_trip}</span>}
+                  </div>
+
+                  <div className="flex flex-col">
+                      <input className="input" placeholder="Consumo Médio (KM/L)" inputMode="decimal" value={form.km_per_liter} onChange={(e) => {
+                        const raw = e.target.value.replace(/[^0-9.,]/g, '');
+                        const norm = raw.replace(',', '.');
+                        const kmTripNum = Number(form.km_trip || 0);
+                        const perLNum = Number(norm || 0);
+                        const autoLiters = perLNum > 0 && kmTripNum >= 0 ? String((kmTripNum / perLNum).toFixed(2)) : form.fuel_liters;
+                        setForm({ ...form, km_per_liter: raw, fuel_liters: autoLiters });
+                      }} onBlur={() => { const v = Number(String(form.km_per_liter || '').replace(',', '.')); if (!(v > 0)) toast?.show("KM por litro inválido", "warning"); }} />
+                  </div>
                 </div>
-             </div>
+              </>
+            )}
           </div>
-          <div className="md:col-span-4 border p-4 rounded-lg">
-            <div className="flex items-center justify-between">
-              <h3 className="font-bold text-lg text-secondary">Execução / Custos Reais</h3>
+          <div className="md:col-span-4 border p-4 rounded-lg bg-slate-50 dark:bg-slate-900/50">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-2 mb-2">
+              <div className="flex items-center gap-2">
+                <span className="material-icons text-primary">paid</span>
+                <h3 className="font-bold text-lg text-slate-700 dark:text-slate-200">Execução / Custos Reais</h3>
+              </div>
               <button type="button" className="btn btn-sm btn-secondary" onClick={() => setShowAdvanced(!showAdvanced)}>
                 {showAdvanced ? "Ocultar" : "Mostrar"}
               </button>
@@ -1285,15 +1420,21 @@ export default function Trips() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
                 <div className="flex flex-col">
                   <div className="flex items-center gap-2">
-                    <input className="input flex-1 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-500" placeholder="Combustível (litros)" value={form.fuel_liters} onChange={(e) => setForm({ ...form, fuel_liters: e.target.value })} disabled={form.noFuelLiters} />
-                    <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={form.noFuelLiters} onChange={(e) => setForm({ ...form, noFuelLiters: e.target.checked, fuel_liters: e.target.checked ? '' : form.fuel_liters })} /> Não registrado</label>
+                    <input className={`input flex-1 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-500 ${form.noFuelLiters ? 'opacity-50' : ''}`} placeholder="Combustível (litros)" value={form.fuel_liters} onChange={(e) => setForm({ ...form, fuel_liters: e.target.value })} disabled={form.noFuelLiters} />
+                    <label className="cursor-pointer label p-0 flex flex-col items-center gap-1" title="Marcar como Não Registrado">
+                        <span className="label-text text-[10px] text-slate-400">N/R</span>
+                        <input type="checkbox" className="toggle toggle-error toggle-xs" checked={form.noFuelLiters} onChange={(e) => setForm({ ...form, noFuelLiters: e.target.checked, fuel_liters: e.target.checked ? '' : form.fuel_liters })} />
+                    </label>
                   </div>
                 </div>
                 <div className="flex flex-col">
                   <div className="flex gap-2">
                     <div className="flex-1 flex items-center gap-2">
-                      <input className="input flex-1 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-500" placeholder="Valor combustível (R$/litro)" value={form.fuel_price} onChange={(e) => setForm({ ...form, fuel_price: e.target.value })} disabled={form.noFuelPrice} />
-                      <label className="flex items-center gap-1 text-sm whitespace-nowrap"><input type="checkbox" checked={form.noFuelPrice} onChange={(e) => setForm({ ...form, noFuelPrice: e.target.checked, fuel_price: e.target.checked ? '' : form.fuel_price })} /> N/R</label>
+                      <input className={`input flex-1 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-500 ${form.noFuelPrice ? 'opacity-50' : ''}`} placeholder="Valor combustível (R$/litro)" value={form.fuel_price} onChange={(e) => setForm({ ...form, fuel_price: e.target.value })} disabled={form.noFuelPrice} />
+                      <label className="cursor-pointer label p-0 flex flex-col items-center gap-1" title="Marcar como Não Registrado">
+                          <span className="label-text text-[10px] text-slate-400">N/R</span>
+                          <input type="checkbox" className="toggle toggle-error toggle-xs" checked={form.noFuelPrice} onChange={(e) => setForm({ ...form, noFuelPrice: e.target.checked, fuel_price: e.target.checked ? '' : form.fuel_price })} />
+                      </label>
                     </div>
                     <button type="button" className="btn btn-secondary" onClick={async () => {
                       try {
@@ -1348,20 +1489,29 @@ export default function Trips() {
                 </div>
                 <div className="flex flex-col">
                   <div className="flex items-center gap-2">
-                    <input className="input flex-1 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-500" placeholder="Outros custos (R$)" value={form.other_costs} onChange={(e) => setForm({ ...form, other_costs: e.target.value })} disabled={form.noOtherCosts} />
-                    <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={form.noOtherCosts} onChange={(e) => setForm({ ...form, noOtherCosts: e.target.checked, other_costs: e.target.checked ? '' : form.other_costs })} /> Não registrado</label>
+                    <input className={`input flex-1 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-500 ${form.noOtherCosts ? 'opacity-50' : ''}`} placeholder="Outros custos (R$)" value={form.other_costs} onChange={(e) => setForm({ ...form, other_costs: e.target.value })} disabled={form.noOtherCosts} />
+                    <label className="cursor-pointer label p-0 flex flex-col items-center gap-1" title="Marcar como Não Registrado">
+                        <span className="label-text text-[10px] text-slate-400">N/R</span>
+                        <input type="checkbox" className="toggle toggle-error toggle-xs" checked={form.noOtherCosts} onChange={(e) => setForm({ ...form, noOtherCosts: e.target.checked, other_costs: e.target.checked ? '' : form.other_costs })} />
+                    </label>
                   </div>
                 </div>
                 <div className="flex flex-col">
                   <div className="flex items-center gap-2">
-                    <input className="input flex-1 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-500" placeholder="Manutenção (R$)" value={form.maintenance_cost} onChange={(e) => setForm({ ...form, maintenance_cost: e.target.value })} disabled={form.noMaintenanceCost} />
-                    <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={form.noMaintenanceCost} onChange={(e) => setForm({ ...form, noMaintenanceCost: e.target.checked, maintenance_cost: e.target.checked ? '' : form.maintenance_cost })} /> Não registrado</label>
+                    <input className={`input flex-1 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-500 ${form.noMaintenanceCost ? 'opacity-50' : ''}`} placeholder="Manutenção (R$)" value={form.maintenance_cost} onChange={(e) => setForm({ ...form, maintenance_cost: e.target.value })} disabled={form.noMaintenanceCost} />
+                    <label className="cursor-pointer label p-0 flex flex-col items-center gap-1" title="Marcar como Não Registrado">
+                        <span className="label-text text-[10px] text-slate-400">N/R</span>
+                        <input type="checkbox" className="toggle toggle-error toggle-xs" checked={form.noMaintenanceCost} onChange={(e) => setForm({ ...form, noMaintenanceCost: e.target.checked, maintenance_cost: e.target.checked ? '' : form.maintenance_cost })} />
+                    </label>
                   </div>
                 </div>
                 <div className="flex flex-col">
                   <div className="flex items-center gap-2">
-                    <input className="input flex-1 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-500" placeholder="Diária do motorista (R$)" value={form.driver_daily} onChange={(e) => setForm({ ...form, driver_daily: e.target.value })} disabled={form.noDriverDaily} />
-                    <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={form.noDriverDaily} onChange={(e) => setForm({ ...form, noDriverDaily: e.target.checked, driver_daily: e.target.checked ? '' : form.driver_daily })} /> Não registrado</label>
+                    <input className={`input flex-1 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-500 ${form.noDriverDaily ? 'opacity-50' : ''}`} placeholder="Diária do motorista (R$)" value={form.driver_daily} onChange={(e) => setForm({ ...form, driver_daily: e.target.value })} disabled={form.noDriverDaily} />
+                    <label className="cursor-pointer label p-0 flex flex-col items-center gap-1" title="Marcar como Não Registrado">
+                        <span className="label-text text-[10px] text-slate-400">N/R</span>
+                        <input type="checkbox" className="toggle toggle-error toggle-xs" checked={form.noDriverDaily} onChange={(e) => setForm({ ...form, noDriverDaily: e.target.checked, driver_daily: e.target.checked ? '' : form.driver_daily })} />
+                    </label>
                   </div>
                 </div>
               </div>
@@ -1609,7 +1759,21 @@ export default function Trips() {
                        <span className="material-icons">map</span> Rota da Viagem
                     </h3>
                     <div className="h-64 w-full rounded-lg overflow-hidden border border-slate-300 dark:border-slate-600 shadow-sm relative z-0">
-                       <RouteViewer routeData={viewingRoute} inline={true} />
+                       <RouteViewer routeData={viewingRoute} inline={true} isLoading={viewingRouteLoading} />
+                    </div>
+                  </div>
+                )}
+                {/* Se estiver carregando e ainda não tiver rota, mostra o esqueleto do mapa */}
+                {viewingRouteLoading && !viewingRoute && (
+                  <div className="col-span-full border-t border-slate-200 dark:border-slate-700 pt-4">
+                     <h3 className="font-semibold text-lg mb-4 text-secondary flex items-center gap-2">
+                       <span className="material-icons">map</span> Rota da Viagem
+                    </h3>
+                    <div className="h-64 w-full rounded-lg overflow-hidden border border-slate-300 dark:border-slate-600 shadow-sm relative z-0 bg-slate-100 dark:bg-slate-900 flex items-center justify-center">
+                        <div className="flex flex-col items-center gap-3 animate-pulse">
+                            <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                            <span className="text-slate-500 text-sm font-medium">Carregando mapa...</span>
+                        </div>
                     </div>
                   </div>
                 )}

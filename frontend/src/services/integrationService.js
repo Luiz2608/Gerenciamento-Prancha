@@ -41,9 +41,8 @@ export const getRouteData = async (origin, destination) => {
     const end = await getCoordinates(destination);
 
     if (!start || !end) {
-      console.warn("Could not geocode origin or destination");
-      // If geocoding fails, we can't do much but return the basic mock
-      throw new Error("Geocoding failed");
+      console.warn("Could not geocode origin or destination - using fallback");
+      throw new Error("Geocoding failed - falling back to mock");
     }
 
     // OSRM requires lon,lat;lon,lat
@@ -76,7 +75,12 @@ export const getRouteData = async (origin, destination) => {
       };
     }
   } catch (e) {
-    console.error("Route fetch error", e);
+    // Only log actual errors, not expected geocoding failures
+    if (e.message && e.message.includes("Geocoding failed")) {
+        console.warn("Route fetch: " + e.message);
+    } else {
+        console.error("Route fetch error", e);
+    }
   }
 
   // Fallback to mock if API fails
