@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 
 export default function MapModal({ isOpen, onClose, onSelect, initialAddress }) {
   const mapRef = useRef(null);
@@ -57,9 +60,9 @@ export default function MapModal({ isOpen, onClose, onSelect, initialAddress }) 
     if (L) {
       delete L.Icon.Default.prototype._getIconUrl;
       L.Icon.Default.mergeOptions({
-        iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-        iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+        iconRetinaUrl: markerIcon2x,
+        iconUrl: markerIcon,
+        shadowUrl: markerShadow,
       });
     }
   }, []);
@@ -82,9 +85,9 @@ export default function MapModal({ isOpen, onClose, onSelect, initialAddress }) 
 
     // Ensure icon options are set if they were missing
     const defaultIcon = L.icon({
-        iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-        iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+        iconUrl: markerIcon,
+        iconRetinaUrl: markerIcon2x,
+        shadowUrl: markerShadow,
         iconSize: [25, 41],
         iconAnchor: [12, 41],
         popupAnchor: [1, -34],
@@ -95,7 +98,14 @@ export default function MapModal({ isOpen, onClose, onSelect, initialAddress }) 
       markerRef.current.setLatLng([lat, lng]);
       markerRef.current.setIcon(defaultIcon); // Force icon refresh
     } else {
-      markerRef.current = L.marker([lat, lng], { icon: defaultIcon }).addTo(mapInstanceRef.current);
+      markerRef.current = L.marker([lat, lng], { icon: defaultIcon, draggable: true }).addTo(mapInstanceRef.current);
+      
+      // Handle drag end
+      markerRef.current.on('dragend', function(event) {
+        const position = event.target.getLatLng();
+        mapInstanceRef.current.panTo(position);
+        reverseGeocode(position.lat, position.lng);
+      });
     }
     mapInstanceRef.current.panTo([lat, lng]);
   };
