@@ -1,0 +1,13 @@
+[
+  { "id": 1, "name": "Goiânia - GO" },
+  { "id": 2, "name": "Santa Helena de Goiás - GO" },
+  { "id": 3, "name": "Rio Verde - GO" },
+  { "id": 4, "name": "Itumbiara - GO" },
+  { "id": 5, "name": "Anápolis - GO" },
+  { "id": 6, "name": "Aparecida de Goiânia - GO" },
+  { "id": 7, "name": "São Paulo - SP" },
+  { "id": 8, "name": "Belo Horizonte - MG" },
+  { "id": 9, "name": "Uberlândia - MG" },
+  { "id": 10, "name": "Brasília - DF" },
+  { "id": 11, "name": "Usina Cambuí - Santa Helena de Goiás" }
+]

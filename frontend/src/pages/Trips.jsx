@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useLocation } from "react-router-dom";
-import { getMotoristas, getViagens, getViagem, saveViagem, updateViagem, deleteViagem, getCaminhoes, getPranchas, getCustos } from "../services/storageService.js";
+import { getMotoristas, getViagens, getViagem, saveViagem, updateViagem, deleteViagem, getCaminhoes, getPranchas, getCustos, getDestinos } from "../services/storageService.js";
 import { getRouteData, getDieselPrice, getTollCost } from "../services/integrationService.js";
 import { useToast } from "../components/ToastProvider.jsx";
 import { supabase } from "../services/supabaseClient.js";
@@ -14,6 +14,7 @@ export default function Trips() {
   const [trucks, setTrucks] = useState([]);
   const [pranchas, setPranchas] = useState([]);
   const [items, setItems] = useState([]);
+  const [savedDestinations, setSavedDestinations] = useState([]);
   const [mapModal, setMapModal] = useState({ isOpen: false, target: null, initial: "" });
   const [routePreview, setRoutePreview] = useState(null);
   const [selectedRoute, setSelectedRoute] = useState(null);
@@ -413,6 +414,7 @@ export default function Trips() {
   const [pageSize, setPageSize] = useState(20);
 
   const loadDrivers = () => getMotoristas().then((r) => setDrivers(r));
+  const loadDestinations = () => getDestinos().then((r) => setSavedDestinations(r || []));
   const loadTrucks = () => getCaminhoes().then((r) => setTrucks(r.filter((x) => x.status === "Ativo")));
   const loadPranchas = () => getPranchas().then((r) => setPranchas(r.filter((x) => x.status === "Ativo")));
 
@@ -475,6 +477,7 @@ export default function Trips() {
 
   useEffect(() => {
     loadDrivers();
+    loadDestinations();
     loadTrucks();
     loadPranchas();
     loadTrips();
@@ -1076,7 +1079,10 @@ export default function Trips() {
           </div>
           <div className="flex flex-col">
             <div className="flex gap-2">
-              <input className={`input flex-1 ${validationErrors.destination ? 'ring-red-500 border-red-500' : ''}`} placeholder="Destino *" value={form.destination} onChange={(e) => setForm({ ...form, destination: e.target.value })} />
+              <input list="saved-destinations" className={`input flex-1 ${validationErrors.destination ? 'ring-red-500 border-red-500' : ''}`} placeholder="Destino *" value={form.destination} onChange={(e) => setForm({ ...form, destination: e.target.value })} />
+              <datalist id="saved-destinations">
+                {savedDestinations.map((d) => <option key={d.id} value={d.name} />)}
+              </datalist>
               <button type="button" className="btn btn-square btn-outline btn-secondary" onClick={() => openMap('destination')} title="Selecionar no Mapa">
                 <span className="material-icons">map</span>
               </button>
