@@ -2,6 +2,7 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
 import { ToastProvider } from "./components/ToastProvider.jsx";
+import "leaflet/dist/leaflet.css";
 import "./index.css";
 
 function setVh() {
