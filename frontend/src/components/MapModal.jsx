@@ -64,6 +64,18 @@ export default function MapModal({ isOpen, onClose, onSelect, initialAddress }) 
     }
   }, []);
 
+  const formatAddress = (address) => {
+    if (!address) return "";
+    const parts = [
+      address.road || address.street,
+      address.house_number,
+      address.suburb || address.neighborhood,
+      address.city || address.town || address.village || address.municipality,
+      address.state
+    ];
+    return parts.filter(Boolean).join(", ");
+  };
+
   const updateMarker = (lat, lng) => {
     const L = window.L;
     if (!mapInstanceRef.current || !L) return;
@@ -80,14 +92,16 @@ export default function MapModal({ isOpen, onClose, onSelect, initialAddress }) 
     if (!q) return;
     setLoading(true);
     try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`);
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&q=${encodeURIComponent(q)}`);
       const data = await res.json();
       if (data && data.length > 0) {
         const first = data[0];
         const lat = parseFloat(first.lat);
         const lon = parseFloat(first.lon);
         updateMarker(lat, lon);
-        setSelectedLocation({ lat, lon, display_name: first.display_name });
+        
+        const shortName = formatAddress(first.address) || first.display_name;
+        setSelectedLocation({ lat, lon, display_name: shortName });
       }
     } catch (e) {
       console.error("Geocoding error", e);
@@ -102,17 +116,8 @@ export default function MapModal({ isOpen, onClose, onSelect, initialAddress }) 
       const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
       const data = await res.json();
       if (data) {
-        // Try to construct a shorter address
-        const addr = data.address || {};
-        const shortAddr = [
-          addr.road || addr.street,
-          addr.house_number,
-          addr.suburb || addr.neighborhood,
-          addr.city || addr.town || addr.village || addr.municipality,
-          addr.state_district || addr.state
-        ].filter(Boolean).join(", ");
-        
-        setSelectedLocation({ lat, lon, display_name: shortAddr || data.display_name, full: data });
+        const shortName = formatAddress(data.address) || data.display_name;
+        setSelectedLocation({ lat, lon, display_name: shortName, full: data });
       }
     } catch (e) {
       console.error("Reverse geocoding error", e);
