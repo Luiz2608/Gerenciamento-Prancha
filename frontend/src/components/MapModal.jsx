@@ -50,6 +50,7 @@ export default function MapModal({ isOpen, onClose, onSelect, initialAddress }) 
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
+        markerRef.current = null;
       }
     };
   }, [isOpen]);
@@ -95,18 +96,18 @@ export default function MapModal({ isOpen, onClose, onSelect, initialAddress }) 
     });
 
     if (markerRef.current) {
-      markerRef.current.setLatLng([lat, lng]);
-      markerRef.current.setIcon(defaultIcon); // Force icon refresh
-    } else {
-      markerRef.current = L.marker([lat, lng], { icon: defaultIcon, draggable: true }).addTo(mapInstanceRef.current);
-      
-      // Handle drag end
-      markerRef.current.on('dragend', function(event) {
-        const position = event.target.getLatLng();
-        mapInstanceRef.current.panTo(position);
-        reverseGeocode(position.lat, position.lng);
-      });
+      markerRef.current.remove();
     }
+    
+    markerRef.current = L.marker([lat, lng], { icon: defaultIcon, draggable: true }).addTo(mapInstanceRef.current);
+    
+    // Handle drag end
+    markerRef.current.on('dragend', function(event) {
+      const position = event.target.getLatLng();
+      mapInstanceRef.current.panTo(position);
+      reverseGeocode(position.lat, position.lng);
+    });
+
     mapInstanceRef.current.panTo([lat, lng]);
   };
 
