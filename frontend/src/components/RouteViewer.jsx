@@ -18,7 +18,7 @@ export default function RouteViewer({ isOpen, onClose, routeData, inline = false
     const L = window.L;
     if (!L) return;
 
-    const map = L.map(mapRef.current).setView([-22.6122, -46.0575], 13);
+    const map = L.map(mapRef.current).setView([-17.8136, -50.5969], 13); // Santa Helena de Goiás default
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
@@ -130,6 +130,15 @@ export default function RouteViewer({ isOpen, onClose, routeData, inline = false
       <div className="w-full h-full relative bg-slate-100 dark:bg-slate-900 group">
         <div ref={mapRef} className="absolute inset-0 z-0" />
         <Controls />
+        {!activeRoute?.geometry && (
+           <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-100/80 dark:bg-slate-900/80 backdrop-blur-sm">
+             <div className="text-center p-4">
+               <span className="material-icons text-4xl text-slate-400 mb-2">map</span>
+               <p className="text-sm font-medium text-slate-600 dark:text-slate-300">Mapa indisponível para rota estimada</p>
+               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">A distância e duração foram calculadas manualmente</p>
+             </div>
+           </div>
+        )}
       </div>
     );
   }
@@ -154,6 +163,15 @@ export default function RouteViewer({ isOpen, onClose, routeData, inline = false
         <div className="flex-1 relative bg-slate-100 dark:bg-slate-900">
            <div ref={mapRef} className="absolute inset-0 z-0" />
            <Controls />
+           {!activeRoute?.geometry && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-100/80 dark:bg-slate-900/80 backdrop-blur-sm">
+                <div className="text-center p-4">
+                  <span className="material-icons text-4xl text-slate-400 mb-2">map</span>
+                  <p className="text-sm font-medium text-slate-600 dark:text-slate-300">Mapa indisponível para rota estimada</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">A distância e duração foram calculadas manualmente</p>
+                </div>
+              </div>
+           )}
         </div>
       </div>
     </div>

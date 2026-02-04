@@ -20,7 +20,7 @@ export default function Trips() {
   const tipoOptions = ["Máquinas Agrícolas","Máquinas de Construção","Equipamentos Industriais","Veículos Pesados","Veículos Leves"];
   const INITIAL_FORM_STATE = { 
       date: "", end_date: "", requester: "", driver_id: "", truck_id: "", prancha_id: "", 
-      destination: "", origin: "Cambuí - MG", location: "", service_type: "", cargo_qty: "",
+      destination: "", origin: "Santa Helena de Goiás", location: "", service_type: "", cargo_qty: "",
       status: "Previsto", description: "", start_time: "", end_time: "", 
       km_start: "", km_end: "", km_trip: "", km_per_liter: "", noKmStart: false, noKmEnd: false, 
       fuel_liters: "", noFuelLiters: false, fuel_price: "", noFuelPrice: false, 
@@ -130,7 +130,7 @@ export default function Trips() {
   useEffect(() => {
     if (viewing) {
       setViewingRoute(null);
-      const origin = viewing.origin || viewing.location || "Cambuí - MG";
+      const origin = viewing.origin || viewing.location || "Santa Helena de Goiás";
       const destination = viewing.destination;
       
       if (origin && destination) {
@@ -158,7 +158,7 @@ export default function Trips() {
       if (form.origin && form.destination && form.origin.length > 3 && form.destination.length > 3) {
          getRouteData(form.origin, form.destination)
            .then(data => {
-             if (data && data.geometry) {
+             if (data) {
                data._origin = form.origin;
                data._destination = form.destination;
                setRoutePreview(data);
@@ -955,7 +955,7 @@ export default function Trips() {
                onChange={(e) => setLocationFilter(e.target.value)}
              >
                <option value="">Todas as Unidades</option>
-               <option value="Cambuí">Cambuí</option>
+              <option value="Cambuí">Cambuí</option>
                <option value="Vale">Vale</option>
                <option value="Panorama">Panorama</option>
                <option value="Floresta">Floresta</option>

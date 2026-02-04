@@ -17,7 +17,7 @@ export default function MapModal({ isOpen, onClose, onSelect, initialAddress }) 
       const L = window.L;
       if (!L) return;
 
-      const map = L.map(mapRef.current).setView([-22.6122, -46.0575], 13); // Cambuí default
+      const map = L.map(mapRef.current).setView([-17.8136, -50.5969], 13); // Santa Helena de Goiás default
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors'
       }).addTo(map);
