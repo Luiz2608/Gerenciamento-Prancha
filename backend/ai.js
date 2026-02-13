@@ -1,5 +1,7 @@
 import fs from "fs";
-import pdfParse from "pdf-parse";
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+const pdfParse = require("pdf-parse");
 
 const normalizeText = (str) => {
   try { return String(str).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); } catch { return String(str).toLowerCase(); }
