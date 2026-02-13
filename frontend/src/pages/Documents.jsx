@@ -7,8 +7,10 @@ export default function Documents() {
   const [selected, setSelected] = useState(null);
   const [docs, setDocs] = useState([]);
   const [uploadingId, setUploadingId] = useState(null);
+  const [uploadExpiry, setUploadExpiry] = useState({ documento: {}, tacografo_certificado: {} });
   const [docStatus, setDocStatus] = useState({});
   const [toast, setToast] = useState(null);
+  const [docEditExpiry, setDocEditExpiry] = useState({});
 
   const loadTrucks = async () => {
     const res = await getCaminhoes({ page: 1, pageSize: 100 });
@@ -43,7 +45,8 @@ export default function Documents() {
     if (!file) return;
     setUploadingId(truckId);
     try {
-      const item = await uploadTruckDocument(truckId, file, type, null);
+      const exp = uploadExpiry?.[type]?.[truckId] || null;
+      const item = await uploadTruckDocument(truckId, file, type, exp);
       if (selected && selected.id === truckId) {
         const list = await getDocumentosByCaminhao(truckId);
         setDocs(list);
@@ -107,6 +110,13 @@ export default function Documents() {
                 <td>{t.fleet || "-"}</td>
                 <td>
                   <div className="flex items-center gap-2">
+                    <input
+                      type="date"
+                      className="input input-sm"
+                      value={uploadExpiry.documento?.[t.id] || ""}
+                      onChange={(ev) => setUploadExpiry((prev) => ({ ...prev, documento: { ...prev.documento, [t.id]: ev.target.value || "" } }))}
+                      title="Validade (manual)"
+                    />
                     <label className="btn btn-sm cursor-pointer">
                       {uploadingId === t.id ? "Enviando..." : "Upload"}
                       <input type="file" className="hidden" onChange={(e) => handleUpload(t.id, e, "documento")} />
@@ -124,6 +134,13 @@ export default function Documents() {
                 </td>
                 <td>
                   <div className="flex items-center gap-2">
+                    <input
+                      type="date"
+                      className="input input-sm"
+                      value={uploadExpiry.tacografo_certificado?.[t.id] || ""}
+                      onChange={(ev) => setUploadExpiry((prev) => ({ ...prev, tacografo_certificado: { ...prev.tacografo_certificado, [t.id]: ev.target.value || "" } }))}
+                      title="Validade (manual)"
+                    />
                     <label className="btn btn-sm cursor-pointer">
                       {uploadingId === t.id ? "Enviando..." : "Upload"}
                       <input type="file" className="hidden" onChange={(e) => handleUpload(t.id, e, "tacografo_certificado")} />
@@ -166,6 +183,16 @@ export default function Documents() {
             </div>
             <div className="border-t pt-4">
               <div className="font-semibold mb-2">Documentos</div>
+              {(!loading && docs.length > 0) && (() => {
+                const expired = docs.filter(d => (d.expiry_status || (d.expiry_date ? "valid" : "unknown")) === "expired").length;
+                const expiring = docs.filter(d => (d.expiry_status || (d.expiry_date ? "valid" : "unknown")) === "expiring").length;
+                return (
+                  <div className="mb-2 flex gap-2">
+                    <span className="text-xs px-2 py-1 rounded-full bg-red-100 text-red-700">Vencidos: {expired}</span>
+                    <span className="text-xs px-2 py-1 rounded-full bg-amber-100 text-amber-700">Expiram ≤30d: {expiring}</span>
+                  </div>
+                );
+              })()}
               {loading ? (
                 <div>Carregando...</div>
               ) : (
@@ -208,6 +235,24 @@ export default function Documents() {
                             const label = status === "expired" ? "Vencido" : status === "expiring" ? `Vence em ${days} dias` : status === "valid" ? `Válido (${days ?? ""}d)` : "Sem validade";
                             return <span className={`text-[11px] px-2 py-0.5 rounded-full ${cls}`}>{label}</span>;
                           })()}
+                          <input
+                            type="date"
+                            className="input input-sm"
+                            value={docEditExpiry[d.id] ?? (d.expiry_date || "")}
+                            onChange={(ev) => setDocEditExpiry(prev => ({ ...prev, [d.id]: ev.target.value || "" }))}
+                            title="Editar validade (manual)"
+                          />
+                          <button
+                            className="btn btn-sm btn-secondary"
+                            onClick={async () => {
+                              const val = docEditExpiry[d.id] || "";
+                              const updated = await updateTruckDocumentExpiry(d.id, val || null);
+                              const list = await getDocumentosByCaminhao(selected.id);
+                              setDocs(list);
+                              setToast({ type: "success", message: "Validade atualizada" });
+                              setTimeout(() => setToast(null), 2000);
+                            }}
+                          >Salvar validade</button>
                           <button
                             className="btn btn-sm btn-error ml-auto"
                             onClick={async () => {

@@ -430,37 +430,7 @@ app.post("/api/documentos/upload", upload.single("file"), async (req, res) => {
     const filename = req.file.filename;
     const mime = (req.file.mimetype || "").toLowerCase();
     const size = req.file.size || null;
-    const isPdf = mime.includes("pdf") || /\.pdf$/i.test(String(filename));
-    if (!expiry_date && isPdf) {
-      try {
-        const buf = fs.readFileSync(path.join(uploadsRoot, "trucks", String(truck_id), filename));
-        const parsed = await pdfParse(buf);
-        const txt = parsed?.text || "";
-        const validityDate = parseValidityDate(txt);
-        const textDate = parseDateFromText(txt);
-        const issueDate = parseIssueDate(txt);
-        const exerciseYear = parseExerciseYear(txt);
-        if (!expiry_date && validityDate) expiry_date = validityDate;
-        if (!expiry_date && String(type) === "documento" && exerciseYear) {
-          const end = endOfExerciseValidity(exerciseYear);
-          if (end) expiry_date = end;
-        }
-        if (!expiry_date && String(type) === "tacografo_certificado" && issueDate) {
-          // derive +1 year from issue date
-          const [iy, im, id] = String(issueDate).split("-").map(Number);
-          const base = new Date(iy, (im - 1), id);
-          base.setFullYear(base.getFullYear() + 1);
-          const yy = base.getFullYear();
-          const mm = String(base.getMonth() + 1).padStart(2, "0");
-          const dd = String(base.getDate()).padStart(2, "0");
-          expiry_date = `${yy}-${mm}-${dd}`;
-        }
-        if (!expiry_date && textDate) expiry_date = textDate;
-      } catch {}
-    }
-    if (!expiry_date) {
-      expiry_date = computeExpiry({ type, filename, uploadedAt: Date.now() }) || null;
-    }
+    // Manual only: não inferir validade automaticamente
     const r = await pool.query(
       "INSERT INTO truck_documents (truck_id, type, filename, mime, size, expiry_date) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *",
       [truck_id, type, filename, mime, size, expiry_date]

@@ -294,6 +294,24 @@ const computeHours = (date, s, e, endDate) => {
   return Math.round((min / 60) * 100) / 100;
 };
 const computeStatus = (end_time, km_end) => (!end_time || end_time === "" || km_end == null || km_end === "" ? "Em Andamento" : "Finalizado");
+const computeExpiryStatus = (iso) => {
+  try {
+    if (!iso) return { status: "unknown", days: null };
+    const [y, m, d] = String(iso).split("-").map(Number);
+    if (!y || !m || !d) return { status: "unknown", days: null };
+    const today = new Date();
+    const end = new Date(y, m - 1, d);
+    // Zero time components for consistent day diff
+    const t0 = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const diffMs = end - t0;
+    const days = Math.ceil(diffMs / 86400000);
+    if (days < 0) return { status: "expired", days };
+    if (days <= 30) return { status: "expiring", days };
+    return { status: "valid", days };
+  } catch {
+    return { status: "unknown", days: null };
+  }
+};
 
 async function migrateCostsFromTrips(db) {
   if (!db.viagens || db.viagens.length === 0) return;
@@ -1437,7 +1455,12 @@ export async function getDocumentosByCaminhao(truckId) {
     return Array.isArray(j) ? j : [];
   }
   const db = getDB();
-  return db.documents.filter((d) => Number(d.truck_id) === Number(truckId));
+  return db.documents
+    .filter((d) => Number(d.truck_id) === Number(truckId))
+    .map((d) => {
+      const { status, days } = computeExpiryStatus(d.expiry_date);
+      return { ...d, expiry_status: status, days_to_expiry: days };
+    });
 }
 
 export async function uploadTruckDocument(truckId, file, type = "documento", expiryDate = null) {
@@ -1545,94 +1568,7 @@ export async function uploadTruckDocument(truckId, file, type = "documento", exp
     if (!y || y < 1900) return null;
     return `${y + 1}-10-31`;
   };
-  let inferredExpiry = expiryDate || null;
-  if (!inferredExpiry) {
-    // Try filename hints
-    const nameHint = file.name || "";
-    const d1 = parseValidityDate(nameHint) || parseDateFromText(nameHint);
-    if (d1) inferredExpiry = d1;
-    if (!inferredExpiry && String(type) === 'documento') {
-      const yr = parseExerciseYear(nameHint);
-      if (yr) inferredExpiry = endOfExerciseValidity(yr);
-    }
-  }
-
-  // If still not inferred and it's a PDF, try to parse text content offline
-  try {
-    const mime = String(file.type || '').toLowerCase();
-    const isPdf = mime.includes('pdf') || /\.pdf$/i.test(file.name || '');
-    if (!inferredExpiry && isPdf) {
-      const ab = await file.arrayBuffer();
-      const pdfjs = await import('pdfjs-dist');
-      try { pdfjs.GlobalWorkerOptions.workerSrc = undefined; } catch {}
-      const loadingTask = pdfjs.getDocument({ data: ab, disableWorker: true });
-      const pdf = await loadingTask.promise;
-      let text = '';
-      for (let p = 1; p <= Math.min(pdf.numPages, 10); p++) {
-        const page = await pdf.getPage(p);
-        const tc = await page.getTextContent();
-        const chunk = (tc.items || []).map((it) => String(it.str || '')).join(' ');
-        text += ' ' + chunk;
-        // Try extracting as we go for performance
-        if (!inferredExpiry) {
-          const d2 = parseValidityDate(chunk) || parseDateFromText(chunk);
-          if (d2) inferredExpiry = d2;
-          if (!inferredExpiry && String(type) === 'documento') {
-            const yr2 = parseExerciseYear(chunk);
-            if (yr2) inferredExpiry = endOfExerciseValidity(yr2);
-            // Fallback: Use issue date to determine exercise year
-            if (!inferredExpiry) {
-              const iss = parseIssueDate(chunk);
-              if (iss) {
-                 const y = Number(iss.split('-')[0]);
-                 if (y) inferredExpiry = endOfExerciseValidity(y);
-              }
-            }
-          }
-          // Certificate: derive from issue date + 1 year when explicit validity not present
-          if (!inferredExpiry && String(type) === 'tacografo_certificado') {
-            const iss = parseIssueDate(chunk);
-            if (iss) {
-              const plus = addOneYearFromIso(iss);
-              if (plus) inferredExpiry = plus;
-            }
-          }
-        }
-      }
-      if (!inferredExpiry) {
-        const d3 = parseValidityDate(text) || parseDateFromText(text);
-        if (d3) inferredExpiry = d3;
-        if (!inferredExpiry && String(type) === 'documento') {
-          const yr3 = parseExerciseYear(text);
-          if (yr3) inferredExpiry = endOfExerciseValidity(yr3);
-          if (!inferredExpiry) {
-             const iss = parseIssueDate(text);
-             if (iss) {
-                const y = Number(iss.split('-')[0]);
-                if (y) inferredExpiry = endOfExerciseValidity(y);
-             }
-          }
-        }
-        if (!inferredExpiry && String(type) === 'tacografo_certificado') {
-          const iss2 = parseIssueDate(text);
-          if (iss2) {
-            const plus2 = addOneYearFromIso(iss2);
-            if (plus2) inferredExpiry = plus2;
-          }
-        }
-      }
-    }
-  } catch {}
-  // Final fallback for certificate: 1 year from upload time
-  if (!inferredExpiry && String(type) === 'tacografo_certificado') {
-    try {
-      const now = new Date();
-      const yy = now.getFullYear() + 1;
-      const mm = String(now.getMonth() + 1).padStart(2, '0');
-      const dd = String(now.getDate()).padStart(2, '0');
-      inferredExpiry = `${yy}-${mm}-${dd}`;
-    } catch {}
-  }
+  const inferredExpiry = expiryDate || null;
   const id = uuid();
   const item = {
     id,
@@ -1645,9 +1581,12 @@ export async function uploadTruckDocument(truckId, file, type = "documento", exp
     expiry_date: inferredExpiry || null,
     base64: reader
   };
+  // compute status for offline mode
+  const st = computeExpiryStatus(item.expiry_date);
+  const enriched = { ...item, expiry_status: st.status, days_to_expiry: st.days };
   db.documents.push(item);
   setDB(db);
-  return item;
+  return enriched;
 }
 
 export async function deleteTruckDocument(id) {
