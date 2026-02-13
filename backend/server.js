@@ -314,6 +314,25 @@ function parseDateFromText(text) {
   if (m2) return `${m2[3]}-${m2[2]}-${m2[1]}`;
   return null;
 }
+function normalizeText(str) {
+  try { return String(str).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); } catch { return String(str).toLowerCase(); }
+}
+function parseExerciseYear(text) {
+  if (!text) return null;
+  const s = normalizeText(text);
+  // Look for "exercicio" followed by a year
+  const m = s.match(/exercicio[^0-9]*?(20\d{2})/);
+  if (m) return Number(m[1]);
+  // Fallback: first standalone 20xx year present
+  const m2 = s.match(/\b(20\d{2})\b/);
+  if (m2) return Number(m2[1]);
+  return null;
+}
+function endOfExerciseValidity(year) {
+  const y = Number(year);
+  if (!y || y < 1900) return null;
+  return `${y + 1}-10-31`;
+}
 function addDays(baseDateStr, days) {
   try {
     const [y, m, d] = String(baseDateStr).split("-").map(Number);
@@ -335,6 +354,13 @@ function computeExpiry({ type, filename, uploadedAt }) {
   const fallbackOneYear = `${upY + 1}-${upM}-${upD}`;
   const parsed = parseDateFromText(filename);
   if (parsed) return parsed;
+  if (String(type) === "documento") {
+    const yr = parseExerciseYear(filename);
+    if (yr) {
+      const end = endOfExerciseValidity(yr);
+      if (end) return end;
+    }
+  }
   if (String(type) === "tacografo_certificado") return fallbackOneYear;
   return null;
 }
@@ -367,8 +393,14 @@ app.post("/api/documentos/upload", upload.single("file"), async (req, res) => {
       try {
         const buf = fs.readFileSync(path.join(uploadsRoot, "trucks", String(truck_id), filename));
         const parsed = await pdfParse(buf);
-        const textDate = parseDateFromText(parsed?.text || "");
-        if (textDate) expiry_date = textDate;
+        const txt = parsed?.text || "";
+        const textDate = parseDateFromText(txt);
+        const exerciseYear = parseExerciseYear(txt);
+        if (String(type) === "documento" && exerciseYear) {
+          const end = endOfExerciseValidity(exerciseYear);
+          if (end) expiry_date = end;
+        }
+        if (!expiry_date && textDate) expiry_date = textDate;
       } catch {}
     }
     if (!expiry_date) {
