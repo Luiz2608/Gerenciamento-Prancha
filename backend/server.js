@@ -326,7 +326,7 @@ function parseValidityDate(text) {
   const s = normalizeText(text);
   const dateFrom = (m) => {
     if (!m) return null;
-    const d = m.match(/(0?[1-9]|[12]\d|3[01])[\/-](0[1-9]|1[0-2])[\/-](20\d{2})/);
+    const d = String(m).match(/(0?[1-9]|[12]\d|3[01])\s*[\/-]\s*(0[1-9]|1[0-2])\s*[\/-]\s*(20\d{2})/);
     if (!d) return null;
     const dd = String(d[1]).padStart(2, '0');
     const mm = d[2];
@@ -334,16 +334,26 @@ function parseValidityDate(text) {
     return `${yy}-${mm}-${dd}`;
   };
   const tries = [
-    /com\s*validade\s*ate\s*((?:0?[1-9]|[12]\d|3[01])[\/-](?:0[1-9]|1[0-2])[\/-]20\d{2})/,
-    /validade\s*ate\s*((?:0?[1-9]|[12]\d|3[01])[\/-](?:0[1-9]|1[0-2])[\/-]20\d{2})/,
-    /vencimento\s*(?:em|ate)?\s*((?:0?[1-9]|[12]\d|3[01])[\/-](?:0[1-9]|1[0-2])[\/-]20\d{2})/,
-    /valido\s*ate\s*((?:0?[1-9]|[12]\d|3[01])[\/-](?:0[1-9]|1[0-2])[\/-]20\d{2})/,
-    /ate\s*((?:0?[1-9]|[12]\d|3[01])[\/-](?:0[1-9]|1[0-2])[\/-]20\d{2})/
+    /com\s*validade\s*ate\s*((?:0?[1-9]|[12]\d|3[01])\s*[\/-]\s*(?:0[1-9]|1[0-2])\s*[\/-]\s*20\d{2})/,
+    /validade\s*ate\s*((?:0?[1-9]|[12]\d|3[01])\s*[\/-]\s*(?:0[1-9]|1[0-2])\s*[\/-]\s*20\d{2})/,
+    /vencimento\s*(?:em|ate)?\s*((?:0?[1-9]|[12]\d|3[01])\s*[\/-]\s*(?:0[1-9]|1[0-2])\s*[\/-]\s*20\d{2})/,
+    /valido\s*ate\s*((?:0?[1-9]|[12]\d|3[01])\s*[\/-]\s*(?:0[1-9]|1[0-2])\s*[\/-]\s*20\d{2})/,
+    /ate\s*((?:0?[1-9]|[12]\d|3[01])\s*[\/-]\s*(?:0[1-9]|1[0-2])\s*[\/-]\s*20\d{2})/
   ];
   for (const rg of tries) {
     const m = s.match(rg);
     const d = dateFrom(m?.[1] || "");
     if (d) return d;
+  }
+  return null;
+}
+function parseIssueDate(text) {
+  if (!text) return null;
+  const s = normalizeText(text);
+  const m = s.match(/emitido\s*em\s*((?:0?[1-9]|[12]\d|3[01])\s*[\/-]\s*(?:0[1-9]|1[0-2])\s*[\/-]\s*20\d{2})/);
+  if (m && m[1]) {
+    const d = String(m[1]).match(/(0?[1-9]|[12]\d|3[01])\s*[\/-]\s*(0[1-9]|1[0-2])\s*[\/-]\s*(20\d{2})/);
+    if (d) { const dd = String(d[1]).padStart(2, '0'); return `${d[3]}-${d[2]}-${dd}`; }
   }
   return null;
 }
@@ -417,20 +427,32 @@ app.post("/api/documentos/upload", upload.single("file"), async (req, res) => {
     let expiry_date = req.body.expiry_date || null;
     if (!truck_id || !req.file) return res.status(400).json({ error: "truck_id e arquivo são obrigatórios" });
     const filename = req.file.filename;
-    const mime = req.file.mimetype || null;
+    const mime = (req.file.mimetype || "").toLowerCase();
     const size = req.file.size || null;
-    if (!expiry_date && mime === "application/pdf") {
+    const isPdf = mime.includes("pdf") || /\.pdf$/i.test(String(filename));
+    if (!expiry_date && isPdf) {
       try {
         const buf = fs.readFileSync(path.join(uploadsRoot, "trucks", String(truck_id), filename));
         const parsed = await pdfParse(buf);
         const txt = parsed?.text || "";
         const validityDate = parseValidityDate(txt);
         const textDate = parseDateFromText(txt);
+        const issueDate = parseIssueDate(txt);
         const exerciseYear = parseExerciseYear(txt);
         if (!expiry_date && validityDate) expiry_date = validityDate;
         if (!expiry_date && String(type) === "documento" && exerciseYear) {
           const end = endOfExerciseValidity(exerciseYear);
           if (end) expiry_date = end;
+        }
+        if (!expiry_date && String(type) === "tacografo_certificado" && issueDate) {
+          // derive +1 year from issue date
+          const [iy, im, id] = String(issueDate).split("-").map(Number);
+          const base = new Date(iy, (im - 1), id);
+          base.setFullYear(base.getFullYear() + 1);
+          const yy = base.getFullYear();
+          const mm = String(base.getMonth() + 1).padStart(2, "0");
+          const dd = String(base.getDate()).padStart(2, "0");
+          expiry_date = `${yy}-${mm}-${dd}`;
         }
         if (!expiry_date && textDate) expiry_date = textDate;
       } catch {}
