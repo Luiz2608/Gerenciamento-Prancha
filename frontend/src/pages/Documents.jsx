@@ -17,9 +17,10 @@ export default function Documents() {
     return `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}`;
   };
   const statusMeta = (status, days) => {
+    // Função mantida para compatibilidade, mas a lógica de exibição foi movida para o render inline
     const s = status || "unknown";
     const cls = s === "expired" ? "bg-red-100 text-red-700" : s === "expiring" ? "bg-amber-100 text-amber-700" : s === "valid" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600";
-    const label = s === "expired" ? "Vencido" : s === "expiring" ? `Vence em ${days} dias` : s === "valid" ? "Válido" : "Sem validade";
+    const label = s === "expired" ? "Vencido" : s === "expiring" ? "Válido" : s === "valid" ? "Válido" : "Sem validade";
     return { cls, label };
   };
 
@@ -121,13 +122,6 @@ export default function Documents() {
                 <td>{t.fleet || "-"}</td>
                 <td>
                   <div className="flex items-center gap-2">
-                    <input
-                      type="date"
-                      className="input input-sm"
-                      value={uploadExpiry.documento?.[t.id] || ""}
-                      onChange={(ev) => setUploadExpiry((prev) => ({ ...prev, documento: { ...prev.documento, [t.id]: ev.target.value || "" } }))}
-                      title="Validade (manual)"
-                    />
                     <label className="btn btn-sm cursor-pointer">
                       {uploadingId === t.id ? "Enviando..." : "Upload"}
                       <input type="file" className="hidden" onChange={(e) => handleUpload(t.id, e, "documento")} />
@@ -145,13 +139,6 @@ export default function Documents() {
                 </td>
                 <td>
                   <div className="flex items-center gap-2">
-                    <input
-                      type="date"
-                      className="input input-sm"
-                      value={uploadExpiry.tacografo_certificado?.[t.id] || ""}
-                      onChange={(ev) => setUploadExpiry((prev) => ({ ...prev, tacografo_certificado: { ...prev.tacografo_certificado, [t.id]: ev.target.value || "" } }))}
-                      title="Validade (manual)"
-                    />
                     <label className="btn btn-sm cursor-pointer">
                       {uploadingId === t.id ? "Enviando..." : "Upload"}
                       <input type="file" className="hidden" onChange={(e) => handleUpload(t.id, e, "tacografo_certificado")} />
@@ -232,9 +219,21 @@ export default function Documents() {
                             </span>
                           </div>
                           {(() => {
-                            const { cls, label } = statusMeta(d.expiry_status || (d.expiry_date ? "valid" : "unknown"), d.days_to_expiry);
-                            const extra = d.expiry_status === "valid" && d.days_to_expiry != null ? ` (${d.days_to_expiry}d)` : "";
-                            return <span className={`text-xs px-2 py-1 rounded-full ${cls}`}>{label}{extra}</span>;
+                            // Simplificação solicitada: "somente válido ou vencido"
+                            // Mantendo a lógica de cores para diferenciar (Vencido=Vermelho, Válido=Verde/Amarelo)
+                            const st = d.expiry_status || "unknown";
+                            let text = "Sem validade";
+                            let cls = "bg-slate-100 text-slate-600";
+                            
+                            if (st === "expired") {
+                              text = "Vencido";
+                              cls = "bg-red-100 text-red-700";
+                            } else if (st === "valid" || st === "expiring") {
+                              text = "Válido";
+                              cls = st === "expiring" ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700";
+                            }
+
+                            return <span className={`text-xs px-2 py-1 rounded-full ${cls}`}>{text}</span>;
                           })()}
                           <input
                             type="date"
