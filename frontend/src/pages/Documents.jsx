@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getCaminhoes, getDocumentosByCaminhao, uploadTruckDocument, updateTruckDocumentExpiry } from "../services/storageService.js";
+import { getCaminhoes, getDocumentosByCaminhao, uploadTruckDocument, updateTruckDocumentExpiry, deleteTruckDocument } from "../services/storageService.js";
 
 export default function Documents() {
   const [trucks, setTrucks] = useState([]);
@@ -208,6 +208,23 @@ export default function Documents() {
                             const label = status === "expired" ? "Vencido" : status === "expiring" ? `Vence em ${days} dias` : status === "valid" ? `Válido (${days ?? ""}d)` : "Sem validade";
                             return <span className={`text-[11px] px-2 py-0.5 rounded-full ${cls}`}>{label}</span>;
                           })()}
+                          <button
+                            className="btn btn-sm btn-error ml-auto"
+                            onClick={async () => {
+                              await deleteTruckDocument(d.id);
+                              const list = await getDocumentosByCaminhao(selected.id);
+                              setDocs(list);
+                              setToast({ type: "success", message: "Documento excluído" });
+                              setTimeout(() => setToast(null), 2000);
+                              try {
+                                const list2 = await getDocumentosByCaminhao(selected.id);
+                                const hasDocumento = list2.some(x => x.type === "documento");
+                                const hasTacografo = list2.some(x => x.type === "tacografo_certificado");
+                                setDocStatus(prev => ({ ...prev, [selected.id]: { documento: hasDocumento, tacografo_certificado: hasTacografo } }));
+                              } catch {}
+                            }}
+                            title="Excluir"
+                          >Excluir</button>
                         </div>
                       </div>
                     ))

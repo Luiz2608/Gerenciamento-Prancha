@@ -1503,9 +1503,11 @@ export async function uploadTruckDocument(truckId, file, type = "documento", exp
 
   // If still not inferred and it's a PDF, try to parse text content offline
   try {
-    if (!inferredExpiry && String(file.type || '').toLowerCase() === 'application/pdf') {
+    const mime = String(file.type || '').toLowerCase();
+    const isPdf = mime.includes('pdf') || /\.pdf$/i.test(file.name || '');
+    if (!inferredExpiry && isPdf) {
       const ab = await file.arrayBuffer();
-      const pdfjs = await import('pdfjs-dist/build/pdf');
+      const pdfjs = await import('pdfjs-dist');
       try { pdfjs.GlobalWorkerOptions.workerSrc = undefined; } catch {}
       const loadingTask = pdfjs.getDocument({ data: ab, disableWorker: true });
       const pdf = await loadingTask.promise;
@@ -1550,6 +1552,19 @@ export async function uploadTruckDocument(truckId, file, type = "documento", exp
   db.documents.push(item);
   setDB(db);
   return item;
+}
+
+export async function deleteTruckDocument(id) {
+  await initLoad();
+  if (API_URL) {
+    const r = await api(`/api/documentos/${id}`, { method: "DELETE" });
+    if (!r.ok) throw new Error("Falha ao excluir");
+    return { ok: true };
+  }
+  const db = getDB();
+  db.documents = db.documents.filter((d) => String(d.id) !== String(id));
+  setDB(db);
+  return { ok: true };
 }
 
 export async function updateTruckDocumentExpiry(id, expiryDate) {

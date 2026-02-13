@@ -454,6 +454,23 @@ app.put("/api/documentos/:id", async (req, res) => {
   }
 });
 
+// Delete document
+app.delete("/api/documentos/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const r0 = await pool.query("SELECT * FROM truck_documents WHERE id=$1", [id]);
+    const row = r0.rows[0];
+    if (!row) return res.status(404).json({ error: "Not found" });
+    const filePath = path.join(uploadsRoot, "trucks", String(row.truck_id), row.filename);
+    try { fs.unlinkSync(filePath); } catch {}
+    await pool.query("DELETE FROM truck_documents WHERE id=$1", [id]);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error("Delete document error", e);
+    res.status(500).json({ error: "Falha ao excluir documento" });
+  }
+});
+
 // Serve frontend static files
 app.use(express.static(path.join(__dirname, "../frontend/dist")));
 
