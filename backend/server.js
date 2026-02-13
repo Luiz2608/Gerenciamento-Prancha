@@ -307,10 +307,10 @@ function parseDateFromText(text) {
   if (!text) return null;
   const s = String(text);
   // Try YYYY-MM-DD
-  const m1 = s.match(/(20\d{2})[-_\.](0[1-9]|1[0-2])[-_\.](0[1-9]|[12]\d|3[01])/);
+  const m1 = s.match(/(20\d{2})[-_\/\.](0[1-9]|1[0-2])[-_\/\.](0[1-9]|[12]\d|3[01])/);
   if (m1) return `${m1[1]}-${m1[2]}-${m1[3]}`;
   // Try DD-MM-YYYY
-  const m2 = s.match(/(0[1-9]|[12]\d|3[01])[-_\.](0[1-9]|1[0-2])[-_\.](20\d{2})/);
+  const m2 = s.match(/(0[1-9]|[12]\d|3[01])[-_\/\.](0[1-9]|1[0-2])[-_\/\.](20\d{2})/);
   if (m2) return `${m2[3]}-${m2[2]}-${m2[1]}`;
   return null;
 }

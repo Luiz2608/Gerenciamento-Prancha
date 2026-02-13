@@ -106,22 +106,34 @@ export default function Documents() {
                 <td>{t.year ?? "-"}</td>
                 <td>{t.fleet || "-"}</td>
                 <td>
-                  <label className="btn btn-sm cursor-pointer">
-                    {uploadingId === t.id ? "Enviando..." : "Upload"}
-                    <input type="file" className="hidden" onChange={(e) => handleUpload(t.id, e, "documento")} />
-                  </label>
-                  <span className={`ml-2 text-xs px-2 py-1 rounded-full ${docStatus[t.id]?.documento ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
-                    {docStatus[t.id]?.documento ? "✔ Documento enviado" : "Pendente"}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <label className="btn btn-sm cursor-pointer">
+                      {uploadingId === t.id ? "Enviando..." : "Upload"}
+                      <input type="file" className="hidden" onChange={(e) => handleUpload(t.id, e, "documento")} />
+                    </label>
+                    <span className={`text-xs px-2 py-1 rounded-full ${docStatus[t.id]?.documento ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
+                      {docStatus[t.id]?.documento ? "Enviado" : "Pendente"}
+                    </span>
+                    <span className="text-xs px-2 py-1 rounded-lg bg-emerald-200 text-emerald-800 flex items-center gap-1">
+                      <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-violet-600 text-white text-[10px]">✔</span>
+                      Documento
+                    </span>
+                  </div>
                 </td>
                 <td>
-                  <label className="btn btn-sm cursor-pointer">
-                    {uploadingId === t.id ? "Enviando..." : "Upload"}
-                    <input type="file" className="hidden" onChange={(e) => handleUpload(t.id, e, "tacografo_certificado")} />
-                  </label>
-                  <span className={`ml-2 text-xs px-2 py-1 rounded-full ${docStatus[t.id]?.tacografo_certificado ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
-                    {docStatus[t.id]?.tacografo_certificado ? "✔ Certificado enviado" : "Pendente"}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <label className="btn btn-sm cursor-pointer">
+                      {uploadingId === t.id ? "Enviando..." : "Upload"}
+                      <input type="file" className="hidden" onChange={(e) => handleUpload(t.id, e, "tacografo_certificado")} />
+                    </label>
+                    <span className={`text-xs px-2 py-1 rounded-full ${docStatus[t.id]?.tacografo_certificado ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
+                      {docStatus[t.id]?.tacografo_certificado ? "Enviado" : "Pendente"}
+                    </span>
+                    <span className="text-xs px-2 py-1 rounded-lg bg-emerald-200 text-emerald-800 flex items-center gap-1">
+                      <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-violet-600 text-white text-[10px]">✔</span>
+                      Certificado
+                    </span>
+                  </div>
                 </td>
                 <td>
                   <button className="btn btn-sm btn-primary" onClick={() => openDetails(t)}>Ver Detalhes</button>
