@@ -11,6 +11,17 @@ export default function Documents() {
   const [docStatus, setDocStatus] = useState({});
   const [toast, setToast] = useState(null);
   const [docEditExpiry, setDocEditExpiry] = useState({});
+  const formatDateBR = (iso) => {
+    if (!iso) return "";
+    const [y, m, d] = String(iso).split("-");
+    return `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}`;
+  };
+  const statusMeta = (status, days) => {
+    const s = status || "unknown";
+    const cls = s === "expired" ? "bg-red-100 text-red-700" : s === "expiring" ? "bg-amber-100 text-amber-700" : s === "valid" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600";
+    const label = s === "expired" ? "Vencido" : s === "expiring" ? `Vence em ${days} dias` : s === "valid" ? "Válido" : "Sem validade";
+    return { cls, label };
+  };
 
   const loadTrucks = async () => {
     const res = await getCaminhoes({ page: 1, pageSize: 100 });
@@ -201,21 +212,11 @@ export default function Documents() {
                     <div className="text-sm text-slate-500">Nenhum documento enviado.</div>
                   ) : (
                     docs.map((d) => (
-                      <div key={d.id} className="p-2 rounded-lg border dark:border-slate-700">
+                      <div key={d.id} className="p-3 rounded-lg border dark:border-slate-700">
                         <div className="flex items-center justify-between">
                           <div>
                             <div className="font-medium">{d.name || d.filename}</div>
                             <div className="text-xs text-slate-500">Tipo: {d.type}</div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs text-slate-500">Validade: {d.expiry_date ? d.expiry_date : "—"}</span>
-                              {(() => {
-                                const status = d.expiry_status || (d.expiry_date ? "valid" : "unknown");
-                                const days = d.days_to_expiry;
-                                const cls = status === "expired" ? "bg-red-100 text-red-700" : status === "expiring" ? "bg-amber-100 text-amber-700" : status === "valid" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600";
-                                const label = status === "expired" ? "Vencido" : status === "expiring" ? `Vence em ${days} dias` : status === "valid" ? `Válido (${days ?? ""}d)` : "Sem validade";
-                                return <span className={`text-[11px] px-2 py-0.5 rounded-full ${cls}`}>{label}</span>;
-                              })()}
-                            </div>
                           </div>
                           {d.url ? (
                             <a className="btn btn-sm" href={d.url} download={d.filename || d.name || "documento"}>⬇️ Download</a>
@@ -223,36 +224,36 @@ export default function Documents() {
                             <button className="btn btn-sm" onClick={() => downloadLocalBase64(d)}>⬇️ Download</button>
                           )}
                         </div>
-                        <div className="mt-2 flex items-center gap-2">
-                          <span className="text-xs text-slate-500">Validade automática</span>
-                          <span className="text-xs px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-700 dark:text-slate-200">
-                            {d.expiry_date ? d.expiry_date : "Indisponível"}
-                          </span>
+                        <div className="mt-3 flex flex-wrap items-center gap-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-slate-500">Validade</span>
+                            <span className="text-xs px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-700 dark:text-slate-200">
+                              {d.expiry_date ? formatDateBR(d.expiry_date) : "—"}
+                            </span>
+                          </div>
                           {(() => {
-                            const status = d.expiry_status || (d.expiry_date ? "valid" : "unknown");
-                            const days = d.days_to_expiry;
-                            const cls = status === "expired" ? "bg-red-100 text-red-700" : status === "expiring" ? "bg-amber-100 text-amber-700" : status === "valid" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600";
-                            const label = status === "expired" ? "Vencido" : status === "expiring" ? `Vence em ${days} dias` : status === "valid" ? `Válido (${days ?? ""}d)` : "Sem validade";
-                            return <span className={`text-[11px] px-2 py-0.5 rounded-full ${cls}`}>{label}</span>;
+                            const { cls, label } = statusMeta(d.expiry_status || (d.expiry_date ? "valid" : "unknown"), d.days_to_expiry);
+                            const extra = d.expiry_status === "valid" && d.days_to_expiry != null ? ` (${d.days_to_expiry}d)` : "";
+                            return <span className={`text-xs px-2 py-1 rounded-full ${cls}`}>{label}{extra}</span>;
                           })()}
                           <input
                             type="date"
                             className="input input-sm"
                             value={docEditExpiry[d.id] ?? (d.expiry_date || "")}
                             onChange={(ev) => setDocEditExpiry(prev => ({ ...prev, [d.id]: ev.target.value || "" }))}
-                            title="Editar validade (manual)"
+                            title="Editar validade"
                           />
                           <button
                             className="btn btn-sm btn-secondary"
                             onClick={async () => {
                               const val = docEditExpiry[d.id] || "";
-                              const updated = await updateTruckDocumentExpiry(d.id, val || null);
+                              await updateTruckDocumentExpiry(d.id, val || null);
                               const list = await getDocumentosByCaminhao(selected.id);
                               setDocs(list);
                               setToast({ type: "success", message: "Validade atualizada" });
                               setTimeout(() => setToast(null), 2000);
                             }}
-                          >Salvar validade</button>
+                          >Salvar</button>
                           <button
                             className="btn btn-sm btn-error ml-auto"
                             onClick={async () => {
