@@ -4,6 +4,7 @@ import { fileURLToPath } from "url";
 import cors from "cors";
 import fs from "fs";
 import multer from "multer";
+import pdfParse from "pdf-parse";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -353,7 +354,6 @@ function computeExpiryStatus(expiryDate) {
   }
 }
 
-// Upload document
 app.post("/api/documentos/upload", upload.single("file"), async (req, res) => {
   try {
     const truck_id = Number(req.body.truck_id);
@@ -363,6 +363,14 @@ app.post("/api/documentos/upload", upload.single("file"), async (req, res) => {
     const filename = req.file.filename;
     const mime = req.file.mimetype || null;
     const size = req.file.size || null;
+    if (!expiry_date && mime === "application/pdf") {
+      try {
+        const buf = fs.readFileSync(path.join(uploadsRoot, "trucks", String(truck_id), filename));
+        const parsed = await pdfParse(buf);
+        const textDate = parseDateFromText(parsed?.text || "");
+        if (textDate) expiry_date = textDate;
+      } catch {}
+    }
     if (!expiry_date) {
       expiry_date = computeExpiry({ type, filename, uploadedAt: Date.now() }) || null;
     }
