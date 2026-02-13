@@ -8,6 +8,7 @@ export default function Documents() {
   const [docs, setDocs] = useState([]);
   const [uploadingId, setUploadingId] = useState(null);
   const [docStatus, setDocStatus] = useState({});
+  const [toast, setToast] = useState(null);
 
   const loadTrucks = async () => {
     const res = await getCaminhoes({ page: 1, pageSize: 100 });
@@ -52,6 +53,8 @@ export default function Documents() {
         const hasDocumento = list2.some(d => d.type === "documento");
         const hasTacografo = list2.some(d => d.type === "tacografo_certificado");
         setDocStatus(prev => ({ ...prev, [truckId]: { documento: hasDocumento, tacografo_certificado: hasTacografo } }));
+        setToast({ type: "success", message: `Upload concluído: ${file.name}` });
+        setTimeout(() => setToast(null), 2500);
       } catch {}
     } finally {
       setUploadingId(null);
@@ -71,6 +74,11 @@ export default function Documents() {
 
   return (
     <div className="p-4 max-w-6xl mx-auto pb-24">
+      {toast && (
+        <div className={`fixed top-4 right-4 px-4 py-2 rounded-lg shadow-lg ${toast.type === "success" ? "bg-emerald-600 text-white" : "bg-slate-700 text-white"}`}>
+          {toast.message}
+        </div>
+      )}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Documentos & Tacógrafos</h1>
       </div>
@@ -102,8 +110,8 @@ export default function Documents() {
                     {uploadingId === t.id ? "Enviando..." : "Upload"}
                     <input type="file" className="hidden" onChange={(e) => handleUpload(t.id, e, "documento")} />
                   </label>
-                  <span className={`ml-2 text-sm ${docStatus[t.id]?.documento ? "text-emerald-600" : "text-slate-400"}`}>
-                    {docStatus[t.id]?.documento ? "✔️ Enviado" : "—"}
+                  <span className={`ml-2 text-xs px-2 py-1 rounded-full ${docStatus[t.id]?.documento ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
+                    {docStatus[t.id]?.documento ? "✔ Documento enviado" : "Pendente"}
                   </span>
                 </td>
                 <td>
@@ -111,8 +119,8 @@ export default function Documents() {
                     {uploadingId === t.id ? "Enviando..." : "Upload"}
                     <input type="file" className="hidden" onChange={(e) => handleUpload(t.id, e, "tacografo_certificado")} />
                   </label>
-                  <span className={`ml-2 text-sm ${docStatus[t.id]?.tacografo_certificado ? "text-emerald-600" : "text-slate-400"}`}>
-                    {docStatus[t.id]?.tacografo_certificado ? "✔️ Enviado" : "—"}
+                  <span className={`ml-2 text-xs px-2 py-1 rounded-full ${docStatus[t.id]?.tacografo_certificado ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
+                    {docStatus[t.id]?.tacografo_certificado ? "✔ Certificado enviado" : "Pendente"}
                   </span>
                 </td>
                 <td>
@@ -155,12 +163,21 @@ export default function Documents() {
                           <div>
                             <div className="font-medium">{d.name || d.filename}</div>
                             <div className="text-xs text-slate-500">Tipo: {d.type}</div>
-                            <div className="text-xs text-slate-500">Validade: {d.expiry_date ? d.expiry_date : "—"}</div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-slate-500">Validade: {d.expiry_date ? d.expiry_date : "—"}</span>
+                              {(() => {
+                                const status = d.expiry_status || (d.expiry_date ? "valid" : "unknown");
+                                const days = d.days_to_expiry;
+                                const cls = status === "expired" ? "bg-red-100 text-red-700" : status === "expiring" ? "bg-amber-100 text-amber-700" : status === "valid" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600";
+                                const label = status === "expired" ? "Vencido" : status === "expiring" ? `Vence em ${days} dias` : status === "valid" ? `Válido (${days ?? ""}d)` : "Sem validade";
+                                return <span className={`text-[11px] px-2 py-0.5 rounded-full ${cls}`}>{label}</span>;
+                              })()}
+                            </div>
                           </div>
                           {d.url ? (
-                            <a className="btn btn-sm" href={d.url} download={d.filename || d.name || "documento"}>Download</a>
+                            <a className="btn btn-sm" href={d.url} download={d.filename || d.name || "documento"}>⬇️ Download</a>
                           ) : (
-                            <button className="btn btn-sm" onClick={() => downloadLocalBase64(d)}>Download</button>
+                            <button className="btn btn-sm" onClick={() => downloadLocalBase64(d)}>⬇️ Download</button>
                           )}
                         </div>
                         <div className="mt-2 flex items-center gap-2">
@@ -173,6 +190,8 @@ export default function Documents() {
                               const updated = await updateTruckDocumentExpiry(d.id, val);
                               const list = await getDocumentosByCaminhao(selected.id);
                               setDocs(list);
+                              setToast({ type: "success", message: "Validade atualizada" });
+                              setTimeout(() => setToast(null), 2000);
                             }}
                             title="Validade"
                           />

@@ -301,23 +301,79 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
+// Helpers for expiry handling
+function parseDateFromText(text) {
+  if (!text) return null;
+  const s = String(text);
+  // Try YYYY-MM-DD
+  const m1 = s.match(/(20\d{2})[-_\.](0[1-9]|1[0-2])[-_\.](0[1-9]|[12]\d|3[01])/);
+  if (m1) return `${m1[1]}-${m1[2]}-${m1[3]}`;
+  // Try DD-MM-YYYY
+  const m2 = s.match(/(0[1-9]|[12]\d|3[01])[-_\.](0[1-9]|1[0-2])[-_\.](20\d{2})/);
+  if (m2) return `${m2[3]}-${m2[2]}-${m2[1]}`;
+  return null;
+}
+function addDays(baseDateStr, days) {
+  try {
+    const [y, m, d] = String(baseDateStr).split("-").map(Number);
+    const dt = new Date(y, (m - 1), d);
+    dt.setDate(dt.getDate() + Number(days));
+    const yy = dt.getFullYear();
+    const mm = String(dt.getMonth() + 1).padStart(2, "0");
+    const dd = String(dt.getDate()).padStart(2, "0");
+    return `${yy}-${mm}-${dd}`;
+  } catch {
+    return null;
+  }
+}
+function computeExpiry({ type, filename, uploadedAt }) {
+  const uploadedDate = uploadedAt ? new Date(uploadedAt) : new Date();
+  const upY = uploadedDate.getFullYear();
+  const upM = String(uploadedDate.getMonth() + 1).padStart(2, "0");
+  const upD = String(uploadedDate.getDate()).padStart(2, "0");
+  const fallbackOneYear = `${upY + 1}-${upM}-${upD}`;
+  const parsed = parseDateFromText(filename);
+  if (parsed) return parsed;
+  if (String(type) === "tacografo_certificado") return fallbackOneYear;
+  return null;
+}
+function computeExpiryStatus(expiryDate) {
+  if (!expiryDate) return { status: "unknown", days: null };
+  try {
+    const [y, m, d] = String(expiryDate).split("-").map(Number);
+    const exp = new Date(y, (m - 1), d);
+    const now = new Date();
+    const diffMs = exp.getTime() - now.getTime();
+    const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    if (days < 0) return { status: "expired", days };
+    if (days <= 30) return { status: "expiring", days };
+    return { status: "valid", days };
+  } catch {
+    return { status: "unknown", days: null };
+  }
+}
+
 // Upload document
 app.post("/api/documentos/upload", upload.single("file"), async (req, res) => {
   try {
     const truck_id = Number(req.body.truck_id);
     const type = String(req.body.type || "documento");
-    const expiry_date = req.body.expiry_date || null;
+    let expiry_date = req.body.expiry_date || null;
     if (!truck_id || !req.file) return res.status(400).json({ error: "truck_id e arquivo são obrigatórios" });
     const filename = req.file.filename;
     const mime = req.file.mimetype || null;
     const size = req.file.size || null;
+    if (!expiry_date) {
+      expiry_date = computeExpiry({ type, filename, uploadedAt: Date.now() }) || null;
+    }
     const r = await pool.query(
       "INSERT INTO truck_documents (truck_id, type, filename, mime, size, expiry_date) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *",
       [truck_id, type, filename, mime, size, expiry_date]
     );
     const row = r.rows[0];
     const url = `/uploads/trucks/${truck_id}/${filename}`;
-    res.json({ ...row, url });
+    const { status, days } = computeExpiryStatus(row.expiry_date);
+    res.json({ ...row, url, expiry_status: status, days_to_expiry: days });
   } catch (e) {
     console.error("Upload error", e);
     res.status(500).json({ error: "Falha no upload" });
@@ -328,7 +384,11 @@ app.post("/api/documentos/upload", upload.single("file"), async (req, res) => {
 app.get("/api/caminhoes/:id/documentos", async (req, res) => {
   const truck_id = Number(req.params.id);
   const r = await pool.query("SELECT * FROM truck_documents WHERE truck_id=$1 ORDER BY uploaded_at DESC", [truck_id]);
-  const rows = r.rows.map((row) => ({ ...row, url: `/uploads/trucks/${truck_id}/${row.filename}` }));
+  const rows = r.rows.map((row) => {
+    const url = `/uploads/trucks/${truck_id}/${row.filename}`;
+    const { status, days } = computeExpiryStatus(row.expiry_date);
+    return { ...row, url, expiry_status: status, days_to_expiry: days };
+  });
   res.json(rows);
 });
 
