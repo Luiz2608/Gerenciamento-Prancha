@@ -18,13 +18,28 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+// Log database config (masked)
+console.log("Initializing database connection...");
+if (!process.env.DATABASE_URL) {
+  console.error("CRITICAL: DATABASE_URL environment variable is not set!");
+} else {
+  // Mask password for safety
+  const masked = process.env.DATABASE_URL.replace(/:([^:@]+)@/, ":****@");
+  console.log(`Connecting to database: ${masked}`);
+}
+
+const pool = new Pool({ 
+  connectionString: process.env.DATABASE_URL,
+  // Add SSL for production databases (Supabase/Render often require it)
+  ssl: process.env.DATABASE_URL && process.env.DATABASE_URL.includes("localhost") ? false : { rejectUnauthorized: false }
+});
 
 app.get("/", (req, res) => {
   res.json({ ok: true, name: "Viagens da Prancha API", health: "/api/health" });
 });
 
-await pool.query(`
+try {
+  await pool.query(`
 CREATE TABLE IF NOT EXISTS usuarios (
   id SERIAL PRIMARY KEY,
   username TEXT UNIQUE NOT NULL,
@@ -110,6 +125,10 @@ CREATE TABLE IF NOT EXISTS truck_documents (
   expiry_date TEXT
 );
 `);
+} catch (e) {
+  console.error("FATAL: Failed to initialize database schema", e);
+  // Don't crash immediately, but subsequent queries will fail
+}
 
 const computeKm = (a, b) => (a == null || b == null ? 0 : Math.max(0, Number(b) - Number(a)));
 const computeHours = (date, s, e) => {
