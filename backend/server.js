@@ -306,12 +306,16 @@ const upload = multer({ storage });
 function parseDateFromText(text) {
   if (!text) return null;
   const s = String(text);
-  // Try YYYY-MM-DD
-  const m1 = s.match(/(20\d{2})[-_\/\.](0[1-9]|1[0-2])[-_\/\.](0[1-9]|[12]\d|3[01])/);
+  // Accept optional spaces and various separators (slash, hyphen, en/em dash, dot)
+  const m1 = s.match(/(20\d{2})\s*[-_\/\.\u2013\u2014]\s*(0[1-9]|1[0-2])\s*[-_\/\.\u2013\u2014]\s*(0[1-9]|[12]\d|3[01])/);
   if (m1) return `${m1[1]}-${m1[2]}-${m1[3]}`;
-  // Try DD-MM-YYYY
-  const m2 = s.match(/(0[1-9]|[12]\d|3[01])[-_\/\.](0[1-9]|1[0-2])[-_\/\.](20\d{2})/);
+  const m2 = s.match(/(0[1-9]|[12]\d|3[01])\s*[-_\/\.\u2013\u2014]\s*(0[1-9]|1[0-2])\s*[-_\/\.\u2013\u2014]\s*(20\d{2})/);
   if (m2) return `${m2[3]}-${m2[2]}-${m2[1]}`;
+  // Try formats like "16 de janeiro de 2025"
+  const months = { janeiro: '01', fevereiro: '02', marco: '03', março: '03', abril: '04', maio: '05', junho: '06', julho: '07', agosto: '08', setembro: '09', outubro: '10', novembro: '11', dezembro: '12' };
+  const norm = normalizeText(s);
+  const m3 = norm.match(/(0?[1-9]|[12]\d|3[01])\s*de\s*(janeiro|fevereiro|marco|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s*de\s*(20\d{2})/);
+  if (m3) { const dd = String(m3[1]).padStart(2, '0'); const mm = months[m3[2]]; const yy = m3[3]; return `${yy}-${mm}-${dd}`; }
   return null;
 }
 function normalizeText(str) {
