@@ -9,6 +9,7 @@ import Costs from "./pages/Costs.jsx";
 import MainLayout from "./layouts/MainLayout.jsx";
 import ExportarDados from "./pages/ExportarDados.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
+import Documents from "./pages/Documents.jsx";
 
 export default function App() {
   console.log("App Version: 1.0.2 - Fixed Storage Import");
@@ -25,6 +26,7 @@ export default function App() {
             <Route path="/frota/pranchas" element={<FleetPranchas />} />
             <Route path="/custos" element={<Costs />} />
             <Route path="/exportar" element={<ExportarDados />} />
+            <Route path="/documentos" element={<Documents />} />
           </Route>
         </Route>
       </Routes>

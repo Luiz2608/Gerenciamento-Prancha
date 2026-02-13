@@ -326,6 +326,7 @@ export async function initLoad() {
     db.caminhoes = Array.isArray(db.caminhoes) ? db.caminhoes : [];
     db.pranchas = Array.isArray(db.pranchas) ? db.pranchas : [];
     db.custos = Array.isArray(db.custos) ? db.custos : [];
+    db.documents = Array.isArray(db.documents) ? db.documents : [];
     db.seq = db.seq || {};
     db.seq.motoristas = Number.isFinite(db.seq.motoristas) ? db.seq.motoristas : (db.motoristas.reduce((m, x) => Math.max(m, x.id || 0), 0) + 1);
     db.seq.viagens = Number.isFinite(db.seq.viagens) ? db.seq.viagens : (db.viagens.reduce((m, x) => Math.max(m, x.id || 0), 0) + 1);
@@ -360,6 +361,7 @@ export async function initLoad() {
     caminhoes,
     pranchas,
     custos: Array.isArray(custos) ? custos : [],
+    documents: Array.isArray((config && config.documents)) ? config.documents : [],
     seq: {
       motoristas: motoristas.reduce((m, x) => Math.max(m, x.id || 0), 0) + 1,
       viagens: viagens.reduce((m, x) => Math.max(m, x.id || 0), 0) + 1,
@@ -1425,4 +1427,66 @@ export async function approveCusto(id, usuario) {
   setDB(db);
   enqueue({ table: "custos", op: "update", payload: item, localId: String(id) });
   return item;
+}
+
+export async function getDocumentosByCaminhao(truckId) {
+  await initLoad();
+  if (API_URL) {
+    const r = await api(`/api/caminhoes/${truckId}/documentos`);
+    const j = await r.json();
+    return Array.isArray(j) ? j : [];
+  }
+  const db = getDB();
+  return db.documents.filter((d) => Number(d.truck_id) === Number(truckId));
+}
+
+export async function uploadTruckDocument(truckId, file, type = "documento", expiryDate = null) {
+  await initLoad();
+  if (API_URL) {
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("truck_id", String(truckId));
+    fd.append("type", String(type));
+    if (expiryDate) fd.append("expiry_date", String(expiryDate));
+    const r = await fetch(`${API_URL}/api/documentos/upload`, { method: "POST", body: fd, headers: { "x-client-id": getClientId() } });
+    const j = await r.json();
+    return j;
+  }
+  const db = getDB();
+  const reader = await new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(fr.result);
+    fr.onerror = reject;
+    fr.readAsDataURL(file);
+  });
+  const id = uuid();
+  const item = {
+    id,
+    truck_id: Number(truckId),
+    type,
+    name: file.name,
+    size: file.size || null,
+    mime: file.type || null,
+    uploaded_at: new Date().toISOString(),
+    expiry_date: expiryDate || null,
+    base64: reader
+  };
+  db.documents.push(item);
+  setDB(db);
+  return item;
+}
+
+export async function updateTruckDocumentExpiry(id, expiryDate) {
+  await initLoad();
+  if (API_URL) {
+    const r = await api(`/api/documentos/${id}`, { method: "PUT", body: JSON.stringify({ expiry_date: expiryDate || null }) });
+    const j = await r.json();
+    return j;
+  }
+  const db = getDB();
+  const i = db.documents.findIndex((d) => String(d.id) === String(id));
+  if (i < 0) return null;
+  db.documents[i] = { ...db.documents[i], expiry_date: expiryDate || null };
+  setDB(db);
+  return db.documents[i];
 }

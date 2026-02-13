@@ -70,7 +70,7 @@ export default function Login() {
         <div className="card p-6 md:p-8 shadow-2xl animate-fade">
           <div className="text-center mb-6">
             <div className="w-16 h-16 mx-auto rounded-2xl bg-primary/10 text-primary flex items-center justify-center text-3xl">🚚</div>
-            <h1 className="text-2xl font-bold text-secondary mt-4">Viagens da Prancha</h1>
+            <h1 className="text-2xl font-bold text-secondary mt-4">Gerenciamento de Viagens e Caminhões</h1>
             <div className="text-sm text-slate-500 dark:text-slate-300 mt-1">Acesse com seu e-mail e senha</div>
           </div>
           <form onSubmit={submit} onKeyDown={handleFormKeyDown} className="space-y-4">

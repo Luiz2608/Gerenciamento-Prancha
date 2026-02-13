@@ -1,0 +1,56 @@
+[33mcommit b7e66b78e7388fbadbc6859155bde1ec5666384b[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m
+Author: Luiz2608 <santossilvaluizeduardo@gmail.com>
+Date:   Wed Feb 4 12:53:59 2026 -0300
+
+    fix_https_and_loading_screen
+
+[1mdiff --git a/frontend/src/pages/Trips.jsx b/frontend/src/pages/Trips.jsx[m
+[1mindex a5b4112..f19f06d 100644[m
+[1m--- a/frontend/src/pages/Trips.jsx[m
+[1m+++ b/frontend/src/pages/Trips.jsx[m
+[36m@@ -1578,7 +1578,7 @@[m [mexport default function Trips() {[m
+                   R$ {(it.total_cost ?? 0).toFixed(2)}[m
+                 </div>[m
+                 <div className="flex gap-2">[m
+[31m-                  <button onClick={() => setViewing(it)} className="p-2 text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20 rounded-lg transition-colors" title="Ver Detalhes">[m
+[32m+[m[32m                  <button onClick={() => { setViewing(it); setViewingRouteLoading(true); }} className="p-2 text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20 rounded-lg transition-colors" title="Ver Detalhes">[m
+                     <span className="material-icons text-lg">visibility</span>[m
+                   </button>[m
+                   <button onClick={() => edit(it)} className="p-2 text-yellow-600 hover:bg-yellow-50 dark:text-yellow-400 dark:hover:bg-yellow-900/20 rounded-lg transition-colors" title="Editar">[m
+[36m@@ -1694,6 +1694,15 @@[m [mexport default function Trips() {[m
+       {viewing && ([m
+         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto">[m
+           <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto animate-fade">[m
+[32m+[m[32m            {viewingRouteLoading ? ([m
+[32m+[m[32m               <div className="min-h-[400px] flex flex-col items-center justify-center gap-4 p-8">[m
+[32m+[m[32m                  <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>[m
+[32m+[m[32m                  <div className="text-center">[m
+[32m+[m[32m                    <h3 className="text-lg font-bold text-slate-700 dark:text-white">Carregando detalhes da viagem...</h3>[m
+[32m+[m[32m                    <p className="text-slate-500 dark:text-slate-400 text-sm">Obtendo rota e informações atualizadas.</p>[m
+[32m+[m[32m                  </div>[m
+[32m+[m[32m               </div>[m
+[32m+[m[32m            ) : ([m
+             <div className="p-6 space-y-6">[m
+               <div className="flex justify-between items-start">[m
+                 <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Detalhes da Viagem #{viewing.id}</h2>[m
+[36m@@ -1884,6 +1893,7 @@[m [mexport default function Trips() {[m
+                 <button className="btn bg-gray-500 hover:bg-gray-600 text-white" onClick={() => setViewing(null)}>Fechar</button>[m
+               </div>[m
+             </div>[m
+[32m+[m[32m            )}[m
+           </div>[m
+         </div>[m
+       )}[m
+[1mdiff --git a/frontend/src/services/integrationService.js b/frontend/src/services/integrationService.js[m
+[1mindex febfcd6..1a61e4b 100644[m
+[1m--- a/frontend/src/services/integrationService.js[m
+[1m+++ b/frontend/src/services/integrationService.js[m
+[36m@@ -46,7 +46,7 @@[m [mexport const getRouteData = async (origin, destination) => {[m
+     }[m
+ [m
+     // OSRM requires lon,lat;lon,lat[m
+[31m-    const url = `http://router.project-osrm.org/route/v1/driving/${start.lon},${start.lat};${end.lon},${end.lat}?overview=full&geometries=geojson&alternatives=true`;[m
+[32m+[m[32m    const url = `https://router.project-osrm.org/route/v1/driving/${start.lon},${start.lat};${end.lon},${end.lat}?overview=full&geometries=geojson&alternatives=true`;[m
+     [m
+     const res = await fetch(url);[m
+     const data = await res.json();[m

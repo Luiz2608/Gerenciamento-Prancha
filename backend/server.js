@@ -2,6 +2,8 @@ import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
 import cors from "cors";
+import fs from "fs";
+import multer from "multer";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -92,6 +94,16 @@ CREATE TABLE IF NOT EXISTS login_logs (
   device TEXT,
   ip TEXT,
   client_id TEXT
+);
+CREATE TABLE IF NOT EXISTS truck_documents (
+  id SERIAL PRIMARY KEY,
+  truck_id INTEGER NOT NULL,
+  type TEXT NOT NULL,
+  filename TEXT NOT NULL,
+  mime TEXT,
+  size INTEGER,
+  uploaded_at TIMESTAMP DEFAULT NOW(),
+  expiry_date TEXT
 );
 `);
 
@@ -267,6 +279,76 @@ app.delete("/api/viagens/:id", async (req, res) => {
 });
 
 app.get("/api/health", (req, res) => res.json({ ok: true }));
+
+// Configure uploads directory
+const uploadsRoot = path.join(__dirname, "uploads");
+try { fs.mkdirSync(uploadsRoot, { recursive: true }); } catch {}
+app.use("/uploads", express.static(uploadsRoot));
+
+// Multer storage
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const truckId = String(req.body.truck_id || req.query.truck_id || "unknown");
+    const dest = path.join(uploadsRoot, "trucks", truckId);
+    try { fs.mkdirSync(dest, { recursive: true }); } catch {}
+    cb(null, dest);
+  },
+  filename: (req, file, cb) => {
+    const ts = Date.now();
+    const safe = String(file.originalname || "arquivo").replace(/[^a-zA-Z0-9._-]/g, "_");
+    cb(null, `${ts}-${safe}`);
+  }
+});
+const upload = multer({ storage });
+
+// Upload document
+app.post("/api/documentos/upload", upload.single("file"), async (req, res) => {
+  try {
+    const truck_id = Number(req.body.truck_id);
+    const type = String(req.body.type || "documento");
+    const expiry_date = req.body.expiry_date || null;
+    if (!truck_id || !req.file) return res.status(400).json({ error: "truck_id e arquivo são obrigatórios" });
+    const filename = req.file.filename;
+    const mime = req.file.mimetype || null;
+    const size = req.file.size || null;
+    const r = await pool.query(
+      "INSERT INTO truck_documents (truck_id, type, filename, mime, size, expiry_date) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *",
+      [truck_id, type, filename, mime, size, expiry_date]
+    );
+    const row = r.rows[0];
+    const url = `/uploads/trucks/${truck_id}/${filename}`;
+    res.json({ ...row, url });
+  } catch (e) {
+    console.error("Upload error", e);
+    res.status(500).json({ error: "Falha no upload" });
+  }
+});
+
+// List documents by truck
+app.get("/api/caminhoes/:id/documentos", async (req, res) => {
+  const truck_id = Number(req.params.id);
+  const r = await pool.query("SELECT * FROM truck_documents WHERE truck_id=$1 ORDER BY uploaded_at DESC", [truck_id]);
+  const rows = r.rows.map((row) => ({ ...row, url: `/uploads/trucks/${truck_id}/${row.filename}` }));
+  res.json(rows);
+});
+
+// Update document (expiry_date only)
+app.put("/api/documentos/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const { expiry_date } = req.body || {};
+    const r0 = await pool.query("SELECT * FROM truck_documents WHERE id=$1", [id]);
+    const before = r0.rows[0];
+    if (!before) return res.status(404).json({ error: "Not found" });
+    const r = await pool.query("UPDATE truck_documents SET expiry_date=$1 WHERE id=$2 RETURNING *", [expiry_date || null, id]);
+    const row = r.rows[0];
+    const url = `/uploads/trucks/${row.truck_id}/${row.filename}`;
+    res.json({ ...row, url });
+  } catch (e) {
+    console.error("Update document error", e);
+    res.status(500).json({ error: "Falha ao atualizar documento" });
+  }
+});
 
 // Serve frontend static files
 app.use(express.static(path.join(__dirname, "../frontend/dist")));
