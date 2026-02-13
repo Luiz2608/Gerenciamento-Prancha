@@ -4,7 +4,9 @@ import { fileURLToPath } from "url";
 import cors from "cors";
 import fs from "fs";
 import multer from "multer";
-import pdfParse from "pdf-parse";
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+const pdfParse = require("pdf-parse");
 import { extractDocument } from "./ai.js";
 
 const __filename = fileURLToPath(import.meta.url);
