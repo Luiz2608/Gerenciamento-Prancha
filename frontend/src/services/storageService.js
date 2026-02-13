@@ -1479,8 +1479,10 @@ export async function uploadTruckDocument(truckId, file, type = "documento", exp
     if (!text) return null;
     const s = normalizeText(text);
     // Matches "exercicio 2024", "licenciamento 2024", "ano 2024"
-    const m = s.match(/(?:exercicio|licenciamento|ano)[^0-9]*?(20\d{2})/);
+    // Also matches "exercicio [noise] 2024" for columnar layouts where plate/renavam might intervene
+    const m = s.match(/(?:exercicio|licenciamento|ano).{0,60}?(20\d{2})/);
     if (m) return Number(m[1]);
+    
     // Fallback: finding bare year is risky, maybe restrict to lines with relevant keywords?
     // For now, let's keep the broad check but lower priority (it was already secondary to explicit dates)
     const m2 = s.match(/\b(20\d{2})\b/);
@@ -1503,7 +1505,8 @@ export async function uploadTruckDocument(truckId, file, type = "documento", exp
     const normalizeTextLocal = (str) => { try { return String(str).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); } catch { return String(str).toLowerCase(); } };
     const s = normalizeTextLocal(text);
     // Matches "emitido em 20/08/2026", "emitido em: 20/08/2026", "emitido em 20 / 08 / 2026"
-    const m = s.match(/emitido\s*em\s*[:\.]?\s*((?:0?[1-9]|[12]\d|3[01])\s*[\/-]\s*(0[1-9]|1[0-2])\s*[\/-]\s*(20\d{2}))/);
+    // Also "emitido por xxx em 20/08/2026"
+    const m = s.match(/emitido.{0,100}em\s*[:\.]?\s*((?:0?[1-9]|[12]\d|3[01])\s*[\/-]\s*(0[1-9]|1[0-2])\s*[\/-]\s*(20\d{2}))/);
     if (m && m[1]) {
       const parts = String(m[1]).match(/(0?[1-9]|[12]\d|3[01])\s*[\/-]\s*(0[1-9]|1[0-2])\s*[\/-]\s*(20\d{2})/);
       if (parts) {
