@@ -431,13 +431,31 @@ app.post("/api/documentos/upload", upload.single("file"), async (req, res) => {
     const filename = req.file.filename;
     const mime = (req.file.mimetype || "").toLowerCase();
     const size = req.file.size || null;
-    // Manual only: não inferir validade automaticamente
     const r = await pool.query(
       "INSERT INTO truck_documents (truck_id, type, filename, mime, size, expiry_date) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *",
       [truck_id, type, filename, mime, size, expiry_date]
     );
     const row = r.rows[0];
     const url = `/uploads/trucks/${truck_id}/${filename}`;
+    // Auto-infer expiry if not provided
+    if (!row.expiry_date) {
+      const filePath = path.join(uploadsRoot, "trucks", String(truck_id), filename);
+      let inferred = computeExpiry({ type, filename, uploadedAt: new Date() });
+      try {
+        const data = await pdfParse(fs.readFileSync(filePath));
+        const text = data?.text || "";
+        const byValidity = parseValidityDate(text);
+        const exYear = parseExerciseYear(text);
+        const exEnd = exYear ? endOfExerciseValidity(exYear) : null;
+        inferred = byValidity || (String(type) === "documento" ? (exEnd || inferred) : inferred);
+      } catch {}
+      if (inferred) {
+        const u = await pool.query("UPDATE truck_documents SET expiry_date=$1 WHERE id=$2 RETURNING *", [inferred, row.id]);
+        const updated = u.rows[0] || row;
+        const statusObj = computeExpiryStatus(updated.expiry_date);
+        return res.json({ ...updated, url, expiry_status: statusObj.status, days_to_expiry: statusObj.days });
+      }
+    }
     const { status, days } = computeExpiryStatus(row.expiry_date);
     res.json({ ...row, url, expiry_status: status, days_to_expiry: days });
   } catch (e) {

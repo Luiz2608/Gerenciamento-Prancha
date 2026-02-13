@@ -1572,7 +1572,23 @@ export async function uploadTruckDocument(truckId, file, type = "documento", exp
     if (!y || y < 1900) return null;
     return `${y + 1}-10-31`;
   };
-  const inferredExpiry = expiryDate || null;
+  const todayIso = (() => {
+    const dt = new Date(); const yy = dt.getFullYear(); const mm = String(dt.getMonth()+1).padStart(2,'0'); const dd = String(dt.getDate()).padStart(2,'0'); return `${yy}-${mm}-${dd}`;
+  })();
+  let inferredExpiry = expiryDate || null;
+  if (!inferredExpiry) {
+    const byName = parseDateFromText(file.name);
+    inferredExpiry = byName || inferredExpiry;
+    if (!inferredExpiry) {
+      const exYear = parseExerciseYear(file.name);
+      const exEnd = endOfExerciseValidity(exYear);
+      if (String(type) === "documento" && exEnd) inferredExpiry = exEnd;
+      else if (String(type) === "tacografo_certificado") {
+        const addOneYear = addOneYearFromIso(todayIso);
+        inferredExpiry = addOneYear || null;
+      }
+    }
+  }
   const id = uuid();
   const item = {
     id,

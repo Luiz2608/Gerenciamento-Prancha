@@ -242,13 +242,17 @@ export const extractDocumentAI = async (fileOrDoc) => {
   // Fallback: client-side extraction using pdf.js
   if (fileOrDoc?.file) {
     const text = await readPdfText(fileOrDoc.file);
+    let expiry = parseValidityDateLocal(text);
+    const exYear = parseYearLocal(text);
+    const exEnd = exYear ? `${Number(exYear) + 1}-10-31` : null;
+    if (!expiry) expiry = exEnd;
     return {
       plate: parsePlateLocal(text),
       chassis: parseChassisLocal(text),
       year: parseYearLocal(text),
       doc_type: "documento",
       issue_date: parseIssueDateLocal(text),
-      expiry_date: parseValidityDateLocal(text),
+      expiry_date: expiry,
       confidence: 0.4,
       notes: "Extração local (pdf.js) sem IA"
     };

@@ -62,6 +62,20 @@ const classifyDocTypeHeuristic = (text) => {
   return "documento";
 };
 
+const parseExerciseYear = (text) => {
+  const s = normalizeText(text);
+  const m = s.match(/(?:exercicio|licenciamento|ano).{0,60}?(20\d{2})/);
+  if (m) return Number(m[1]);
+  const m2 = s.match(/\b(20\d{2})\b/);
+  if (m2) return Number(m2[1]);
+  return null;
+};
+const endOfExerciseValidity = (year) => {
+  const y = Number(year);
+  if (!y || y < 1900) return null;
+  return `${y + 1}-10-31`;
+};
+
 async function deepseekExtract(text) {
   const key = process.env.DEEPSEEK_API_KEY;
   const url = process.env.DEEPSEEK_API_URL || "https://api.deepseek.com/v1/chat/completions";
@@ -99,10 +113,17 @@ export async function extractDocument({ filePath, mime, type }) {
   const chassis = parseChassis(text);
   const year = parseYear(text);
   const issue_date = parseIssueDate(text);
-  const expiry_date = parseValidityDate(text);
+  let expiry_date = parseValidityDate(text);
   const doc_type = classifyDocTypeHeuristic(text);
 
   let ai = await deepseekExtract(text);
+  // Fallbacks when expiry_date not found
+  if (!expiry_date && String(doc_type) === "documento") {
+    const exYear = parseExerciseYear(text);
+    const exEnd = endOfExerciseValidity(exYear);
+    if (exEnd) expiry_date = exEnd;
+  }
+
   const result = {
     plate: ai?.plate || plate || null,
     chassis: ai?.chassis || chassis || null,
@@ -115,4 +136,3 @@ export async function extractDocument({ filePath, mime, type }) {
   };
   return result;
 }
-
