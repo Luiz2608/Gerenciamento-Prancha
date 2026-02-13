@@ -1484,6 +1484,31 @@ export async function uploadTruckDocument(truckId, file, type = "documento", exp
     if (m2) return Number(m2[1]);
     return null;
   };
+  const parseValidityDate = (text) => {
+    if (!text) return null;
+    const normalizeText = (str) => { try { return String(str).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); } catch { return String(str).toLowerCase(); } };
+    const s = normalizeText(text);
+    const dateFrom = (m) => {
+      if (!m) return null;
+      const d = String(m).match(/(0?[1-9]|[12]\d|3[01])[\/-](0[1-9]|1[0-2])[\/-](20\d{2})/);
+      if (!d) return null;
+      const dd = String(d[1]).padStart(2, '0');
+      return `${d[3]}-${d[2]}-${dd}`;
+    };
+    const tries = [
+      /com\s*validade\s*ate\s*((?:0?[1-9]|[12]\d|3[01])[\/-](?:0[1-9]|1[0-2])[\/-]20\d{2})/,
+      /validade\s*ate\s*((?:0?[1-9]|[12]\d|3[01])[\/-](?:0[1-9]|1[0-2])[\/-]20\d{2})/,
+      /vencimento\s*(?:em|ate)?\s*((?:0?[1-9]|[12]\d|3[01])[\/-](?:0[1-9]|1[0-2])[\/-]20\d{2})/,
+      /valido\s*ate\s*((?:0?[1-9]|[12]\d|3[01])[\/-](?:0[1-9]|1[0-2])[\/-]20\d{2})/,
+      /ate\s*((?:0?[1-9]|[12]\d|3[01])[\/-](?:0[1-9]|1[0-2])[\/-]20\d{2})/
+    ];
+    for (const rg of tries) {
+      const m = s.match(rg);
+      const d = dateFrom(m?.[1] || "");
+      if (d) return d;
+    }
+    return null;
+  };
   const endOfExerciseValidity = (year) => {
     const y = Number(year);
     if (!y || y < 1900) return null;
@@ -1493,7 +1518,7 @@ export async function uploadTruckDocument(truckId, file, type = "documento", exp
   if (!inferredExpiry) {
     // Try filename hints
     const nameHint = file.name || "";
-    const d1 = parseDateFromText(nameHint);
+    const d1 = parseValidityDate(nameHint) || parseDateFromText(nameHint);
     if (d1) inferredExpiry = d1;
     if (!inferredExpiry && String(type) === 'documento') {
       const yr = parseExerciseYear(nameHint);
@@ -1519,7 +1544,7 @@ export async function uploadTruckDocument(truckId, file, type = "documento", exp
         text += ' ' + chunk;
         // Try extracting as we go for performance
         if (!inferredExpiry) {
-          const d2 = parseDateFromText(chunk);
+          const d2 = parseValidityDate(chunk) || parseDateFromText(chunk);
           if (d2) inferredExpiry = d2;
           if (!inferredExpiry && String(type) === 'documento') {
             const yr2 = parseExerciseYear(chunk);
@@ -1528,7 +1553,7 @@ export async function uploadTruckDocument(truckId, file, type = "documento", exp
         }
       }
       if (!inferredExpiry) {
-        const d3 = parseDateFromText(text);
+        const d3 = parseValidityDate(text) || parseDateFromText(text);
         if (d3) inferredExpiry = d3;
         if (!inferredExpiry && String(type) === 'documento') {
           const yr3 = parseExerciseYear(text);

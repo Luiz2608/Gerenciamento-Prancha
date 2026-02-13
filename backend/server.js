@@ -321,6 +321,32 @@ function parseDateFromText(text) {
 function normalizeText(str) {
   try { return String(str).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); } catch { return String(str).toLowerCase(); }
 }
+function parseValidityDate(text) {
+  if (!text) return null;
+  const s = normalizeText(text);
+  const dateFrom = (m) => {
+    if (!m) return null;
+    const d = m.match(/(0?[1-9]|[12]\d|3[01])[\/-](0[1-9]|1[0-2])[\/-](20\d{2})/);
+    if (!d) return null;
+    const dd = String(d[1]).padStart(2, '0');
+    const mm = d[2];
+    const yy = d[3];
+    return `${yy}-${mm}-${dd}`;
+  };
+  const tries = [
+    /com\s*validade\s*ate\s*((?:0?[1-9]|[12]\d|3[01])[\/-](?:0[1-9]|1[0-2])[\/-]20\d{2})/,
+    /validade\s*ate\s*((?:0?[1-9]|[12]\d|3[01])[\/-](?:0[1-9]|1[0-2])[\/-]20\d{2})/,
+    /vencimento\s*(?:em|ate)?\s*((?:0?[1-9]|[12]\d|3[01])[\/-](?:0[1-9]|1[0-2])[\/-]20\d{2})/,
+    /valido\s*ate\s*((?:0?[1-9]|[12]\d|3[01])[\/-](?:0[1-9]|1[0-2])[\/-]20\d{2})/,
+    /ate\s*((?:0?[1-9]|[12]\d|3[01])[\/-](?:0[1-9]|1[0-2])[\/-]20\d{2})/
+  ];
+  for (const rg of tries) {
+    const m = s.match(rg);
+    const d = dateFrom(m?.[1] || "");
+    if (d) return d;
+  }
+  return null;
+}
 function parseExerciseYear(text) {
   if (!text) return null;
   const s = normalizeText(text);
@@ -398,9 +424,11 @@ app.post("/api/documentos/upload", upload.single("file"), async (req, res) => {
         const buf = fs.readFileSync(path.join(uploadsRoot, "trucks", String(truck_id), filename));
         const parsed = await pdfParse(buf);
         const txt = parsed?.text || "";
+        const validityDate = parseValidityDate(txt);
         const textDate = parseDateFromText(txt);
         const exerciseYear = parseExerciseYear(txt);
-        if (String(type) === "documento" && exerciseYear) {
+        if (!expiry_date && validityDate) expiry_date = validityDate;
+        if (!expiry_date && String(type) === "documento" && exerciseYear) {
           const end = endOfExerciseValidity(exerciseYear);
           if (end) expiry_date = end;
         }
