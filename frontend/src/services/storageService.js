@@ -1499,9 +1499,10 @@ export async function uploadTruckDocument(truckId, file, type = "documento", exp
     if (!text) return null;
     const normalizeTextLocal = (str) => { try { return String(str).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); } catch { return String(str).toLowerCase(); } };
     const s = normalizeTextLocal(text);
-    const m = s.match(/emitido\s*em\s*((?:0?[1-9]|[12]\d|3[01])[\/-](?:0[1-9]|1[0-2])[\/-](20\d{2}))/);
-    if (m) {
-      const parts = String(m[1]).match(/(0?[1-9]|[12]\d|3[01])[\/-](0[1-9]|1[0-2])[\/-](20\d{2})/);
+    // Matches "emitido em 20/08/2026", "emitido em: 20/08/2026", "emitido em 20 / 08 / 2026"
+    const m = s.match(/emitido\s*em\s*[:\.]?\s*((?:0?[1-9]|[12]\d|3[01])\s*[\/-]\s*(0[1-9]|1[0-2])\s*[\/-]\s*(20\d{2}))/);
+    if (m && m[1]) {
+      const parts = String(m[1]).match(/(0?[1-9]|[12]\d|3[01])\s*[\/-]\s*(0[1-9]|1[0-2])\s*[\/-]\s*(20\d{2})/);
       if (parts) {
         const dd = String(parts[1]).padStart(2, '0');
         return `${parts[3]}-${parts[2]}-${dd}`;
@@ -1513,24 +1514,23 @@ export async function uploadTruckDocument(truckId, file, type = "documento", exp
     if (!text) return null;
     const normalizeText = (str) => { try { return String(str).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); } catch { return String(str).toLowerCase(); } };
     const s = normalizeText(text);
-    const dateFrom = (m) => {
-      if (!m) return null;
-      const d = String(m).match(/(0?[1-9]|[12]\d|3[01])[\/-](0[1-9]|1[0-2])[\/-](20\d{2})/);
-      if (!d) return null;
-      const dd = String(d[1]).padStart(2, '0');
-      return `${d[3]}-${d[2]}-${dd}`;
-    };
+    // Robust regex for "validade ate/em" or "validade:" with optional spaces and colons
+    const m = s.match(/validade\s*(?:at[eé]|em)?\s*[:\.]?\s*((?:0?[1-9]|[12]\d|3[01])\s*[\/-]\s*(0[1-9]|1[0-2])\s*[\/-]\s*(20\d{2}))/);
+    if (m && m[1]) {
+       const d = String(m[1]).match(/(0?[1-9]|[12]\d|3[01])\s*[\/-]\s*(0[1-9]|1[0-2])\s*[\/-]\s*(20\d{2})/);
+       if (d) return `${d[3]}-${d[2].padStart(2,'0')}-${d[1].padStart(2,'0')}`;
+    }
+    // Fallback for "vencimento" or "valido ate"
     const tries = [
-      /com\s*validade\s*ate\s*((?:0?[1-9]|[12]\d|3[01])[\/-](?:0[1-9]|1[0-2])[\/-]20\d{2})/,
-      /validade\s*ate\s*((?:0?[1-9]|[12]\d|3[01])[\/-](?:0[1-9]|1[0-2])[\/-]20\d{2})/,
-      /vencimento\s*(?:em|ate)?\s*((?:0?[1-9]|[12]\d|3[01])[\/-](?:0[1-9]|1[0-2])[\/-]20\d{2})/,
-      /valido\s*ate\s*((?:0?[1-9]|[12]\d|3[01])[\/-](?:0[1-9]|1[0-2])[\/-]20\d{2})/,
-      /ate\s*((?:0?[1-9]|[12]\d|3[01])[\/-](?:0[1-9]|1[0-2])[\/-]20\d{2})/
+      /vencimento\s*(?:em|ate)?\s*[:\.]?\s*((?:0?[1-9]|[12]\d|3[01])\s*[\/-]\s*(0[1-9]|1[0-2])\s*[\/-]\s*(20\d{2}))/,
+      /valido\s*ate\s*[:\.]?\s*((?:0?[1-9]|[12]\d|3[01])\s*[\/-]\s*(0[1-9]|1[0-2])\s*[\/-]\s*(20\d{2}))/
     ];
     for (const rg of tries) {
-      const m = s.match(rg);
-      const d = dateFrom(m?.[1] || "");
-      if (d) return d;
+      const m2 = s.match(rg);
+      if (m2 && m2[1]) {
+        const d = String(m2[1]).match(/(0?[1-9]|[12]\d|3[01])\s*[\/-]\s*(0[1-9]|1[0-2])\s*[\/-]\s*(20\d{2})/);
+        if (d) return `${d[3]}-${d[2].padStart(2,'0')}-${d[1].padStart(2,'0')}`;
+      }
     }
     return null;
   };

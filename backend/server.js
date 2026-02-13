@@ -350,7 +350,8 @@ function parseValidityDate(text) {
 function parseIssueDate(text) {
   if (!text) return null;
   const s = normalizeText(text);
-  const m = s.match(/emitido\s*em\s*((?:0?[1-9]|[12]\d|3[01])\s*[\/-]\s*(?:0[1-9]|1[0-2])\s*[\/-]\s*20\d{2})/);
+  // Matches "emitido em 20/08/2026", "emitido em: 20/08/2026", "emitido em 20 / 08 / 2026"
+  const m = s.match(/emitido\s*em\s*[:\.]?\s*((?:0?[1-9]|[12]\d|3[01])\s*[\/-]\s*(0[1-9]|1[0-2])\s*[\/-]\s*(20\d{2}))/);
   if (m && m[1]) {
     const d = String(m[1]).match(/(0?[1-9]|[12]\d|3[01])\s*[\/-]\s*(0[1-9]|1[0-2])\s*[\/-]\s*(20\d{2})/);
     if (d) { const dd = String(d[1]).padStart(2, '0'); return `${d[3]}-${d[2]}-${dd}`; }
