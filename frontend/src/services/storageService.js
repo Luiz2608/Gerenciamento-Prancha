@@ -1484,6 +1484,31 @@ export async function uploadTruckDocument(truckId, file, type = "documento", exp
     if (m2) return Number(m2[1]);
     return null;
   };
+  const addOneYearFromIso = (iso) => {
+    try {
+      const [y, m, d] = String(iso).split("-").map(Number);
+      const dt = new Date(y, (m - 1), d);
+      dt.setFullYear(dt.getFullYear() + 1);
+      const yy = dt.getFullYear();
+      const mm = String(dt.getMonth() + 1).padStart(2, "0");
+      const dd = String(dt.getDate()).padStart(2, "0");
+      return `${yy}-${mm}-${dd}`;
+    } catch { return null; }
+  };
+  const parseIssueDate = (text) => {
+    if (!text) return null;
+    const normalizeTextLocal = (str) => { try { return String(str).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); } catch { return String(str).toLowerCase(); } };
+    const s = normalizeTextLocal(text);
+    const m = s.match(/emitido\s*em\s*((?:0?[1-9]|[12]\d|3[01])[\/-](?:0[1-9]|1[0-2])[\/-](20\d{2}))/);
+    if (m) {
+      const parts = String(m[1]).match(/(0?[1-9]|[12]\d|3[01])[\/-](0[1-9]|1[0-2])[\/-](20\d{2})/);
+      if (parts) {
+        const dd = String(parts[1]).padStart(2, '0');
+        return `${parts[3]}-${parts[2]}-${dd}`;
+      }
+    }
+    return null;
+  };
   const parseValidityDate = (text) => {
     if (!text) return null;
     const normalizeText = (str) => { try { return String(str).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); } catch { return String(str).toLowerCase(); } };
@@ -1537,7 +1562,7 @@ export async function uploadTruckDocument(truckId, file, type = "documento", exp
       const loadingTask = pdfjs.getDocument({ data: ab, disableWorker: true });
       const pdf = await loadingTask.promise;
       let text = '';
-      for (let p = 1; p <= Math.min(pdf.numPages, 5); p++) {
+      for (let p = 1; p <= Math.min(pdf.numPages, 10); p++) {
         const page = await pdf.getPage(p);
         const tc = await page.getTextContent();
         const chunk = (tc.items || []).map((it) => String(it.str || '')).join(' ');
@@ -1550,6 +1575,14 @@ export async function uploadTruckDocument(truckId, file, type = "documento", exp
             const yr2 = parseExerciseYear(chunk);
             if (yr2) inferredExpiry = endOfExerciseValidity(yr2);
           }
+          // Certificate: derive from issue date + 1 year when explicit validity not present
+          if (!inferredExpiry && String(type) === 'tacografo_certificado') {
+            const iss = parseIssueDate(chunk);
+            if (iss) {
+              const plus = addOneYearFromIso(iss);
+              if (plus) inferredExpiry = plus;
+            }
+          }
         }
       }
       if (!inferredExpiry) {
@@ -1559,9 +1592,26 @@ export async function uploadTruckDocument(truckId, file, type = "documento", exp
           const yr3 = parseExerciseYear(text);
           if (yr3) inferredExpiry = endOfExerciseValidity(yr3);
         }
+        if (!inferredExpiry && String(type) === 'tacografo_certificado') {
+          const iss2 = parseIssueDate(text);
+          if (iss2) {
+            const plus2 = addOneYearFromIso(iss2);
+            if (plus2) inferredExpiry = plus2;
+          }
+        }
       }
     }
   } catch {}
+  // Final fallback for certificate: 1 year from upload time
+  if (!inferredExpiry && String(type) === 'tacografo_certificado') {
+    try {
+      const now = new Date();
+      const yy = now.getFullYear() + 1;
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const dd = String(now.getDate()).padStart(2, '0');
+      inferredExpiry = `${yy}-${mm}-${dd}`;
+    } catch {}
+  }
   const id = uuid();
   const item = {
     id,
