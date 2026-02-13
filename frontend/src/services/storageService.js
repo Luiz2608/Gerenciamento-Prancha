@@ -1478,8 +1478,11 @@ export async function uploadTruckDocument(truckId, file, type = "documento", exp
   const parseExerciseYear = (text) => {
     if (!text) return null;
     const s = normalizeText(text);
-    const m = s.match(/exercicio[^0-9]*?(20\d{2})/);
+    // Matches "exercicio 2024", "licenciamento 2024", "ano 2024"
+    const m = s.match(/(?:exercicio|licenciamento|ano)[^0-9]*?(20\d{2})/);
     if (m) return Number(m[1]);
+    // Fallback: finding bare year is risky, maybe restrict to lines with relevant keywords?
+    // For now, let's keep the broad check but lower priority (it was already secondary to explicit dates)
     const m2 = s.match(/\b(20\d{2})\b/);
     if (m2) return Number(m2[1]);
     return null;
@@ -1574,6 +1577,14 @@ export async function uploadTruckDocument(truckId, file, type = "documento", exp
           if (!inferredExpiry && String(type) === 'documento') {
             const yr2 = parseExerciseYear(chunk);
             if (yr2) inferredExpiry = endOfExerciseValidity(yr2);
+            // Fallback: Use issue date to determine exercise year
+            if (!inferredExpiry) {
+              const iss = parseIssueDate(chunk);
+              if (iss) {
+                 const y = Number(iss.split('-')[0]);
+                 if (y) inferredExpiry = endOfExerciseValidity(y);
+              }
+            }
           }
           // Certificate: derive from issue date + 1 year when explicit validity not present
           if (!inferredExpiry && String(type) === 'tacografo_certificado') {
@@ -1591,6 +1602,13 @@ export async function uploadTruckDocument(truckId, file, type = "documento", exp
         if (!inferredExpiry && String(type) === 'documento') {
           const yr3 = parseExerciseYear(text);
           if (yr3) inferredExpiry = endOfExerciseValidity(yr3);
+          if (!inferredExpiry) {
+             const iss = parseIssueDate(text);
+             if (iss) {
+                const y = Number(iss.split('-')[0]);
+                if (y) inferredExpiry = endOfExerciseValidity(y);
+             }
+          }
         }
         if (!inferredExpiry && String(type) === 'tacografo_certificado') {
           const iss2 = parseIssueDate(text);
