@@ -114,10 +114,12 @@ export default function Documents() {
                     <span className={`text-xs px-2 py-1 rounded-full ${docStatus[t.id]?.documento ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
                       {docStatus[t.id]?.documento ? "Enviado" : "Pendente"}
                     </span>
-                    <span className="text-xs px-2 py-1 rounded-lg bg-emerald-200 text-emerald-800 flex items-center gap-1">
-                      <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-violet-600 text-white text-[10px]">✔</span>
-                      Documento
-                    </span>
+                    {docStatus[t.id]?.documento && (
+                      <span className="text-xs px-2 py-1 rounded-lg bg-emerald-200 text-emerald-800 flex items-center gap-1">
+                        <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-violet-600 text-white text-[10px]">✔</span>
+                        Documento
+                      </span>
+                    )}
                   </div>
                 </td>
                 <td>
@@ -129,10 +131,12 @@ export default function Documents() {
                     <span className={`text-xs px-2 py-1 rounded-full ${docStatus[t.id]?.tacografo_certificado ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
                       {docStatus[t.id]?.tacografo_certificado ? "Enviado" : "Pendente"}
                     </span>
-                    <span className="text-xs px-2 py-1 rounded-lg bg-emerald-200 text-emerald-800 flex items-center gap-1">
-                      <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-violet-600 text-white text-[10px]">✔</span>
-                      Certificado
-                    </span>
+                    {docStatus[t.id]?.tacografo_certificado && (
+                      <span className="text-xs px-2 py-1 rounded-lg bg-emerald-200 text-emerald-800 flex items-center gap-1">
+                        <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-violet-600 text-white text-[10px]">✔</span>
+                        Certificado
+                      </span>
+                    )}
                   </div>
                 </td>
                 <td>
@@ -193,21 +197,17 @@ export default function Documents() {
                           )}
                         </div>
                         <div className="mt-2 flex items-center gap-2">
-                          <input
-                            type="date"
-                            className="input input-sm w-40"
-                            defaultValue={d.expiry_date || ""}
-                            onBlur={async (e) => {
-                              const val = e.target.value || null;
-                              const updated = await updateTruckDocumentExpiry(d.id, val);
-                              const list = await getDocumentosByCaminhao(selected.id);
-                              setDocs(list);
-                              setToast({ type: "success", message: "Validade atualizada" });
-                              setTimeout(() => setToast(null), 2000);
-                            }}
-                            title="Validade"
-                          />
-                          <span className="text-xs text-slate-500">Defina a validade aqui</span>
+                          <span className="text-xs text-slate-500">Validade automática</span>
+                          <span className="text-xs px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-700 dark:text-slate-200">
+                            {d.expiry_date ? d.expiry_date : "Indisponível"}
+                          </span>
+                          {(() => {
+                            const status = d.expiry_status || (d.expiry_date ? "valid" : "unknown");
+                            const days = d.days_to_expiry;
+                            const cls = status === "expired" ? "bg-red-100 text-red-700" : status === "expiring" ? "bg-amber-100 text-amber-700" : status === "valid" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600";
+                            const label = status === "expired" ? "Vencido" : status === "expiring" ? `Vence em ${days} dias` : status === "valid" ? `Válido (${days ?? ""}d)` : "Sem validade";
+                            return <span className={`text-[11px] px-2 py-0.5 rounded-full ${cls}`}>{label}</span>;
+                          })()}
                         </div>
                       </div>
                     ))

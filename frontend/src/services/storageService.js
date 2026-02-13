@@ -1459,6 +1459,43 @@ export async function uploadTruckDocument(truckId, file, type = "documento", exp
     fr.onerror = reject;
     fr.readAsDataURL(file);
   });
+  const parseDateFromText = (text) => {
+    if (!text) return null;
+    const s = String(text);
+    const m1 = s.match(/(20\d{2})[-_\/.](0[1-9]|1[0-2])[-_\/.](0[1-9]|[12]\d|3[01])/);
+    if (m1) return `${m1[1]}-${m1[2]}-${m1[3]}`;
+    const m2 = s.match(/(0[1-9]|[12]\d|3[01])[-_\/.](0[1-9]|1[0-2])[-_\/.](20\d{2})/);
+    if (m2) return `${m2[3]}-${m2[2]}-${m2[1]}`;
+    return null;
+  };
+  const normalizeText = (str) => {
+    try { return String(str).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); } catch { return String(str).toLowerCase(); }
+  };
+  const parseExerciseYear = (text) => {
+    if (!text) return null;
+    const s = normalizeText(text);
+    const m = s.match(/exercicio[^0-9]*?(20\d{2})/);
+    if (m) return Number(m[1]);
+    const m2 = s.match(/\b(20\d{2})\b/);
+    if (m2) return Number(m2[1]);
+    return null;
+  };
+  const endOfExerciseValidity = (year) => {
+    const y = Number(year);
+    if (!y || y < 1900) return null;
+    return `${y + 1}-10-31`;
+  };
+  let inferredExpiry = expiryDate || null;
+  if (!inferredExpiry) {
+    // Try filename hints
+    const nameHint = file.name || "";
+    const d1 = parseDateFromText(nameHint);
+    if (d1) inferredExpiry = d1;
+    if (!inferredExpiry && String(type) === 'documento') {
+      const yr = parseExerciseYear(nameHint);
+      if (yr) inferredExpiry = endOfExerciseValidity(yr);
+    }
+  }
   const id = uuid();
   const item = {
     id,
@@ -1468,7 +1505,7 @@ export async function uploadTruckDocument(truckId, file, type = "documento", exp
     size: file.size || null,
     mime: file.type || null,
     uploaded_at: new Date().toISOString(),
-    expiry_date: expiryDate || null,
+    expiry_date: inferredExpiry || null,
     base64: reader
   };
   db.documents.push(item);
