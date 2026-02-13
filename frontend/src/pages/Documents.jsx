@@ -7,11 +7,22 @@ export default function Documents() {
   const [selected, setSelected] = useState(null);
   const [docs, setDocs] = useState([]);
   const [uploadingId, setUploadingId] = useState(null);
+  const [docStatus, setDocStatus] = useState({});
 
   const loadTrucks = async () => {
     const res = await getCaminhoes({ page: 1, pageSize: 100 });
     const rows = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
     setTrucks(rows);
+    try {
+      const statuses = {};
+      await Promise.all(rows.map(async (t) => {
+        const list = await getDocumentosByCaminhao(t.id);
+        const hasDocumento = list.some(d => d.type === "documento");
+        const hasTacografo = list.some(d => d.type === "tacografo_certificado");
+        statuses[t.id] = { documento: hasDocumento, tacografo_certificado: hasTacografo };
+      }));
+      setDocStatus(statuses);
+    } catch {}
   };
 
   const openDetails = async (truck) => {
@@ -36,10 +47,26 @@ export default function Documents() {
         const list = await getDocumentosByCaminhao(truckId);
         setDocs(list);
       }
+      try {
+        const list2 = await getDocumentosByCaminhao(truckId);
+        const hasDocumento = list2.some(d => d.type === "documento");
+        const hasTacografo = list2.some(d => d.type === "tacografo_certificado");
+        setDocStatus(prev => ({ ...prev, [truckId]: { documento: hasDocumento, tacografo_certificado: hasTacografo } }));
+      } catch {}
     } finally {
       setUploadingId(null);
       e.target.value = "";
     }
+  };
+
+  const downloadLocalBase64 = (doc) => {
+    if (!doc?.base64) return;
+    const a = document.createElement("a");
+    a.href = doc.base64;
+    a.download = doc.filename || doc.name || "documento";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
   return (
@@ -75,12 +102,18 @@ export default function Documents() {
                     {uploadingId === t.id ? "Enviando..." : "Upload"}
                     <input type="file" className="hidden" onChange={(e) => handleUpload(t.id, e, "documento")} />
                   </label>
+                  <span className={`ml-2 text-sm ${docStatus[t.id]?.documento ? "text-emerald-600" : "text-slate-400"}`}>
+                    {docStatus[t.id]?.documento ? "✔️ Enviado" : "—"}
+                  </span>
                 </td>
                 <td>
                   <label className="btn btn-sm cursor-pointer">
                     {uploadingId === t.id ? "Enviando..." : "Upload"}
                     <input type="file" className="hidden" onChange={(e) => handleUpload(t.id, e, "tacografo_certificado")} />
                   </label>
+                  <span className={`ml-2 text-sm ${docStatus[t.id]?.tacografo_certificado ? "text-emerald-600" : "text-slate-400"}`}>
+                    {docStatus[t.id]?.tacografo_certificado ? "✔️ Enviado" : "—"}
+                  </span>
                 </td>
                 <td>
                   <button className="btn btn-sm btn-primary" onClick={() => openDetails(t)}>Ver Detalhes</button>
@@ -122,11 +155,12 @@ export default function Documents() {
                           <div>
                             <div className="font-medium">{d.name || d.filename}</div>
                             <div className="text-xs text-slate-500">Tipo: {d.type}</div>
+                            <div className="text-xs text-slate-500">Validade: {d.expiry_date ? d.expiry_date : "—"}</div>
                           </div>
                           {d.url ? (
-                            <a className="btn btn-sm" href={d.url} target="_blank" rel="noreferrer">Abrir</a>
+                            <a className="btn btn-sm" href={d.url} download={d.filename || d.name || "documento"}>Download</a>
                           ) : (
-                            <span className="text-xs text-slate-400">Local</span>
+                            <button className="btn btn-sm" onClick={() => downloadLocalBase64(d)}>Download</button>
                           )}
                         </div>
                         <div className="mt-2 flex items-center gap-2">
