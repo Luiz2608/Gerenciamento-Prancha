@@ -231,17 +231,45 @@ async function readPdfText(file) {
 
 export const extractDocumentAI = async (fileOrDoc) => {
   const API_URL = import.meta.env?.VITE_API_URL ? String(import.meta.env.VITE_API_URL) : null;
-  // If server item returned (with id), prefer backend AI (better quality)
-  if (API_URL && fileOrDoc?.id) {
+  
+  // 1. If backend is available, try to use it (Better AI quality)
+  if (API_URL) {
     try {
-      const r = await fetch(`${API_URL}/api/ai/extract-document`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: fileOrDoc.id }) });
-      const j = await r.json();
-      if (j && !j.error) return j;
-    } catch {}
+      // Option A: File object (Stateless extraction) - Preferred for Render/Cloud
+      if (fileOrDoc?.file instanceof File || fileOrDoc instanceof File) {
+        const file = fileOrDoc.file instanceof File ? fileOrDoc.file : fileOrDoc;
+        const fd = new FormData();
+        fd.append("file", file);
+        if (fileOrDoc.type) fd.append("type", fileOrDoc.type);
+        
+        const r = await fetch(`${API_URL}/api/ai/extract-document`, { 
+          method: "POST", 
+          body: fd
+          // No Content-Type header needed for FormData, browser sets boundary
+        });
+        const j = await r.json();
+        if (j && !j.error) return j;
+      }
+      
+      // Option B: ID (Stateful extraction) - Only if file is already on backend
+      else if (fileOrDoc?.id) {
+        const r = await fetch(`${API_URL}/api/ai/extract-document`, { 
+          method: "POST", 
+          headers: { "Content-Type": "application/json" }, 
+          body: JSON.stringify({ id: fileOrDoc.id, type: fileOrDoc.type }) 
+        });
+        const j = await r.json();
+        if (j && !j.error) return j;
+      }
+    } catch (e) {
+      console.warn("Backend extraction failed, falling back to local", e);
+    }
   }
-  // Fallback: client-side extraction using pdf.js
-  if (fileOrDoc?.file) {
-    const text = await readPdfText(fileOrDoc.file);
+
+  // 2. Fallback: client-side extraction using pdf.js
+  const file = (fileOrDoc?.file instanceof File) ? fileOrDoc.file : (fileOrDoc instanceof File ? fileOrDoc : null);
+  if (file) {
+    const text = await readPdfText(file);
     let expiry = parseValidityDateLocal(text);
     const exYear = parseYearLocal(text);
     const exEnd = exYear ? `${Number(exYear) + 1}-10-31` : null;

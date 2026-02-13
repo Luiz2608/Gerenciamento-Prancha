@@ -512,22 +512,37 @@ app.delete("/api/documentos/:id", async (req, res) => {
 });
 
 // AI extraction endpoint
-app.post("/api/ai/extract-document", async (req, res) => {
+app.post("/api/ai/extract-document", upload.single('file'), async (req, res) => {
   try {
     const { id, filePath: directPath } = req.body || {};
     let filePath = directPath || null;
     let mime = null;
-    let type = null;
-    if (id && !filePath) {
+    let type = req.body.type || null;
+
+    // 1. If file uploaded in this request (Stateless mode)
+    if (req.file) {
+      filePath = req.file.path;
+      mime = req.file.mimetype;
+    } 
+    // 2. If id provided (Stateful mode - existing file)
+    else if (id && !filePath) {
       const r0 = await pool.query("SELECT * FROM truck_documents WHERE id=$1", [Number(id)]);
       const row = r0.rows[0];
       if (!row) return res.status(404).json({ error: "Documento não encontrado" });
       filePath = path.join(uploadsRoot, "trucks", String(row.truck_id), row.filename);
       mime = row.mime || null;
-      type = row.type || null;
+      type = type || row.type || null;
     }
-    if (!filePath) return res.status(400).json({ error: "Informe id do documento ou filePath" });
+
+    if (!filePath) return res.status(400).json({ error: "Informe arquivo (upload), id do documento ou filePath" });
+    
     const out = await extractDocument({ filePath, mime, type });
+    
+    // Cleanup temp file if it was a stateless upload
+    if (req.file) {
+      try { fs.unlinkSync(filePath); } catch {}
+    }
+
     res.json(out);
   } catch (e) {
     console.error("AI extract error", e);
