@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { getCaminhoes, getDocumentosByCaminhao, uploadTruckDocument, updateTruckDocumentExpiry, deleteTruckDocument } from "../services/storageService.js";
+import { getCaminhoes, getDocumentosByCaminhao, uploadTruckDocument, updateTruckDocumentExpiry, deleteTruckDocument, computeExpiryStatus } from "../services/storageService.js";
+import { extractDocumentAI } from "../services/integrationService.js";
+import ReviewDialog from "../components/ReviewDialog.jsx";
 
 export default function Documents() {
   const [trucks, setTrucks] = useState([]);
@@ -11,6 +13,12 @@ export default function Documents() {
   const [docStatus, setDocStatus] = useState({});
   const [toast, setToast] = useState(null);
   const [docEditExpiry, setDocEditExpiry] = useState({});
+  const [searchTerm, setSearchTerm] = useState("");
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [reviewExtracted, setReviewExtracted] = useState(null);
+  const [reviewServerDoc, setReviewServerDoc] = useState(null);
+  const [reviewTruck, setReviewTruck] = useState(null);
+
   const formatDateBR = (iso) => {
     if (!iso) return "";
     const [y, m, d] = String(iso).split("-");
@@ -24,6 +32,36 @@ export default function Documents() {
     return { cls, label };
   };
 
+  const calculateTruckStatus = (list) => {
+    const hasDocumento = list.some(d => d.type === "documento");
+    const hasTacografo = list.some(d => d.type === "tacografo_certificado");
+    
+    const relevantDocs = list.filter(d => d.type === "documento" || d.type === "tacografo_certificado");
+    let overall = "pending";
+    if (relevantDocs.length > 0) {
+      let hasExpired = false;
+      let hasExpiring = false;
+      let hasValid = false;
+
+      for (const d of relevantDocs) {
+         const st = d.expiry_status || computeExpiryStatus(d.expiry_date).status;
+         if (st === "expired") hasExpired = true;
+         if (st === "expiring") hasExpiring = true;
+         if (st === "valid") hasValid = true;
+      }
+
+      if (hasExpired) overall = "expired";
+      else if (hasExpiring) overall = "expiring";
+      else if (hasValid) overall = "valid";
+    }
+
+    return { 
+      documento: hasDocumento, 
+      tacografo_certificado: hasTacografo,
+      summary: overall
+    };
+  };
+
   const loadTrucks = async () => {
     const res = await getCaminhoes({ page: 1, pageSize: 100 });
     const rows = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
@@ -32,9 +70,7 @@ export default function Documents() {
       const statuses = {};
       await Promise.all(rows.map(async (t) => {
         const list = await getDocumentosByCaminhao(t.id);
-        const hasDocumento = list.some(d => d.type === "documento");
-        const hasTacografo = list.some(d => d.type === "tacografo_certificado");
-        statuses[t.id] = { documento: hasDocumento, tacografo_certificado: hasTacografo };
+        statuses[t.id] = calculateTruckStatus(list);
       }));
       setDocStatus(statuses);
     } catch {}
@@ -59,15 +95,20 @@ export default function Documents() {
     try {
       const exp = uploadExpiry?.[type]?.[truckId] || null;
       const item = await uploadTruckDocument(truckId, file, type, exp);
+      setReviewTruck(trucks.find(t => t.id === truckId) || null);
+      setReviewServerDoc(item);
+      try {
+        const extracted = await extractDocumentAI(item.url ? { id: item.id } : { file, id: item.id });
+        setReviewExtracted(extracted);
+        setReviewOpen(true);
+      } catch {}
       if (selected && selected.id === truckId) {
         const list = await getDocumentosByCaminhao(truckId);
         setDocs(list);
       }
       try {
         const list2 = await getDocumentosByCaminhao(truckId);
-        const hasDocumento = list2.some(d => d.type === "documento");
-        const hasTacografo = list2.some(d => d.type === "tacografo_certificado");
-        setDocStatus(prev => ({ ...prev, [truckId]: { documento: hasDocumento, tacografo_certificado: hasTacografo } }));
+        setDocStatus(prev => ({ ...prev, [truckId]: calculateTruckStatus(list2) }));
         setToast({ type: "success", message: `Upload concluído: ${file.name}` });
         setTimeout(() => setToast(null), 2500);
       } catch {}
@@ -96,6 +137,15 @@ export default function Documents() {
       )}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Documentos & Tacógrafos</h1>
+        <div className="form-control w-full max-w-xs">
+          <input
+            type="text"
+            placeholder="Filtrar por placa ou frota..."
+            className="input input-bordered w-full"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
       </div>
 
       <div className="card p-4 overflow-x-auto">
@@ -107,19 +157,35 @@ export default function Documents() {
               <th>Modelo</th>
               <th>Ano</th>
               <th>Frota</th>
+              <th>Situação</th>
               <th>Documento</th>
               <th>Certificado Tacógrafo</th>
               <th>Detalhes</th>
             </tr>
           </thead>
           <tbody>
-            {trucks.map((t) => (
+            {trucks
+              .filter(t => {
+                if (!searchTerm) return true;
+                const s = searchTerm.toLowerCase();
+                return (t.plate || "").toLowerCase().includes(s) || (t.fleet || "").toLowerCase().includes(s);
+              })
+              .map((t) => (
               <tr key={t.id}>
                 <td>{t.id}</td>
                 <td>{t.plate || "-"}</td>
                 <td>{t.model || "-"}</td>
                 <td>{t.year ?? "-"}</td>
                 <td>{t.fleet || "-"}</td>
+                <td>
+                  {(() => {
+                    const st = docStatus[t.id]?.summary || "pending";
+                    if (st === "expired") return <span className="badge badge-error gap-1">Vencido</span>;
+                    if (st === "expiring") return <span className="badge badge-warning gap-1">Atenção</span>;
+                    if (st === "valid") return <span className="badge badge-success gap-1">Regular</span>;
+                    return <span className="badge badge-ghost gap-1">Pendente</span>;
+                  })()}
+                </td>
                 <td>
                   <div className="flex items-center gap-2">
                     <label className="btn btn-sm cursor-pointer">
@@ -249,6 +315,7 @@ export default function Documents() {
                               await updateTruckDocumentExpiry(d.id, val || null);
                               const list = await getDocumentosByCaminhao(selected.id);
                               setDocs(list);
+                              setDocStatus(prev => ({ ...prev, [selected.id]: calculateTruckStatus(list) }));
                               setToast({ type: "success", message: "Validade atualizada" });
                               setTimeout(() => setToast(null), 2000);
                             }}
@@ -263,9 +330,7 @@ export default function Documents() {
                               setTimeout(() => setToast(null), 2000);
                               try {
                                 const list2 = await getDocumentosByCaminhao(selected.id);
-                                const hasDocumento = list2.some(x => x.type === "documento");
-                                const hasTacografo = list2.some(x => x.type === "tacografo_certificado");
-                                setDocStatus(prev => ({ ...prev, [selected.id]: { documento: hasDocumento, tacografo_certificado: hasTacografo } }));
+                                setDocStatus(prev => ({ ...prev, [selected.id]: calculateTruckStatus(list2) }));
                               } catch {}
                             }}
                             title="Excluir"
@@ -279,6 +344,24 @@ export default function Documents() {
             </div>
           </div>
         </div>
+      )}
+      {reviewOpen && (
+        <ReviewDialog
+          open={reviewOpen}
+          onClose={() => setReviewOpen(false)}
+          extracted={reviewExtracted}
+          truck={reviewTruck}
+          serverDoc={reviewServerDoc}
+          onApplied={async () => {
+            try {
+              if (reviewTruck?.id) {
+                const list = await getDocumentosByCaminhao(reviewTruck.id);
+                setDocs(prev => (selected && selected.id === reviewTruck.id) ? list : prev);
+                setDocStatus(prev => ({ ...prev, [reviewTruck.id]: calculateTruckStatus(list) }));
+              }
+            } catch {}
+          }}
+        />
       )}
     </div>
   );

@@ -1,7 +1,9 @@
 import { useEffect, useState, useRef } from "react";
-import { getCaminhoes, saveCaminhao, updateCaminhao, deleteCaminhao } from "../services/storageService.js";
+import { getCaminhoes, saveCaminhao, updateCaminhao, deleteCaminhao, uploadTruckDocument, getDocumentosByCaminhao } from "../services/storageService.js";
 import { supabase } from "../services/supabaseClient.js";
 import { useToast } from "../components/ToastProvider.jsx";
+import { extractDocumentAI } from "../services/integrationService.js";
+import ReviewDialog from "../components/ReviewDialog.jsx";
 
 export default function FleetTrucks() {
   const toast = useToast();
@@ -9,7 +11,7 @@ export default function FleetTrucks() {
   const [form, setForm] = useState(() => {
     const saved = localStorage.getItem("trucks_form_draft");
     return saved ? JSON.parse(saved) : { 
-      plate: "", model: "", year: "", chassis: "", km_current: "", fleet: "", status: "Ativo",
+      plate: "", model: "", year: "", chassis: "", km_current: "", fleet: "", category: "Cavalo Mecânico", status: "Ativo",
       vehicle_value: "", residual_value: "", useful_life_km: "1000000", avg_consumption: "2.5",
       annual_maintenance: "", annual_insurance: "", annual_taxes: "", annual_km: "120000"
     };
@@ -18,6 +20,10 @@ export default function FleetTrucks() {
   const [editing, setEditing] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const formRef = useRef(null);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [reviewExtracted, setReviewExtracted] = useState(null);
+  const [reviewServerDoc, setReviewServerDoc] = useState(null);
+  const [reviewTruck, setReviewTruck] = useState(null);
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -92,6 +98,7 @@ export default function FleetTrucks() {
       capacity: form.capacity ? Number(form.capacity) : null,
       km_current: form.km_current ? Number(form.km_current) : null,
       fleet: form.fleet || null,
+      category: form.category || null,
       status: form.status || "Ativo",
       vehicle_value: form.vehicle_value ? Number(form.vehicle_value) : 0,
       residual_value: form.residual_value ? Number(form.residual_value) : 0,
@@ -107,7 +114,7 @@ export default function FleetTrucks() {
     else await saveCaminhao(payload);
     localStorage.removeItem("trucks_form_draft");
     toast?.show(editing ? "Caminhão atualizado" : "Caminhão cadastrado", "success");
-    setForm({ plate: "", model: "", year: "", asset_number: "", capacity: "", km_current: "", fleet: "", status: "Ativo", vehicle_value: "", residual_value: "", useful_life_km: "1000000", avg_consumption: "2.5", annual_maintenance: "", annual_insurance: "", annual_taxes: "", annual_km: "120000" });
+    setForm({ plate: "", model: "", year: "", asset_number: "", capacity: "", km_current: "", fleet: "", category: "Cavalo Mecânico", status: "Ativo", vehicle_value: "", residual_value: "", useful_life_km: "1000000", avg_consumption: "2.5", annual_maintenance: "", annual_insurance: "", annual_taxes: "", annual_km: "120000" });
     setEditing(null);
     setShowForm(false);
     load();
@@ -127,7 +134,7 @@ export default function FleetTrucks() {
     setEditing(it); 
     setForm({ 
       plate: it.plate || "", model: it.model || "", year: it.year?.toString() || "", chassis: it.chassis || "", 
-      km_current: it.km_current?.toString() || "", fleet: it.fleet || "", status: it.status,
+      km_current: it.km_current?.toString() || "", fleet: it.fleet || "", category: it.category || "Cavalo Mecânico", status: it.status,
       vehicle_value: it.vehicle_value || "", residual_value: it.residual_value || "", useful_life_km: it.useful_life_km || "1000000",
       avg_consumption: it.avg_consumption || "2.5", annual_maintenance: it.annual_maintenance || "", 
       annual_insurance: it.annual_insurance || "", annual_taxes: it.annual_taxes || "", annual_km: it.annual_km || "120000"
@@ -142,6 +149,26 @@ export default function FleetTrucks() {
   const del = async (id) => { await deleteCaminhao(id); toast?.show("Caminhão excluído", "success"); load(); };
   const delConfirm = async (id) => { if (!window.confirm("Confirma excluir este caminhão?")) return; await del(id); };
 
+  const handleUploadFleet = async (truck, e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const item = await uploadTruckDocument(truck.id, file, "documento", null);
+      setReviewTruck(truck);
+      setReviewServerDoc(item);
+      try {
+        const extracted = await extractDocumentAI(item.url ? { id: item.id } : { file, id: item.id });
+        setReviewExtracted(extracted);
+        setReviewOpen(true);
+      } catch {}
+      await getDocumentosByCaminhao(truck.id);
+      toast?.show("Upload concluído", "success");
+    } catch {
+      toast?.show("Falha no upload", "error");
+    } finally {
+      e.target.value = "";
+    }
+  };
   useEffect(() => {
     if (!editing) {
       localStorage.setItem("trucks_form_draft", JSON.stringify(form));
@@ -169,6 +196,16 @@ export default function FleetTrucks() {
             <input className={`input ${form.chassis && form.chassis.length > 17 && 'ring-red-500 border-red-500'}`} placeholder="Chassi" value={form.chassis} onChange={(e) => setForm({ ...form, chassis: maskChassis(e.target.value) })} />
             <input className="input" placeholder="KM atual" value={form.km_current} onChange={(e) => setForm({ ...form, km_current: e.target.value })} />
             <input className="input" placeholder="Frota" value={form.fleet} maxLength={7} onChange={(e) => setForm({ ...form, fleet: e.target.value.replace(/\D/g, "").slice(0,7) })} />
+            <select className="select" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
+              <option>Cavalo Mecânico</option>
+              <option>Carreta</option>
+              <option>Prancha</option>
+              <option>Toco</option>
+              <option>Truck</option>
+              <option>VUC</option>
+              <option>Utilitário</option>
+              <option>Outro</option>
+            </select>
             <select className="select" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
               <option>Ativo</option>
               <option>Manutenção</option>
@@ -214,7 +251,7 @@ export default function FleetTrucks() {
 
             <div className="flex gap-2 md:col-span-6">
               <button className="btn btn-primary flex-1">{editing ? "Salvar" : "Adicionar"}</button>
-              <button type="button" className="btn bg-gray-500 hover:bg-gray-600 text-white" onClick={() => { setShowForm(false); setEditing(null); localStorage.removeItem("trucks_form_draft"); setForm({ plate: "", model: "", year: "", asset_number: "", capacity: "", km_current: "", fleet: "", status: "Ativo", vehicle_value: "", residual_value: "", useful_life_km: "1000000", avg_consumption: "2.5", annual_maintenance: "", annual_insurance: "", annual_taxes: "", annual_km: "120000" }); }}>Cancelar</button>
+              <button type="button" className="btn bg-gray-500 hover:bg-gray-600 text-white" onClick={() => { setShowForm(false); setEditing(null); localStorage.removeItem("trucks_form_draft"); setForm({ plate: "", model: "", year: "", asset_number: "", capacity: "", km_current: "", fleet: "", category: "Cavalo Mecânico", status: "Ativo", vehicle_value: "", residual_value: "", useful_life_km: "1000000", avg_consumption: "2.5", annual_maintenance: "", annual_insurance: "", annual_taxes: "", annual_km: "120000" }); }}>Cancelar</button>
             </div>
           </form>
         </div>
@@ -231,6 +268,7 @@ export default function FleetTrucks() {
               <th>Chassi</th>
               <th>KM atual</th>
               <th>Frota</th>
+              <th>Categoria</th>
               <th>Status</th>
               <th>Ações</th>
             </tr>
@@ -245,6 +283,7 @@ export default function FleetTrucks() {
                 <td title={it.chassis}>{it.chassis || ""}</td>
                 <td>{it.km_current ?? ""}</td>
                 <td>{it.fleet || ""}</td>
+                <td>{it.category || "-"}</td>
                 <td>
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${it.status === 'Ativo' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'}`}>
                     {it.status}
@@ -252,6 +291,10 @@ export default function FleetTrucks() {
                 </td>
                 <td className="p-4 text-right">
                   <div className="flex justify-end gap-2">
+                    <label className="p-2 text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20 rounded-lg transition-colors cursor-pointer" title="Importar Documento">
+                      <span className="material-icons text-lg">upload_file</span>
+                      <input type="file" className="hidden" onChange={(e) => handleUploadFleet(it, e)} />
+                    </label>
                     <button onClick={() => edit(it)} className="p-2 text-yellow-600 hover:bg-yellow-50 dark:text-yellow-400 dark:hover:bg-yellow-900/20 rounded-lg transition-colors" title="Editar">
                       <span className="material-icons text-lg">edit</span>
                     </button>
@@ -284,6 +327,7 @@ export default function FleetTrucks() {
                 </span>
               </div>
               <div className="text-sm text-slate-500 dark:text-slate-400 mt-2 space-y-1">
+                <div className="flex justify-between"><span>Categoria:</span> <span className="font-medium">{it.category || "-"}</span></div>
                 <div className="flex justify-between"><span>Frota:</span> <span className="font-medium">{it.fleet || "-"}</span></div>
                 <div className="flex justify-between"><span>KM:</span> <span className="font-medium">{it.km_current ?? "-"}</span></div>
               </div>
@@ -329,6 +373,16 @@ export default function FleetTrucks() {
           </select>
         </div>
       </div>
+      {reviewOpen && (
+        <ReviewDialog
+          open={reviewOpen}
+          onClose={() => setReviewOpen(false)}
+          extracted={reviewExtracted}
+          truck={reviewTruck}
+          serverDoc={reviewServerDoc}
+          onApplied={() => { setReviewOpen(false); }}
+        />
+      )}
     </div>
   );
 }

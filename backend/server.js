@@ -5,6 +5,7 @@ import cors from "cors";
 import fs from "fs";
 import multer from "multer";
 import pdfParse from "pdf-parse";
+import { extractDocument } from "./ai.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -489,6 +490,30 @@ app.delete("/api/documentos/:id", async (req, res) => {
   } catch (e) {
     console.error("Delete document error", e);
     res.status(500).json({ error: "Falha ao excluir documento" });
+  }
+});
+
+// AI extraction endpoint
+app.post("/api/ai/extract-document", async (req, res) => {
+  try {
+    const { id, filePath: directPath } = req.body || {};
+    let filePath = directPath || null;
+    let mime = null;
+    let type = null;
+    if (id && !filePath) {
+      const r0 = await pool.query("SELECT * FROM truck_documents WHERE id=$1", [Number(id)]);
+      const row = r0.rows[0];
+      if (!row) return res.status(404).json({ error: "Documento não encontrado" });
+      filePath = path.join(uploadsRoot, "trucks", String(row.truck_id), row.filename);
+      mime = row.mime || null;
+      type = row.type || null;
+    }
+    if (!filePath) return res.status(400).json({ error: "Informe id do documento ou filePath" });
+    const out = await extractDocument({ filePath, mime, type });
+    res.json(out);
+  } catch (e) {
+    console.error("AI extract error", e);
+    res.status(500).json({ error: "Falha na extração inteligente" });
   }
 });
 

@@ -294,7 +294,7 @@ const computeHours = (date, s, e, endDate) => {
   return Math.round((min / 60) * 100) / 100;
 };
 const computeStatus = (end_time, km_end) => (!end_time || end_time === "" || km_end == null || km_end === "" ? "Em Andamento" : "Finalizado");
-const computeExpiryStatus = (iso) => {
+export const computeExpiryStatus = (iso) => {
   try {
     if (!iso) return { status: "unknown", days: null };
     const [y, m, d] = String(iso).split("-").map(Number);
@@ -762,6 +762,7 @@ export async function saveCaminhao(data) {
         chassis: data.chassis || null,
         km_current: data.km_current != null ? Number(data.km_current) : null,
         fleet: data.fleet || null,
+        category: data.category || null,
         status: data.status || "Ativo"
       })
     });
@@ -775,6 +776,7 @@ export async function saveCaminhao(data) {
     chassis: data.chassis || null,
     km_current: data.km_current != null ? Number(data.km_current) : null,
     fleet: data.fleet || null,
+    category: data.category || null,
     status: data.status || "Ativo"
   };
   if (sb && isOnline()) {
@@ -782,7 +784,7 @@ export async function saveCaminhao(data) {
     const db = getDB();
     if (db && Array.isArray(db.caminhoes)) {
         const idx = db.caminhoes.findIndex((d) => d.id == row.id);
-        const localRow = { ...row, chassis: payload.chassis || row.chassis, plate: payload.plate || row.plate, fleet: payload.fleet || row.fleet };
+        const localRow = { ...row, chassis: payload.chassis || row.chassis, plate: payload.plate || row.plate, fleet: payload.fleet || row.fleet, category: payload.category || row.category };
         if (idx >= 0) db.caminhoes[idx] = localRow;
         else db.caminhoes.push(localRow);
         setDB(db);
@@ -810,6 +812,7 @@ export async function updateCaminhao(id, data) {
         chassis: data.chassis || null,
         km_current: data.km_current != null ? Number(data.km_current) : null,
         fleet: data.fleet || null,
+        category: data.category || null,
         status: data.status || "Ativo"
       })
     });
@@ -823,6 +826,7 @@ export async function updateCaminhao(id, data) {
     chassis: data.chassis || null,
     km_current: data.km_current != null ? Number(data.km_current) : null,
     fleet: data.fleet || null,
+    category: data.category || null,
     status: data.status || "Ativo"
   };
   if (sb && isOnline()) {
@@ -830,7 +834,7 @@ export async function updateCaminhao(id, data) {
     const db = getDB();
     if (db && Array.isArray(db.caminhoes)) {
         const i = db.caminhoes.findIndex((d) => d.id == id);
-        const localRow = { ...row, chassis: payload.chassis || row.chassis, plate: payload.plate || row.plate, fleet: payload.fleet || row.fleet };
+        const localRow = { ...row, chassis: payload.chassis || row.chassis, plate: payload.plate || row.plate, fleet: payload.fleet || row.fleet, category: payload.category || row.category };
         if (i >= 0) db.caminhoes[i] = localRow;
         else db.caminhoes.push(localRow);
         setDB(db);

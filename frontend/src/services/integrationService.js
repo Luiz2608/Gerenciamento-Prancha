@@ -157,3 +157,101 @@ export const getTollCost = async (origin, destination, axles = 6) => {
     source: "ESTIMATED_MOCK"
   };
 };
+
+// -------- AI Document Extraction (Frontend helper) --------
+const normalize = (s) => {
+  try { return String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); } catch { return String(s).toLowerCase(); }
+};
+const parsePlateLocal = (text) => {
+  const S = String(text).toUpperCase();
+  const m1 = S.match(/\b([A-Z]{3}[0-9]{4})\b/);
+  if (m1) return m1[1];
+  const m2 = S.match(/\b([A-Z]{3}[0-9][A-Z][0-9]{2})\b/);
+  if (m2) return m2[1];
+  return null;
+};
+const parseChassisLocal = (text) => {
+  const S = String(text).toUpperCase();
+  const m = S.match(/\b([A-HJ-NPR-Z0-9]{17})\b/);
+  return m ? m[1] : null;
+};
+const parseYearLocal = (text) => {
+  const s = normalize(text);
+  const m = s.match(/\b(20\d{2})\b/);
+  return m ? Number(m[1]) : null;
+};
+const parseIssueDateLocal = (text) => {
+  const s = normalize(text);
+  const m = s.match(/emitido\s*em\s*[:\.]?\s*((?:0?[1-9]|[12]\d|3[01])\s*[\/-]\s*(0[1-9]|1[0-2])\s*[\/-]\s*(20\d{2}))/);
+  if (m && m[1]) {
+    const d = String(m[1]).match(/(0?[1-9]|[12]\d|3[01])\s*[\/-]\s*(0[1-9]|1[0-2])\s*[\/-]\s*(20\d{2})/);
+    if (d) { const dd = String(d[1]).padStart(2, '0'); return `${d[3]}-${d[2]}-${dd}`; }
+  }
+  return null;
+};
+const parseValidityDateLocal = (text) => {
+  const s = normalize(text);
+  const tries = [
+    /com\s*validade\s*ate\s*((?:0?[1-9]|[12]\d|3[01])\s*[\/-]\s*(?:0[1-9]|1[0-2])\s*[\/-]\s*20\d{2})/,
+    /validade\s*ate\s*((?:0?[1-9]|[12]\d|3[01])\s*[\/-]\s*(?:0[1-9]|1[0-2])\s*[\/-]\s*20\d{2})/,
+    /vencimento\s*(?:em|ate)?\s*((?:0?[1-9]|[12]\d|3[01])\s*[\/-]\s*(?:0[1-9]|1[0-2])\s*[\/-]\s*20\d{2})/,
+    /valido\s*ate\s*((?:0?[1-9]|[12]\d|3[01])\s*[\/-]\s*(?:0[1-9]|1[0-2])\s*[\/-]\s*20\d{2})/,
+    /ate\s*((?:0?[1-9]|[12]\d|3[01])\s*[\/-]\s*(?:0[1-9]|1[0-2])\s*[\/-]\s*20\d{2})/
+  ];
+  for (const rg of tries) {
+    const m = s.match(rg);
+    const d = String(m?.[1] || "").match(/(0?[1-9]|[12]\d|3[01])\s*[\/-]\s*(0[1-9]|1[0-2])\s*[\/-]\s*(20\d{2})/);
+    if (d) { const dd = String(d[1]).padStart(2,'0'); return `${d[3]}-${d[2]}-${dd}`; }
+  }
+  return null;
+};
+
+async function readPdfText(file) {
+  try {
+    const pdfjsLib = await import("pdfjs-dist/build/pdf.mjs");
+    const reader = await new Promise((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(new Uint8Array(fr.result));
+      fr.onerror = reject;
+      fr.readAsArrayBuffer(file);
+    });
+    const doc = await pdfjsLib.getDocument({ data: reader }).promise;
+    let text = "";
+    const n = doc.numPages;
+    for (let i = 1; i <= n; i++) {
+      const page = await doc.getPage(i);
+      const content = await page.getTextContent();
+      text += content.items.map(it => it.str).join(" ") + "\n";
+    }
+    return text;
+  } catch {
+    return "";
+  }
+}
+
+export const extractDocumentAI = async (fileOrDoc) => {
+  const API_URL = import.meta.env?.VITE_API_URL ? String(import.meta.env.VITE_API_URL) : null;
+  // If server item returned (with id), prefer backend AI (better quality)
+  if (API_URL && fileOrDoc?.id) {
+    try {
+      const r = await fetch(`${API_URL}/api/ai/extract-document`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: fileOrDoc.id }) });
+      const j = await r.json();
+      if (j && !j.error) return j;
+    } catch {}
+  }
+  // Fallback: client-side extraction using pdf.js
+  if (fileOrDoc?.file) {
+    const text = await readPdfText(fileOrDoc.file);
+    return {
+      plate: parsePlateLocal(text),
+      chassis: parseChassisLocal(text),
+      year: parseYearLocal(text),
+      doc_type: "documento",
+      issue_date: parseIssueDateLocal(text),
+      expiry_date: parseValidityDateLocal(text),
+      confidence: 0.4,
+      notes: "Extração local (pdf.js) sem IA"
+    };
+  }
+  return { plate: null, chassis: null, year: null, doc_type: "documento", issue_date: null, expiry_date: null, confidence: 0.1, notes: "Sem dados para extração" };
+};
