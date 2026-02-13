@@ -1496,6 +1496,41 @@ export async function uploadTruckDocument(truckId, file, type = "documento", exp
       if (yr) inferredExpiry = endOfExerciseValidity(yr);
     }
   }
+
+  // If still not inferred and it's a PDF, try to parse text content offline
+  try {
+    if (!inferredExpiry && String(file.type || '').toLowerCase() === 'application/pdf') {
+      const ab = await file.arrayBuffer();
+      const pdfjs = await import('pdfjs-dist/build/pdf');
+      try { pdfjs.GlobalWorkerOptions.workerSrc = undefined; } catch {}
+      const loadingTask = pdfjs.getDocument({ data: ab, disableWorker: true });
+      const pdf = await loadingTask.promise;
+      let text = '';
+      for (let p = 1; p <= Math.min(pdf.numPages, 5); p++) {
+        const page = await pdf.getPage(p);
+        const tc = await page.getTextContent();
+        const chunk = (tc.items || []).map((it) => String(it.str || '')).join(' ');
+        text += ' ' + chunk;
+        // Try extracting as we go for performance
+        if (!inferredExpiry) {
+          const d2 = parseDateFromText(chunk);
+          if (d2) inferredExpiry = d2;
+          if (!inferredExpiry && String(type) === 'documento') {
+            const yr2 = parseExerciseYear(chunk);
+            if (yr2) inferredExpiry = endOfExerciseValidity(yr2);
+          }
+        }
+      }
+      if (!inferredExpiry) {
+        const d3 = parseDateFromText(text);
+        if (d3) inferredExpiry = d3;
+        if (!inferredExpiry && String(type) === 'documento') {
+          const yr3 = parseExerciseYear(text);
+          if (yr3) inferredExpiry = endOfExerciseValidity(yr3);
+        }
+      }
+    }
+  } catch {}
   const id = uuid();
   const item = {
     id,
