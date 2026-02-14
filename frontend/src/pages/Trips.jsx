@@ -401,6 +401,7 @@ export default function Trips() {
               <div class="row"><span class="label">Frota:</span> <span class="value">${truck?.fleet || "-"}</span></div>
               <div class="row"><span class="label">Placa:</span> <span class="value">${truck?.plate || viewing.truck_id}</span></div>
               <div class="row"><span class="label">Modelo:</span> <span class="value">${truck?.model || "-"}</span></div>
+              <div class="row"><span class="label">Categoria:</span> <span class="value">${truck?.category || "-"}</span></div>
               <div class="row"><span class="label">Marca:</span> <span class="value">${truck?.brand || "-"}</span></div>
             </div>
           </div>
