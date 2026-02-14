@@ -134,7 +134,7 @@ export default function FleetTrucks() {
     setEditing(it); 
     setForm({ 
       plate: it.plate || "", model: it.model || "", year: it.year?.toString() || "", chassis: it.chassis || "", 
-      km_current: it.km_current?.toString() || "", fleet: it.fleet || "", category: it.category || "Canavieiro", status: it.status,
+      km_current: it.km_current?.toString() || "", fleet: it.fleet || "", category: (["Canavieiro","Pipa","Vinhaça","Caçamba"].includes(it.category) ? it.category : "Canavieiro"), status: it.status,
       vehicle_value: it.vehicle_value || "", residual_value: it.residual_value || "", useful_life_km: it.useful_life_km || "1000000",
       avg_consumption: it.avg_consumption || "2.5", annual_maintenance: it.annual_maintenance || "", 
       annual_insurance: it.annual_insurance || "", annual_taxes: it.annual_taxes || "", annual_km: it.annual_km || "120000"
@@ -247,7 +247,7 @@ export default function FleetTrucks() {
 
             <div className="flex gap-2 md:col-span-6">
               <button className="btn btn-primary flex-1">{editing ? "Salvar" : "Adicionar"}</button>
-              <button type="button" className="btn bg-gray-500 hover:bg-gray-600 text-white" onClick={() => { setShowForm(false); setEditing(null); localStorage.removeItem("trucks_form_draft"); setForm({ plate: "", model: "", year: "", asset_number: "", capacity: "", km_current: "", fleet: "", category: "Cavalo Mecânico", status: "Ativo", vehicle_value: "", residual_value: "", useful_life_km: "1000000", avg_consumption: "2.5", annual_maintenance: "", annual_insurance: "", annual_taxes: "", annual_km: "120000" }); }}>Cancelar</button>
+              <button type="button" className="btn bg-gray-500 hover:bg-gray-600 text-white" onClick={() => { setShowForm(false); setEditing(null); localStorage.removeItem("trucks_form_draft"); setForm({ plate: "", model: "", year: "", asset_number: "", capacity: "", km_current: "", fleet: "", category: "Canavieiro", status: "Ativo", vehicle_value: "", residual_value: "", useful_life_km: "1000000", avg_consumption: "2.5", annual_maintenance: "", annual_insurance: "", annual_taxes: "", annual_km: "120000" }); }}>Cancelar</button>
             </div>
           </form>
         </div>
