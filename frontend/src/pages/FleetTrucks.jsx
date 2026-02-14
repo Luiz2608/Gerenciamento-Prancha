@@ -11,7 +11,7 @@ export default function FleetTrucks() {
   const [form, setForm] = useState(() => {
     const saved = localStorage.getItem("trucks_form_draft");
     return saved ? JSON.parse(saved) : { 
-      plate: "", model: "", year: "", chassis: "", km_current: "", fleet: "", category: "Cavalo Mecânico", status: "Ativo",
+      plate: "", model: "", year: "", chassis: "", km_current: "", fleet: "", category: "Canavieiro", status: "Ativo",
       vehicle_value: "", residual_value: "", useful_life_km: "1000000", avg_consumption: "2.5",
       annual_maintenance: "", annual_insurance: "", annual_taxes: "", annual_km: "120000"
     };
@@ -114,7 +114,7 @@ export default function FleetTrucks() {
     else await saveCaminhao(payload);
     localStorage.removeItem("trucks_form_draft");
     toast?.show(editing ? "Caminhão atualizado" : "Caminhão cadastrado", "success");
-    setForm({ plate: "", model: "", year: "", asset_number: "", capacity: "", km_current: "", fleet: "", category: "Cavalo Mecânico", status: "Ativo", vehicle_value: "", residual_value: "", useful_life_km: "1000000", avg_consumption: "2.5", annual_maintenance: "", annual_insurance: "", annual_taxes: "", annual_km: "120000" });
+    setForm({ plate: "", model: "", year: "", asset_number: "", capacity: "", km_current: "", fleet: "", category: "Canavieiro", status: "Ativo", vehicle_value: "", residual_value: "", useful_life_km: "1000000", avg_consumption: "2.5", annual_maintenance: "", annual_insurance: "", annual_taxes: "", annual_km: "120000" });
     setEditing(null);
     setShowForm(false);
     load();
@@ -134,7 +134,7 @@ export default function FleetTrucks() {
     setEditing(it); 
     setForm({ 
       plate: it.plate || "", model: it.model || "", year: it.year?.toString() || "", chassis: it.chassis || "", 
-      km_current: it.km_current?.toString() || "", fleet: it.fleet || "", category: it.category || "Cavalo Mecânico", status: it.status,
+      km_current: it.km_current?.toString() || "", fleet: it.fleet || "", category: it.category || "Canavieiro", status: it.status,
       vehicle_value: it.vehicle_value || "", residual_value: it.residual_value || "", useful_life_km: it.useful_life_km || "1000000",
       avg_consumption: it.avg_consumption || "2.5", annual_maintenance: it.annual_maintenance || "", 
       annual_insurance: it.annual_insurance || "", annual_taxes: it.annual_taxes || "", annual_km: it.annual_km || "120000"
@@ -197,14 +197,10 @@ export default function FleetTrucks() {
             <input className="input" placeholder="KM atual" value={form.km_current} onChange={(e) => setForm({ ...form, km_current: e.target.value })} />
             <input className="input" placeholder="Frota" value={form.fleet} maxLength={7} onChange={(e) => setForm({ ...form, fleet: e.target.value.replace(/\D/g, "").slice(0,7) })} />
             <select className="select" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
-              <option>Cavalo Mecânico</option>
-              <option>Carreta</option>
-              <option>Prancha</option>
-              <option>Toco</option>
-              <option>Truck</option>
-              <option>VUC</option>
-              <option>Utilitário</option>
-              <option>Outro</option>
+              <option>Canavieiro</option>
+              <option>Pipa</option>
+              <option>Vinhaça</option>
+              <option>Caçamba</option>
             </select>
             <select className="select" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
               <option>Ativo</option>
