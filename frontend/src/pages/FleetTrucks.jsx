@@ -24,6 +24,9 @@ export default function FleetTrucks() {
   const [reviewExtracted, setReviewExtracted] = useState(null);
   const [reviewServerDoc, setReviewServerDoc] = useState(null);
   const [reviewTruck, setReviewTruck] = useState(null);
+  const [showCategoryDialog, setShowCategoryDialog] = useState(false);
+  const [categoryOtherValue, setCategoryOtherValue] = useState("");
+  const previousCategoryRef = useRef(null);
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -196,11 +199,26 @@ export default function FleetTrucks() {
             <input className={`input ${form.chassis && form.chassis.length > 17 && 'ring-red-500 border-red-500'}`} placeholder="Chassi" value={form.chassis} onChange={(e) => setForm({ ...form, chassis: maskChassis(e.target.value) })} />
             <input className="input" placeholder="KM atual" value={form.km_current} onChange={(e) => setForm({ ...form, km_current: e.target.value })} />
             <input className="input" placeholder="Frota" value={form.fleet} maxLength={7} onChange={(e) => setForm({ ...form, fleet: e.target.value.replace(/\D/g, "").slice(0,7) })} />
-            <select className="select" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
+            <select
+              className="select"
+              value={form.category}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === "Outros") {
+                  previousCategoryRef.current = form.category || "Canavieiro";
+                  setForm({ ...form, category: "Outros" });
+                  setCategoryOtherValue("");
+                  setShowCategoryDialog(true);
+                } else {
+                  setForm({ ...form, category: val });
+                }
+              }}
+            >
               <option>Canavieiro</option>
               <option>Pipa</option>
               <option>Vinhaça</option>
               <option>Caçamba</option>
+              <option>Outros</option>
             </select>
             <select className="select" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
               <option>Ativo</option>
@@ -378,6 +396,45 @@ export default function FleetTrucks() {
           serverDoc={reviewServerDoc}
           onApplied={() => { setReviewOpen(false); }}
         />
+      )}
+      {showCategoryDialog && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-40" onClick={() => {}}>
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="font-semibold text-lg mb-2">Informe a Categoria</div>
+            <div className="text-sm text-slate-600 dark:text-slate-300 mb-4">
+              Digite a categoria desejada para este caminhão.
+            </div>
+            <input
+              className="input w-full"
+              placeholder="Ex.: Prancha Especial"
+              value={categoryOtherValue}
+              onChange={(e) => setCategoryOtherValue(e.target.value)}
+            />
+            <div className="mt-4 flex gap-2">
+              <button
+                className="btn btn-primary flex-1"
+                onClick={() => {
+                  const v = String(categoryOtherValue || "").trim();
+                  if (!v) { toast?.show("Informe a categoria para continuar", "error"); return; }
+                  setForm((prev) => ({ ...prev, category: v }));
+                  setShowCategoryDialog(false);
+                }}
+              >
+                Confirmar
+              </button>
+              <button
+                className="btn bg-gray-500 hover:bg-gray-600 text-white"
+                onClick={() => {
+                  const back = previousCategoryRef.current || "Canavieiro";
+                  setForm((prev) => ({ ...prev, category: back }));
+                  setShowCategoryDialog(false);
+                }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
