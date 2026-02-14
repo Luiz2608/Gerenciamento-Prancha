@@ -727,7 +727,13 @@ export async function getCaminhoes(opts = {}) {
         const mergedRows = remoteRows.map(r => {
           const local = db.caminhoes.find(p => p.id == r.id);
           if (local) {
-            return { ...r, chassis: local.chassis || r.chassis, plate: local.plate || r.plate, fleet: local.fleet || r.fleet };
+            return { 
+              ...r, 
+              chassis: local.chassis || r.chassis, 
+              plate: local.plate || r.plate, 
+              fleet: local.fleet || r.fleet,
+              category: local.category || r.category
+            };
           }
           return r;
         });
