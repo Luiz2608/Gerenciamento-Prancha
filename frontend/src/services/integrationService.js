@@ -230,7 +230,9 @@ async function readPdfText(file) {
 }
 
 export const extractDocumentAI = async (fileOrDoc) => {
-  const API_URL = import.meta.env?.VITE_API_URL ? String(import.meta.env.VITE_API_URL) : null;
+  const API_URL = import.meta.env?.VITE_AI_API_URL
+    ? String(import.meta.env.VITE_AI_API_URL)
+    : (import.meta.env?.VITE_API_URL ? String(import.meta.env.VITE_API_URL) : null);
   
   // 1. If backend is available, try to use it (Better AI quality)
   if (API_URL) {
